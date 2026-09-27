@@ -5,7 +5,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import { PlatformState } from '../platform/platform';
 import { RoleId } from '../../interfaces/models';
-import { ApiUser, BackendRole, LoginResponse } from '../../interfaces/api';
+import { ApiUser, ApiUserStructure, BackendRole, LoginResponse, OtpChannel, OtpRequestResponse } from '../../interfaces/api';
 
 const TOKEN_KEY = 'nova-token';
 const USER_KEY = 'nova-user';
@@ -31,6 +31,10 @@ export class AuthService {
   readonly user = signal<ApiUser | null>(this.restoreUser());
   readonly token = signal<string | null>(this.restoreToken());
   readonly isAuthenticated = computed(() => this.token() !== null);
+  /** Structure de l'utilisateur (type, secteur, offre) — lue en base via /login et /me. */
+  readonly structure = computed<ApiUserStructure | null>(() => this.user()?.structure ?? null);
+  /** Offre Pro souscrite (module Vente & Comptabilité). */
+  readonly isPro = computed(() => this.structure()?.plan === 'pro');
 
   constructor() {
     // Réaligne le rôle d'espace à partir de la session persistée (sans réseau).
@@ -41,6 +45,17 @@ export class AuthService {
   /** POST /login → stocke le token + l'utilisateur et fixe le rôle d'espace. */
   login(email: string, password: string): Observable<LoginResponse> {
     return this.http.post<LoginResponse>(`${this.base}/login`, { email, password })
+      .pipe(tap(res => this.apply(res.user, res.token)));
+  }
+
+  /** POST /login/otp/request → envoie un code à usage unique (email, SMS ou WhatsApp). */
+  requestOtp(identifier: string, channel: OtpChannel): Observable<OtpRequestResponse> {
+    return this.http.post<OtpRequestResponse>(`${this.base}/login/otp/request`, { identifier, channel });
+  }
+
+  /** POST /login/otp/verify → ouvre la session comme /login. */
+  verifyOtp(identifier: string, code: string): Observable<LoginResponse> {
+    return this.http.post<LoginResponse>(`${this.base}/login/otp/verify`, { identifier, code })
       .pipe(tap(res => this.apply(res.user, res.token)));
   }
 

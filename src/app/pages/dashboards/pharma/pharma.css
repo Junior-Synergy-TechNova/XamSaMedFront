@@ -1,4 +1,17 @@
 @reference "../../../../styles.css";
-/* ===================== PHARMACIE — tableau de bord, stock, alertes ===================== */
+/* ===================== PHARMACIE — tableau de bord, stock, ventes ===================== */
 :host { @apply contents; }
-/* La page n'utilise que les primitives communes (src/styles.css). */
+/* Formulaire de vente : une ligne d'article (médicament, quantité, prix, ajouter) */
+.pf-sale-line { @apply grid grid-cols-[minmax(0,1fr)_76px_130px_auto] gap-2.5 items-end mb-3; }
+.pf-sale-line .s-field { @apply m-0; }
+.pf-sale-meta { @apply grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_84px] gap-2.5 mt-4; }
+.pf-sale-meta .s-field { @apply m-0; }
+@media (max-width: 640px) {
+  .pf-sale-line, .pf-sale-meta { @apply grid-cols-1; }
+}
+.pf-sale-totals { @apply flex flex-wrap justify-end gap-x-5 gap-y-1 mt-3 text-[13.5px] text-gray-text; }
+.pf-sale-totals strong { @apply text-blue ml-1; }
+.pf-sale-ttc { @apply text-[15px]; }
+.pf-sale-ttc strong { @apply text-green-text text-[17px]; }
+.pf-sale-export { @apply flex gap-2 items-center; }
+.pf-sale-export input { @apply h-[32px] px-2 border border-gray-line rounded-lg text-[13px]; }

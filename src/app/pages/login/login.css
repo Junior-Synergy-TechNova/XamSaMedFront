@@ -1,43 +1,48 @@
 @reference "../../../styles.css";
-/* ===================== LOGIN ===================== */
+/* ===================== CONNEXION ===================== */
 :host { @apply contents; }
-.pf-login { @apply min-h-screen grid grid-cols-[1fr_1.05fr]; }
-.pf-loginleft { @apply bg-linear-[165deg,var(--color-blue)_0%,var(--color-blue-700)_100%] text-white px-[52px] py-[46px] flex flex-col relative overflow-hidden; }
-.pf-loginleft:before { @apply content-[''] absolute w-[520px] h-[520px] rounded-full -top-[120px] -right-[160px] bg-radial from-green/40 to-transparent to-65%; }
-.pf-back { @apply inline-flex items-center gap-2 text-white/80 font-title font-semibold text-[14px] mb-[38px] relative z-[2] w-fit; }
+.pf-login { @apply min-h-screen grid grid-cols-[1fr_1.1fr]; }
+
+/* Panneau d'identité : aplat bleu nuit, sans halo décoratif */
+.pf-loginleft { @apply bg-blue text-white px-16 py-14 flex flex-col relative; }
+.pf-back { @apply inline-flex items-center gap-2 text-white/80 font-medium text-[15px] mb-12 w-fit; }
 .pf-back:hover { @apply text-white; }
-.pf-loginhero { @apply my-auto relative z-[2]; }
-.pf-loginhero h1 { @apply text-white text-[clamp(28px,3.4vw,44px)] font-extrabold tracking-[-.02em]; }
-.pf-loginhero p { @apply text-white/75 text-[17px] mt-[18px] mb-[30px] max-w-[420px]; }
-.pf-loginpts { @apply flex flex-col gap-3.5; }
-.pf-loginpts > div { @apply flex items-center gap-3 font-title font-semibold text-[15px]; }
-.pf-loginpts span { @apply w-[38px] h-[38px] rounded-[10px] bg-green/22 text-green-light grid place-items-center flex-none; }
-.pf-loginfoot { @apply relative z-[2] text-white/50 text-[12.5px]; }
-.pf-loginright { @apply flex items-center justify-center p-10 bg-gray-bg overflow-y-auto; }
-.pf-loginbox { @apply w-full max-w-[480px]; }
-.pf-loginbox .chip { @apply mb-3.5; }
-.pf-loginbox h2 { @apply text-[27px] font-extrabold mb-2; }
-.pf-loginintro { @apply mb-6; }
-.pf-roles { @apply flex flex-col gap-2.5 mb-[22px]; }
-.pf-role { @apply flex items-center gap-3.5 text-left bg-white border-[1.5px] border-gray-line rounded-md px-4 py-3.5 transition duration-[160ms]; }
-.pf-role:hover { @apply border-green; }
+.pf-loginhero { @apply my-auto max-w-[480px]; }
+.pf-loginhero h1 { @apply text-white text-[clamp(30px,3.4vw,46px)] font-semibold tracking-[-.015em] leading-[1.15]; }
+.pf-loginhero p { @apply text-white/75 text-[18px] leading-relaxed mt-7 mb-12; }
+.pf-loginpts { @apply flex flex-col gap-6; }
+.pf-loginpts > div { @apply flex items-center gap-4 font-medium text-[16px]; }
+.pf-loginpts span { @apply w-10 h-10 rounded-[10px] bg-white/10 text-green-light grid place-items-center flex-none; }
+.pf-loginfoot { @apply text-white/50 text-[13.5px] mt-12; }
+
+/* Formulaire */
+.pf-loginright { @apply flex items-center justify-center px-14 py-16 bg-gray-bg overflow-y-auto; }
+.pf-loginbox { @apply w-full max-w-[520px]; }
+.pf-loginbox .chip { @apply mb-6; }
+.pf-loginbox h2 { @apply text-[32px] font-semibold mb-3; }
+.pf-loginintro { @apply mb-10 text-[16px] leading-relaxed; }
+.pf-roles { @apply flex flex-col gap-3.5 mb-10; }
+.pf-role { @apply flex items-center gap-4 text-left bg-white border border-gray-line rounded-[12px] px-5 py-5 transition-colors duration-150; }
+.pf-role:hover { @apply border-gray; }
 .pf-role.on { @apply border-green shadow-focus; }
 .pf-role.on .pf-roleic { @apply bg-green text-white; }
 .pf-roletxt { @apply flex-1; }
-.pf-roletxt strong { @apply block font-title font-bold text-blue text-[15px]; }
-.pf-roletxt span { @apply text-[12.5px] text-gray-text; }
+.pf-roletxt strong { @apply block font-semibold text-black text-[16px] mb-1; }
+.pf-roletxt span { @apply text-[14px] text-gray-text leading-snug; }
 .pf-roleradio { @apply w-[22px] h-[22px] rounded-full border-2 border-gray-line grid place-items-center flex-none text-white; }
 .pf-role.on .pf-roleradio { @apply bg-green border-green; }
-.pf-loginform { @apply border-t border-gray-line pt-5; }
-.pf-loginform .s-field { @apply mb-3; }
-.pf-loginform input { @apply font-body text-[14.5px] text-black border-[1.5px] border-gray-line rounded-[10px] px-3.5 py-3 bg-white w-full; }
-.pf-loginerror { @apply flex items-center gap-2 mb-3.5 px-3.5 py-[11px] rounded-[10px] text-[14px] font-semibold text-[#b42318] bg-[#fef3f2] border border-[#fda29b]; }
-.pf-loginerror.ok { @apply bg-[#e9f7ef] text-green border-green; }
-.pf-loginlink { @apply mt-2; }
-.pf-loginhint { @apply mt-3.5 text-[12.5px] text-gray-text; }
-.pf-resetintro { @apply mb-3.5; }
+.pf-loginform { @apply border-t border-gray-line pt-9; }
+.pf-loginform .s-field { @apply mb-5; }
+.pf-loginform .pf-fieldrow { @apply gap-5 mb-6; }
+.pf-loginerror { @apply flex items-center gap-2.5 mb-6 px-4 py-3.5 rounded-[10px] text-[15px] font-medium text-red-text bg-red-soft border border-red-soft; }
+.pf-loginerror.ok { @apply bg-green-soft text-green-text border-green-soft; }
+.pf-loginlink { @apply mt-4; }
+.pf-loginlinks { @apply flex flex-wrap justify-between gap-2 mt-2; }
+.pf-loginhint { @apply mt-8 text-[14px] text-gray-text leading-relaxed; }
+.pf-resetintro { @apply mb-6 text-[15.5px] leading-relaxed; }
 
 @media (max-width: 760px) {
   .pf-login { @apply grid-cols-1; }
   .pf-loginleft { @apply hidden; }
+  .pf-loginright { @apply px-6 py-12; }
 }

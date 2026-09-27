@@ -3,14 +3,15 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, catchError, map, of } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
-  ApiCriticalMedicine, ApiHospitalAlert, ApiHospitalDashboard, ApiInstitutionalOrder, ApiPartner, ApiPartnerCandidate, ApiRestockRequest,
+  ApiCriticalMedicine, ApiDispensation, ApiDispensationByService, ApiHospitalAlert, ApiHospitalDashboard, ApiHospitalStockRow,
+  ApiInstitutionalOrder, ApiRestockRequest, HospitalSeverity,
 } from '../../interfaces/api';
 import { SendResult } from '../pharmacy/pharmacy';
 import { AlerteHop, CritMedRow, StockState } from '../../interfaces/models';
 import { formatWhen } from '../orders/orders';
 import { asZoneLevel } from '../distributor/distributor';
 
-/** Espace hôpital : alertes internes + médicaments critiques. */
+/** Espace hôpital : alertes internes (tension / rupture), stock & sorties par service, médicaments critiques. */
 @Injectable({ providedIn: 'root' })
 export class HospitalService {
   private readonly http = inject(HttpClient);
@@ -29,9 +30,32 @@ export class HospitalService {
     return this.http.post(`${this.base}/hospital/alerts/${id}/resolve`, {});
   }
 
-  /** POST /hospital/alerts */
-  createAlert(medicine: string, service: string, level: string, remaining: number): Observable<unknown> {
-    return this.http.post(`${this.base}/hospital/alerts`, { medicine_id: Number(medicine), service, level, remaining_quantity: remaining });
+  /**
+   * POST /hospital/alerts — signalement à 2 niveaux : « rupture » (stock à zéro)
+   * ou « tension » (critique non nul). Tous les partenaires connectés sont notifiés.
+   */
+  createAlert(payload: { medicine_id: number; service: string; unit?: string; severity: HospitalSeverity; remaining_quantity: number }): Observable<{ notified_partners: number }> {
+    return this.http.post<{ notified_partners: number }>(`${this.base}/hospital/alerts`, payload);
+  }
+
+  /** GET /hospital/stock — stock de la pharmacie interne. */
+  stock(): Observable<ApiHospitalStockRow[]> {
+    return this.http.get<{ data: ApiHospitalStockRow[] }>(`${this.base}/hospital/stock`).pipe(
+      map(r => r.data ?? []),
+      catchError(() => of([])),
+    );
+  }
+
+  /** POST /hospital/stock/{stock}/dispense — sortie vers un service / une unité (circuit fermé). */
+  dispense(stockId: number, payload: { quantity: number; service: string; unit?: string; patient_ref?: string }): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.base}/hospital/stock/${stockId}/dispense`, payload);
+  }
+
+  /** GET /hospital/dispensations — journal des sorties + agrégat par service. */
+  dispensations(days = 30): Observable<{ data: ApiDispensation[]; by_service: ApiDispensationByService[] }> {
+    return this.http.get<{ data: ApiDispensation[]; by_service: ApiDispensationByService[] }>(`${this.base}/hospital/dispensations`, { params: { days } }).pipe(
+      catchError(() => of({ data: [], by_service: [] })),
+    );
   }
 
   /**
@@ -76,34 +100,6 @@ export class HospitalService {
     );
   }
 
-  /** GET /hospital/partners — partenaires connectés. */
-  partners(): Observable<ApiPartner[]> {
-    return this.http.get<{ data: ApiPartner[] }>(`${this.base}/hospital/partners`).pipe(
-      map(r => r.data ?? []),
-      catchError(() => of([])),
-    );
-  }
-
-  /** POST /hospital/partners — ajouter un partenaire. */
-  addPartner(structureId: number, type: string): Observable<unknown> {
-    return this.http.post(`${this.base}/hospital/partners`, { partner_id: structureId, partner_type: type, identifier: String(structureId) });
-  }
-
-  /** PATCH /hospital/partners/{id} — accepter une invitation reçue. */
-  acceptPartner(id: number): Observable<unknown> {
-    return this.http.patch(`${this.base}/hospital/partners/${id}`, { status: 'active' });
-  }
-
-  /** PATCH /hospital/partners/{id} — rejeter une invitation reçue. */
-  rejectPartner(id: number): Observable<unknown> {
-    return this.http.patch(`${this.base}/hospital/partners/${id}`, { status: 'rejected' });
-  }
-
-  /** DELETE /hospital/partners/{id} — retirer un partenariat. */
-  removePartner(id: number): Observable<unknown> {
-    return this.http.delete(`${this.base}/hospital/partners/${id}`);
-  }
-
   /** GET /hospital/pra-orders — commandes institutionnelles passées à la PRA. */
   praOrders(): Observable<ApiInstitutionalOrder[]> {
     return this.http.get<{ data: ApiInstitutionalOrder[] }>(`${this.base}/hospital/pra-orders`).pipe(
@@ -116,25 +112,19 @@ export class HospitalService {
   createPraOrder(payload: { medicine_id: number; quantity: number; urgency: string; service?: string; notes?: string }): Observable<unknown> {
     return this.http.post(`${this.base}/hospital/pra-orders`, payload);
   }
-
-  /** GET /hospital/search-partners?q= — rechercher un partenaire. */
-  searchPartners(q: string, type?: string): Observable<ApiPartnerCandidate[]> {
-    const params: Record<string, string> = { q };
-    if (type) params['type'] = type;
-    return this.http.get<{ data: ApiPartnerCandidate[] }>(`${this.base}/hospital/search-partners`, { params }).pipe(
-      map(r => r.data ?? []),
-      catchError(() => of([])),
-    );
-  }
 }
 
 function toAlerteHop(a: ApiHospitalAlert): AlerteHop {
+  const severity: HospitalSeverity = a.severity ?? (a.remaining_quantity === 0 ? 'rupture' : 'tension');
   return {
     id: String(a.id),
     medId: a.medicine_id ?? null,
     med: a.medicine ?? '—',
     service: a.service ?? '—',
-    niveau: asZoneLevel(a.level),
+    unit: a.unit ?? null,
+    niveau: severity === 'rupture' ? 'crit' : asZoneLevel(a.level),
+    severity,
+    controlled: a.is_controlled ?? false,
     reste: a.remaining ?? '—',
     quand: formatWhen(a.created_at),
     requestedTo: a.restock_requested_to ?? [],

@@ -48,7 +48,7 @@
           }
 
           @if (active(); as a) {
-            <app-patient-results [med]="a" (back)="active.set(null)" (reserve)="reserve(a, $event)" (groupedSearch)="launchGroupedSearch(a)"/>
+            <app-patient-results [med]="a" (back)="active.set(null)" (reserve)="reserve(a, $event)" (groupedSearch)="launchGroupedSearch(a)" (pick)="active.set($event)"/>
           }
         </div>
       }
@@ -151,7 +151,11 @@
               @if (st.equivalents?.length) {
                 <span class="pf-caption">Équivalents suggérés</span>
                 @for (e of st.equivalents; track e.id) {
-                  <div class="pf-li"><span class="pf-liic amber"><nv-icon name="pill" [size]="16"/></span><div class="pf-libody"><strong>{{ e.name }}</strong><span>{{ e.dosage }} · {{ e.form }}</span></div></div>
+                  <div class="pf-li">
+                    <span class="pf-liic amber"><nv-icon name="pill" [size]="16"/></span>
+                    <div class="pf-libody"><strong>{{ e.name }} {{ e.dosage }}</strong><span>{{ e.note || e.form }} · {{ e.available_pharmacies ?? 0 }} pharmacie(s) disponible(s)</span></div>
+                    @if (e.score) { <span class="chip chip-blue">{{ e.score }}/100</span> }
+                  </div>
                 }
               }
               @if (st.preventive_alert) { <p class="muted pf-warn">⚠ {{ st.preventive_alert }}</p> }

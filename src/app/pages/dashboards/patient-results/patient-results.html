@@ -29,6 +29,24 @@
           </div>
         }
 
+        @if (equivalents().length > 0) {
+          <span class="pf-caption">Équivalents thérapeutiques disponibles</span>
+          @for (e of equivalents(); track e.id) {
+            <div class="pf-li">
+              <span class="pf-liic {{ (e.available_pharmacies ?? 0) > 0 ? 'green' : 'amber' }}"><nv-icon name="pill" [size]="18"/></span>
+              <div class="pf-libody">
+                <strong>{{ e.name }} {{ e.dosage }}</strong>
+                <span>{{ e.note }} · {{ e.available_pharmacies ?? 0 }} pharmacie(s){{ e.nearest_km !== null && e.nearest_km !== undefined ? ' · à ' + e.nearest_km + ' km' : '' }}</span>
+              </div>
+              <div class="pf-li-act">
+                <span class="chip chip-blue" title="Score de pertinence">{{ e.score }}/100</span>
+                <button class="btn btn-outline btn-sm" (click)="open(e)">Voir</button>
+              </div>
+            </div>
+          }
+          <p class="pf-hint">Demandez l'avis de votre pharmacien ou médecin avant toute substitution.</p>
+        }
+
         @if (rows().length > 0) {
           <span class="pf-caption">Tous les points de disponibilité</span>
           @for (d of rows(); track d.structureId) {

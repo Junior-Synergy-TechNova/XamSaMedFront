@@ -1,0 +1,4 @@
+@reference "../../../styles.css";
+/* ===================== Réceptions entrantes (commun) ===================== */
+:host { @apply contents; }
+/* Le composant n'utilise que les primitives communes (src/styles.css). */

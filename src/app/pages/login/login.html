@@ -40,7 +40,15 @@
             @if (mode() === 'login') {
               <div class="pf-fieldrow">
                 <div class="s-field"><label>Identifiant (email)</label><input type="email" autocomplete="username" [value]="email()" (input)="setEmail($event)" placeholder="vous@exemple.sn"/></div>
-                <div class="s-field"><label>Mot de passe</label><input type="password" autocomplete="current-password" [value]="password()" (input)="setPassword($event)" (keyup.enter)="login()" placeholder="••••••••"/></div>
+                <div class="s-field">
+                  <label>Mot de passe</label>
+                  <div class="pf-pwd">
+                    <input [type]="showPwd() ? 'text' : 'password'" autocomplete="current-password" [value]="password()" (input)="setPassword($event)" (keyup.enter)="login()" placeholder="••••••••"/>
+                    <button type="button" class="pf-pwdeye" (click)="showPwd.set(!showPwd())" [attr.aria-label]="showPwd() ? 'Masquer le mot de passe' : 'Afficher le mot de passe'" [attr.title]="showPwd() ? 'Masquer le mot de passe' : 'Afficher le mot de passe'">
+                      <nv-icon [name]="showPwd() ? 'eyeOff' : 'eye'" [size]="18"/>
+                    </button>
+                  </div>
+                </div>
               </div>
 
               @if (error()) {
@@ -51,9 +59,46 @@
                 @if (loading()) { Connexion en cours… } @else { Accéder à l'espace {{ firstWord(current().label) }} <nv-icon name="arrow" [size]="18"/> }
               </button>
 
-              <button type="button" class="btn btn-ghost btn-sm btn-block pf-loginlink" (click)="gotoForgot()">Mot de passe oublié ?</button>
+              <div class="pf-loginlinks">
+                <button type="button" class="btn btn-ghost btn-sm pf-loginlink" (click)="gotoOtp()"><nv-icon name="lock" [size]="15"/> Recevoir un code (email / SMS / WhatsApp)</button>
+                <button type="button" class="btn btn-ghost btn-sm pf-loginlink" (click)="gotoForgot()">Mot de passe oublié ?</button>
+              </div>
 
-              <p class="pf-loginhint">Comptes de test : <strong>pharma&#64;xamsamed.test</strong> · <strong>pharma2&#64;xamsamed.test</strong> · <strong>pra&#64;xamsamed.test</strong> · <strong>admin&#64;xamsamed.test</strong> · mot de passe <strong>password123</strong></p>
+              <p class="pf-loginhint">Comptes de test : <strong>pharma&#64;xamsamed.test</strong> · <strong>pharma2&#64;xamsamed.test</strong> · <strong>pra&#64;xamsamed.test</strong> · <strong>distrib&#64;xamsamed.test</strong> · <strong>hopital&#64;xamsamed.test</strong> · <strong>clinique&#64;xamsamed.test</strong> · <strong>admin&#64;xamsamed.test</strong> · mot de passe <strong>password123</strong></p>
+            } @else if (mode() === 'otp') {
+              <p class="muted pf-resetintro">Connexion sans mot de passe : un code à 6 chiffres, valable 10 minutes, vous est envoyé.</p>
+              <div class="pf-fieldrow">
+                <div class="s-field"><label>Email ou téléphone</label><input autocomplete="username" [value]="otpIdentifier()" (input)="setOtpIdentifier($event)" (keyup.enter)="requestOtp()" placeholder="vous@exemple.sn ou 77 000 00 00"/></div>
+                <div class="s-field"><label>Recevoir par</label>
+                  <select [value]="otpChannel()" (change)="setOtpChannel($event)">
+                    <option value="email">Email</option>
+                    <option value="sms" [disabled]="!otpChannels().sms">SMS{{ otpChannels().sms ? '' : ' (bientôt)' }}</option>
+                    <option value="whatsapp" [disabled]="!otpChannels().whatsapp">WhatsApp{{ otpChannels().whatsapp ? '' : ' (bientôt)' }}</option>
+                  </select>
+                </div>
+              </div>
+
+              @if (error()) {
+                <div class="pf-loginerror"><nv-icon name="alert" [size]="16"/> {{ error() }}</div>
+              }
+
+              <button class="btn btn-green btn-lg btn-block" (click)="requestOtp()" [disabled]="loading()">
+                @if (loading()) { Envoi… } @else { Recevoir mon code }
+              </button>
+              <button type="button" class="btn btn-ghost btn-sm btn-block pf-loginlink" (click)="gotoLogin()">Connexion par mot de passe</button>
+            } @else if (mode() === 'otp-code') {
+              <p class="muted pf-resetintro">Saisissez le code reçu pour <strong>{{ otpIdentifier() }}</strong>.</p>
+              <div class="s-field"><label>Code à 6 chiffres</label><input type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" [value]="otpCode()" (input)="setOtpCode($event)" (keyup.enter)="verifyOtp()" placeholder="••••••"/></div>
+
+              @if (error()) {
+                <div class="pf-loginerror"><nv-icon name="alert" [size]="16"/> {{ error() }}</div>
+              }
+
+              <button class="btn btn-green btn-lg btn-block" (click)="verifyOtp()" [disabled]="loading()">
+                @if (loading()) { Vérification… } @else { Se connecter <nv-icon name="arrow" [size]="18"/> }
+              </button>
+              <button type="button" class="btn btn-ghost btn-sm btn-block pf-loginlink" (click)="requestOtp()">Renvoyer un code</button>
+              <button type="button" class="btn btn-ghost btn-sm btn-block pf-loginlink" (click)="gotoLogin()">Connexion par mot de passe</button>
             } @else if (mode() === 'forgot') {
               <div class="s-field"><label>Email du compte</label><input type="email" autocomplete="username" [value]="email()" (input)="setEmail($event)" (keyup.enter)="requestReset()" placeholder="vous@exemple.sn"/></div>
 
@@ -68,7 +113,16 @@
             } @else {
               <p class="muted pf-resetintro">Un code a été envoyé à <strong>{{ email() }}</strong>. Saisissez-le avec votre nouveau mot de passe.</p>
               <div class="s-field"><label>Code reçu</label><input type="text" inputmode="numeric" [value]="resetCode()" (input)="setResetCode($event)" placeholder="6 chiffres"/></div>
-              <div class="s-field"><label>Nouveau mot de passe</label><input type="password" autocomplete="new-password" [value]="newPassword()" (input)="setNewPassword($event)" (keyup.enter)="doReset()" placeholder="••••••••"/></div>
+              <div class="s-field">
+                <label>Nouveau mot de passe</label>
+                <div class="pf-pwd">
+                  <input [type]="showNewPwd() ? 'text' : 'password'" autocomplete="new-password" [value]="newPassword()" (input)="setNewPassword($event)" (keyup.enter)="doReset()" placeholder="••••••••"/>
+                  <button type="button" class="pf-pwdeye" (click)="showNewPwd.set(!showNewPwd())" [attr.aria-label]="showNewPwd() ? 'Masquer le mot de passe' : 'Afficher le mot de passe'" [attr.title]="showNewPwd() ? 'Masquer le mot de passe' : 'Afficher le mot de passe'">
+                    <nv-icon [name]="showNewPwd() ? 'eyeOff' : 'eye'" [size]="18"/>
+                  </button>
+                </div>
+              </div>
+              <p class="pf-loginhint">6 caractères minimum. Utilisez l'œil pour relire votre saisie.</p>
 
               @if (error()) {
                 <div class="pf-loginerror"><nv-icon name="alert" [size]="16"/> {{ error() }}</div>

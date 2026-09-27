@@ -1,0 +1,29 @@
+    <pf-card title="Livraisons attendues" sub="Confirmez la réception à l'arrivée : le stock est crédité et le bordereau généré">
+      <span right class="chip chip-blue">{{ expected().length }} en cours</span>
+      @if (loading()) { <div class="pf-note-sm"><span class="pf-spin pf-spin-sm"></span> Chargement…</div> }
+      @for (d of expected(); track d.id) {
+        <div class="pf-li">
+          <span class="pf-liic {{ d.status === 'in_transit' ? 'green' : '' }}"><nv-icon name="truck" [size]="18"/></span>
+          <div class="pf-libody">
+            <strong>{{ d.quantity }} × {{ d.medicine }} @if (d.is_controlled) { <span class="chip chip-red">Contrôlé</span> }</strong>
+            <span>{{ d.supplier }} ({{ supplierKind(d.supplier_type) }}) · prévue le {{ d.delivery_date }}</span>
+          </div>
+          <pf-tag [s]="statusTag(d.status)">{{ statusLabel(d.status) }}</pf-tag>
+          @if (d.status === 'in_transit') {
+            <button class="btn btn-green btn-sm" [disabled]="busy() === d.id" (click)="receive(d)"><nv-icon name="checkC" [size]="15"/> Confirmer la réception</button>
+          }
+        </div>
+      }
+      @if (!loading() && expected().length === 0) { <div class="pf-note">Aucune livraison attendue.</div> }
+    </pf-card>
+
+    <pf-card title="Réceptions récentes" sub="30 derniers jours — bordereaux téléchargeables">
+      @for (d of done(); track d.id) {
+        <div class="pf-li">
+          <span class="pf-liic green"><nv-icon name="checkC" [size]="18"/></span>
+          <div class="pf-libody"><strong>{{ d.quantity }} × {{ d.medicine }}</strong><span>{{ d.supplier }} · {{ d.slip_number || 'livraison #' + d.id }}</span></div>
+          <button class="btn btn-ghost btn-sm" (click)="slip(d)"><nv-icon name="doc" [size]="15"/> Bordereau</button>
+        </div>
+      }
+      @if (!loading() && done().length === 0) { <div class="pf-note">Aucune réception sur la période.</div> }
+    </pf-card>

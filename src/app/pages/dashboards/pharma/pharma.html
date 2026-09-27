@@ -4,7 +4,7 @@
     @switch (section()) {
       @case ('home') {
         <div>
-          <pf-page-head title="Tableau de bord" sub="Pharmacie Centrale — Dakar Plateau">
+          <pf-page-head title="Tableau de bord" [sub]="headerSub()">
             <ng-container actions>
               <button class="btn btn-outline btn-sm" (click)="section.set('stock')"><nv-icon name="box" [size]="16"/> Gérer le stock</button>
               <button class="btn btn-green btn-sm" (click)="section.set('dem')"><nv-icon name="mail" [size]="16"/> Demandes</button>
@@ -16,7 +16,16 @@
             <pf-stat icon="alert" tone="amber" label="Alertes de seuil" [value]="lowCount()"/>
             <pf-stat icon="bell" tone="red" label="Ruptures / critiques" [value]="crit().length"/>
             <pf-stat icon="mail" tone="green" label="Demandes en attente" [value]="newDem()"/>
+            <pf-stat icon="clock" [tone]="expiredCount() > 0 ? 'red' : 'amber'" label="Péremptions < 3 mois" [value]="expiring().length"/>
+            <pf-stat icon="doc" tone="blue" label="Ordonnances à traiter" [value]="pendingPrescriptions()"/>
           </div>
+          @if (expiredCount() > 0) {
+            <div class="pf-banner red">
+              <span class="pf-bannic"><nv-icon name="alert" [size]="22"/></span>
+              <div class="pf-banner-body"><strong>{{ expiredCount() }} lot(s) périmé(s) encore en stock</strong><p>Retirez-les pour garder un stock vendable exact (mouvement « Médicament périmé » tracé).</p></div>
+              <button class="btn btn-sm btn-white" (click)="expiryFilter.set('expired'); section.set('stock')">Voir les lots</button>
+            </div>
+          }
           <div class="pf-cols">
             <pf-card title="État du stock" sub="Quantité vs seuil d'alerte">
               <button right class="btn btn-ghost btn-sm" (click)="section.set('stock')">Tout voir</button>
@@ -31,9 +40,21 @@
               }
               @if (topStock().length === 0) { <div class="pf-note">Aucune référence en stock.</div> }
             </pf-card>
+            <pf-card title="Péremptions" sub="Vert au-delà de 3 mois, orange sous 3 mois, rouge sous 1 mois">
+              @for (s of expiring().slice(0, 5); track s.stockId) {
+                <div class="pf-li">
+                  <span class="pf-liic {{ s.expiryLevel === 'warn' ? 'amber' : 'red' }}"><nv-icon name="clock" [size]="18"/></span>
+                  <div class="pf-libody"><strong>{{ s.name }}</strong><span>Lot {{ s.batch || '—' }} · {{ s.q }} u.</span></div>
+                  <pf-tag [s]="expiryTag(s.expiryLevel)">{{ expiryLabel(s) }}</pf-tag>
+                </div>
+              }
+              @if (expiring().length === 0) { <div class="pf-note">Aucun lot n'arrive à péremption dans les 3 mois.</div> }
+            </pf-card>
+          </div>
+          <div class="pf-cols">
             <pf-card title="Demandes ciblées" sub="Reçues récemment">
               <span right class="chip chip-blue">{{ newDem() }} nouvelles</span>
-              @for (d of demandes(); track d.id) {
+              @for (d of demandes().slice(0, 5); track d.id) {
                 <div class="pf-li">
                   <span class="pf-liic {{ d.urgency === 'Critique' ? 'red' : d.urgency === 'Élevé' ? 'amber' : '' }}"><nv-icon name="mail" [size]="18"/></span>
                   <div class="pf-libody"><strong>{{ d.medName }}</strong><span>{{ d.from }} · {{ d.qty }} u. · {{ d.quand }}</span></div>
@@ -43,39 +64,76 @@
               @if (demandes().length === 0) { <div class="pf-note">Aucune demande en attente.</div> }
               <button class="btn btn-outline btn-sm btn-block pf-mt" (click)="section.set('dem')">Traiter les demandes</button>
             </pf-card>
+            <pf-card title="Derniers mouvements" sub="Traçabilité : qui, quoi, quand, pourquoi">
+              @for (m of history().slice(0, 5); track m.id) {
+                <div class="pf-li">
+                  <span class="pf-liic {{ m.direction === 'entrée' ? 'green' : m.direction === 'sortie' ? 'amber' : 'red' }}"><nv-icon name="clock" [size]="18"/></span>
+                  <div class="pf-libody"><strong>{{ m.medicine }} · {{ signedQty(m) }}</strong><span>{{ m.type_label }} · {{ m.user }}</span></div>
+                </div>
+              }
+              @if (history().length === 0) { <div class="pf-note">Aucun mouvement enregistré.</div> }
+            </pf-card>
           </div>
         </div>
       }
 
       @case ('stock') {
         <div>
-          <pf-page-head title="Gestion de stock" sub="Suivez vos quantités et seuils critiques.">
+          <pf-page-head title="Gestion de stock" sub="Quantités, seuils, lots et dates de péremption.">
             <button actions class="btn btn-green btn-sm" (click)="addRefModal.set(true)"><nv-icon name="box" [size]="16"/> Ajouter une référence</button>
           </pf-page-head>
+          <div class="pf-filters">
+            <button class="btn btn-sm" [class.btn-primary]="statusFilter() === 'all'" [class.btn-outline]="statusFilter() !== 'all'" (click)="statusFilter.set('all')">Tous</button>
+            <button class="btn btn-sm" [class.btn-primary]="statusFilter() === 'ok'" [class.btn-outline]="statusFilter() !== 'ok'" (click)="statusFilter.set('ok')">En stock</button>
+            <button class="btn btn-sm" [class.btn-primary]="statusFilter() === 'low'" [class.btn-outline]="statusFilter() !== 'low'" (click)="statusFilter.set('low')">Stock faible</button>
+            <button class="btn btn-sm" [class.btn-primary]="statusFilter() === 'out'" [class.btn-outline]="statusFilter() !== 'out'" (click)="statusFilter.set('out')">Rupture</button>
+            <span class="pf-filter-sep"></span>
+            <button class="btn btn-sm" [class.btn-primary]="controlledOnly()" [class.btn-outline]="!controlledOnly()" (click)="controlledOnly.set(!controlledOnly())"><nv-icon name="shield" [size]="14"/> Contrôlés</button>
+            <button class="btn btn-sm" [class.btn-primary]="expiryFilter() === 'soon'" [class.btn-outline]="expiryFilter() !== 'soon'" (click)="expiryFilter.set(expiryFilter() === 'soon' ? 'all' : 'soon')"><nv-icon name="clock" [size]="14"/> Péremption &lt; 3 mois</button>
+            <button class="btn btn-sm" [class.btn-primary]="expiryFilter() === 'expired'" [class.btn-outline]="expiryFilter() !== 'expired'" (click)="expiryFilter.set(expiryFilter() === 'expired' ? 'all' : 'expired')">Périmés</button>
+          </div>
           <pf-card>
             <table class="pf-table">
-              <thead><tr><th>Médicament</th><th>Forme</th><th>Disponible</th><th>Seuil</th><th>Niveau</th><th>État</th><th></th></tr></thead>
+              <thead><tr><th>Médicament</th><th>Disponible</th><th>Niveau</th><th>Péremption</th><th>État</th><th></th></tr></thead>
               <tbody>
-                @for (s of stock(); track s.stockId) {
+                @for (s of filteredStock(); track s.stockId) {
                   <tr>
-                    <td><div class="pf-medname">{{ s.name }}</div><div class="pf-medsub">{{ s.reserved }} réservé(s)</div></td>
-                    <td><span class="chip chip-gray">{{ s.sub }}</span></td>
-                    <td><strong class="pf-num">{{ s.q }}</strong></td>
-                    <td class="muted">{{ s.seuil }}</td>
+                    <td>
+                      <div class="pf-medname">{{ s.name }}</div>
+                      <div class="pf-medsub">{{ s.sub }}
+                        @if (s.controlled) { <span class="chip chip-red chip-inline">Contrôlé</span> }
+                        @else if (s.requiresRx) { <span class="chip chip-blue chip-inline">Sur ordonnance</span> }
+                      </div>
+                    </td>
+                    <td>
+                      <strong class="pf-num">{{ s.q }}</strong>
+                      <div class="pf-medsub">seuil {{ s.seuil }}{{ s.reserved ? ' · ' + s.reserved + ' réservé(s)' : '' }}</div>
+                    </td>
                     <td class="pf-td-bar"><pf-bar [pct]="pct(s)" [tone]="barTone(s)"/></td>
+                    <td>
+                      @if (s.expiryLevel === 'none') {
+                        <span class="muted">{{ s.batch ? 'Lot ' + s.batch : '—' }}</span>
+                      } @else {
+                        <pf-tag [s]="expiryTag(s.expiryLevel)">{{ expiryLabel(s) }}</pf-tag>
+                        @if (s.batch) { <div class="pf-medsub">Lot {{ s.batch }}</div> }
+                      }
+                    </td>
                     <td><pf-tag [s]="s.s">{{ stateLabel(s.s) }}</pf-tag></td>
                     <td>
                       <div class="pf-li-act tight">
-                        @if (s.q > 0) {
-                          <button class="btn btn-outline btn-sm" (click)="sell(s)" title="Vente hors plateforme">Vendre</button>
+                        @if (s.expiryLevel === 'expired' || s.expiryLevel === 'crit') {
+                          <button class="btn btn-danger btn-sm" (click)="expireModal.set(s)" title="Retirer le lot périmé">Retirer</button>
                         }
-                        <button class="btn btn-outline btn-sm" (click)="adjust(s)" title="Ajustement inventaire">Ajuster</button>
-                        <button class="btn btn-green btn-sm" (click)="restock(s)" title="Enregistrer réapprovisionnement">Réappro.</button>
+                        @if (s.q > 0) {
+                          <button class="btn btn-ghost btn-sm" (click)="sell(s)" title="Vente au comptoir hors plateforme">Vendre</button>
+                        }
+                        <button class="btn btn-ghost btn-sm" (click)="adjust(s)" title="Correction après inventaire physique">Inventaire</button>
+                        <button class="btn btn-outline btn-sm" (click)="restock(s)" title="Enregistrer un réapprovisionnement reçu">Réappro.</button>
                       </div>
                     </td>
                   </tr>
                 }
-                @if (stock().length === 0) { <tr><td colspan="7" class="muted pf-td-empty">Aucune référence en stock.</td></tr> }
+                @if (filteredStock().length === 0) { <tr><td colspan="6" class="muted pf-td-empty">Aucune référence pour ces filtres.</td></tr> }
               </tbody>
             </table>
           </pf-card>
@@ -86,22 +144,22 @@
         <div>
           <pf-page-head title="Alertes de seuil critique" sub="Anticipez les ruptures avant qu'elles n'arrivent."/>
           @if (crit().length > 0) {
-            <div class="pf-banner">
+            <div class="pf-banner red">
               <span class="pf-bannic"><nv-icon name="alert" [size]="22"/></span>
-              <div><strong>{{ crit().length }} médicament(s) sous le seuil critique</strong><p>Réapprovisionnez ou orientez les demandes vers une autre officine.</p></div>
+              <div><strong>{{ crit().length }} médicament(s) sous le seuil critique</strong><p>Réapprovisionnez auprès de vos distributeurs privés ou orientez les demandes vers une autre officine.</p></div>
             </div>
           }
           <pf-card>
             @for (s of alerts(); track s.stockId) {
               <div class="pf-li">
                 <span class="pf-liic {{ s.s === 'low' ? 'amber' : 'red' }}"><nv-icon name="alert" [size]="18"/></span>
-                <div class="pf-libody"><strong>{{ s.name }}</strong><span>{{ s.q }} unité(s) restantes · seuil fixé à {{ s.seuil }}</span></div>
+                <div class="pf-libody"><strong>{{ s.name }} @if (s.controlled) { <span class="chip chip-red chip-inline">Contrôlé</span> }</strong><span>{{ s.q }} unité(s) restantes · seuil fixé à {{ s.seuil }}</span></div>
                 <div class="pf-li-act">
                   <pf-tag [s]="s.s">{{ alertLabel(s.s) }}</pf-tag>
                   @if (alreadyAsked(s).size > 0) {
                     <span class="chip chip-blue" title="Demande en attente chez {{ alreadyAsked(s).size }} fournisseur(s)"><nv-icon name="truck" [size]="13"/> {{ alreadyAsked(s).size }} demandé</span>
                   }
-                  <button class="btn btn-outline btn-sm" (click)="alertDistrib(s)"><nv-icon name="truck" [size]="15"/> Demander aux fournisseurs</button>
+                  <button class="btn btn-outline btn-sm" (click)="alertDistrib(s)"><nv-icon name="truck" [size]="15"/> Demander aux distributeurs</button>
                   <button class="btn btn-green btn-sm" (click)="restock(s)">Réapprov.</button>
                 </div>
               </div>
@@ -114,12 +172,12 @@
             }
           </pf-card>
 
-          <pf-card title="Demandes de réapprovisionnement" sub="Suivi des demandes envoyées aux distributeurs et PRA">
+          <pf-card title="Demandes de réapprovisionnement" sub="Suivi des demandes envoyées aux distributeurs privés">
             <span right class="chip chip-blue">{{ pendingRequests().length }} en attente</span>
             @for (r of restockRequests(); track r.id) {
               <div class="pf-li">
                 <span class="pf-liic {{ r.status === 'resolved' ? 'green' : r.status === 'rejected' ? 'red' : 'amber' }}"><nv-icon name="truck" [size]="18"/></span>
-                <div class="pf-libody"><strong>{{ r.medicine }}</strong><span>{{ r.distributor }}{{ r.quantity ? ' · ' + r.quantity + ' u. demandées' : '' }}</span></div>
+                <div class="pf-libody"><strong>{{ r.medicine }}</strong><span>{{ r.distributor }}{{ r.quantity ? ' · ' + r.quantity + ' u. demandées' : '' }}{{ r.rejection_reason ? ' — ' + r.rejection_reason : '' }}</span></div>
                 <pf-tag [s]="requestTag(r.status)">{{ requestStatusLabel(r) }}</pf-tag>
               </div>
             }
@@ -133,13 +191,13 @@
       @case ('grouped') {
         <div>
           <pf-page-head title="Alertes groupées" sub="Des patients cherchent un médicament dans votre zone — répondez sans exposer votre stock."/>
+          <pf-card>
           @if (groupedAlerts().length === 0) {
-            <pf-card><div class="pf-empty"><nv-icon name="layers" [size]="34" color="var(--color-gray)"/><p>Aucune alerte groupée en attente.</p></div></pf-card>
+            <div class="pf-empty"><nv-icon name="layers" [size]="28" color="var(--color-gray)"/><p>Aucune alerte groupée en attente. Vous serez notifié dès qu'un patient cherche un médicament près de chez vous.</p></div>
           }
           @for (a of groupedAlerts(); track a.response_id) {
-            <pf-card>
-              <div class="pf-row">
-                <span class="pf-liic amber lg"><nv-icon name="search" [size]="22"/></span>
+              <div class="pf-row pf-rowline">
+                <span class="pf-liic amber"><nv-icon name="search" [size]="18"/></span>
                 <div class="pf-row-body">
                   <div class="pf-medname">{{ a.medicine }}</div>
                   <p class="muted pf-row-sub">{{ a.dosage }} · {{ a.form }} — un patient recherche ce médicament</p>
@@ -149,35 +207,172 @@
                   <button class="btn btn-green btn-sm" (click)="respondGrouped(a, true)"><nv-icon name="checkC" [size]="15"/> J'ai en stock</button>
                 </div>
               </div>
+          }
+          </pf-card>
+        </div>
+      }
+
+      @case ('ventes') {
+        <div>
+          <pf-page-head title="Ventes & comptabilité" sub="Vente complète avec TVA, reçu, chiffre d'affaires et export comptable."/>
+          @if (!isPro()) {
+            <pf-card>
+              <div class="pf-empty">
+                <nv-icon name="star" [size]="34" color="var(--color-blue)"/>
+                <p><strong>Module réservé à l'offre Pro.</strong> Votre officine est en offre {{ planLabel(auth.structure()?.plan) }} : les ventes au comptoir restent enregistrables depuis « Gestion de stock » (vente hors plateforme). L'offre Pro ajoute la facturation, la TVA, le chiffre d'affaires, le top des ventes et l'export comptable.</p>
+              </div>
+            </pf-card>
+          } @else {
+            <div class="pf-statgrid">
+              <pf-stat icon="cart" tone="green" label="CA du jour" [value]="fcfa(salesStats()?.today.revenue ?? 0)"/>
+              <pf-stat icon="chart" tone="blue" label="CA de la semaine" [value]="fcfa(salesStats()?.week.revenue ?? 0)"/>
+              <pf-stat icon="trend" tone="blue" label="CA du mois" [value]="fcfa(salesStats()?.month.revenue ?? 0)"/>
+              <pf-stat icon="doc" tone="blue" label="Ventes ce mois" [value]="salesStats()?.month.count ?? 0"/>
+            </div>
+
+            <div class="pf-cols">
+              <pf-card title="Nouvelle vente" sub="Le stock est décrémenté à la validation — reçu PDF généré">
+                <form class="pf-sale-line" (submit)="addToCart(cMed.value, cQty.value, cPrice.value); $event.preventDefault()">
+                  <div class="s-field"><label>Médicament</label>
+                    <select #cMed>
+                      @for (s of sellable(); track s.stockId) { <option [value]="s.stockId">{{ s.name }} · {{ s.sub }} ({{ s.q }} u.){{ s.requiresRx ? ' — ordonnance' : '' }}</option> }
+                    </select>
+                  </div>
+                  <div class="s-field pf-sale-qty"><label>Qté</label><input #cQty type="number" min="1" value="1"/></div>
+                  <div class="s-field pf-sale-price"><label>Prix unitaire HT</label><input #cPrice type="number" min="0" step="5" placeholder="FCFA"/></div>
+                  <button type="submit" class="btn btn-outline">Ajouter</button>
+                </form>
+
+                <table class="pf-table">
+                  <thead><tr><th>Article</th><th>Qté</th><th>PU HT</th><th>Total HT</th><th></th></tr></thead>
+                  <tbody>
+                    @for (l of cart(); track l.stockId) {
+                      <tr>
+                        <td><div class="pf-medname">{{ l.name }}</div>@if (l.requiresRx) { <span class="chip chip-blue chip-inline">Ordonnance</span> }</td>
+                        <td>{{ l.qty }}</td>
+                        <td class="muted">{{ fcfa(l.price) }}</td>
+                        <td><strong>{{ fcfa(l.qty * l.price) }}</strong></td>
+                        <td class="pf-td-right"><button class="btn btn-ghost btn-sm btn-danger" (click)="removeLine(l.stockId)"><nv-icon name="x" [size]="14"/></button></td>
+                      </tr>
+                    }
+                    @if (cart().length === 0) { <tr><td colspan="5" class="muted pf-td-empty">Panier vide.</td></tr> }
+                  </tbody>
+                </table>
+
+                <form (submit)="submitSale(sCustomer.value, sPay.value); $event.preventDefault()">
+                  <div class="pf-sale-meta">
+                    <div class="s-field"><label>Client</label><input #sCustomer placeholder="Optionnel"/></div>
+                    <div class="s-field"><label>Paiement</label>
+                      <select #sPay>
+                        <option value="cash">Espèces</option>
+                        <option value="mobile_money">Mobile money</option>
+                        <option value="card">Carte</option>
+                        <option value="insurance">Assurance / IPM</option>
+                      </select>
+                    </div>
+                    <div class="s-field pf-sale-qty"><label>TVA %</label><input type="number" min="0" max="100" [value]="vatRate()" (input)="setVat($any($event.target).value)"/></div>
+                  </div>
+                  @if (cartNeedsRx()) {
+                    <div class="s-field pf-mt">
+                      <label>Référence de l'ordonnance *</label>
+                      <input [value]="rxRef()" (input)="rxRef.set($any($event.target).value)" placeholder="Ex : ORD-2026-0142 (médecin, date)"/>
+                      <span class="pf-hint">Exigée pour : {{ rxNames() }}. Les autres médicaments du panier sont en vente libre.</span>
+                    </div>
+                  }
+                  <div class="pf-sale-totals">
+                    <span>Total HT <strong>{{ fcfa(cartTotals().ht) }}</strong></span>
+                    <span>TVA <strong>{{ fcfa(cartTotals().vat) }}</strong></span>
+                    <span class="pf-sale-ttc">Total TTC <strong>{{ fcfa(cartTotals().ttc) }}</strong></span>
+                  </div>
+                  <button type="submit" class="btn btn-green btn-block pf-mt" [disabled]="savingSale() || cart().length === 0"><nv-icon name="checkC" [size]="16"/> Valider la vente et éditer le reçu</button>
+                </form>
+              </pf-card>
+
+              <div>
+                <pf-card title="Chiffre d'affaires — 30 jours" sub="TTC, par jour">
+                  <div class="pf-spark" role="img" aria-label="Chiffre d'affaires quotidien sur 30 jours">
+                    @for (d of salesStats()?.daily ?? []; track d.date) {
+                      <span class="pf-spark-bar" [style.height.%]="barPct(d.revenue)" [title]="shortDate(d.date) + ' : ' + fcfa(d.revenue)"></span>
+                    }
+                  </div>
+                </pf-card>
+                <pf-card title="Top ventes" sub="Recettes par médicament (30 jours)">
+                  @for (t of salesStats()?.top ?? []; track t.medicine_id; let i = $index) {
+                    <div class="pf-li">
+                      <span class="pf-liic">{{ i + 1 }}</span>
+                      <div class="pf-libody"><strong>{{ t.medicine }}</strong><span>{{ t.quantity }} u. vendues</span></div>
+                      <strong class="pf-num-sm">{{ fcfa(t.revenue) }}</strong>
+                    </div>
+                  }
+                  @if ((salesStats()?.top ?? []).length === 0) { <div class="pf-note">Aucune vente sur la période.</div> }
+                </pf-card>
+              </div>
+            </div>
+
+            <pf-card title="Journal des ventes" sub="Mois en cours — reçus et export pour la comptabilité externe">
+              <form right class="pf-sale-export" (submit)="exportSales(eFrom.value, eTo.value); $event.preventDefault()">
+                <input #eFrom type="date" title="Du"/>
+                <input #eTo type="date" title="Au"/>
+                <button type="submit" class="btn btn-outline btn-sm"><nv-icon name="doc" [size]="15"/> Export CSV</button>
+              </form>
+              <table class="pf-table">
+                <thead><tr><th>Reçu</th><th>Date</th><th>Articles</th><th>Paiement</th><th>TTC</th><th></th></tr></thead>
+                <tbody>
+                  @for (v of sales(); track v.id) {
+                    <tr>
+                      <td><strong>{{ v.receipt_number }}</strong><div class="pf-medsub">{{ v.customer_name || '—' }}{{ v.prescription_ref ? ' · ord. ' + v.prescription_ref : '' }}</div></td>
+                      <td class="muted">{{ v.created_at | date:'d MMM, HH:mm' }}</td>
+                      <td>@for (i of v.items; track i.medicine_id) { <div class="pf-medsub">{{ i.quantity }} × {{ i.medicine }}</div> }</td>
+                      <td class="muted">{{ v.payment_label }}</td>
+                      <td><strong>{{ fcfa(v.total_ttc) }}</strong></td>
+                      <td class="pf-td-right"><button class="btn btn-ghost btn-sm" (click)="downloadReceipt(v)"><nv-icon name="doc" [size]="15"/> Reçu</button></td>
+                    </tr>
+                  }
+                  @if (sales().length === 0) { <tr><td colspan="6" class="muted pf-td-empty">Aucune vente ce mois-ci.</td></tr> }
+                </tbody>
+              </table>
             </pf-card>
           }
         </div>
       }
 
+      @case ('recep') {
+        <div>
+          <pf-page-head title="Réceptions" sub="Réapprovisionnements livrés par vos distributeurs privés."/>
+          <pf-incoming-deliveries (received)="reload()"/>
+        </div>
+      }
+
+      @case ('res') {
+        <div>
+          <pf-page-head title="Réseau" sub="Vos distributeurs privés et le réseau inter-pharmacies (orientation des patients)."/>
+          <pf-partners-panel [types]="partnerTypes" rule="Une officine s'approvisionne uniquement auprès des distributeurs privés (jamais auprès de la PNA ou d'une PRA). Un distributeur ne voit que ses officines partenaires."/>
+        </div>
+      }
+
       @case ('profil') {
-        <app-simple-profile role="pharma" title="Mon officine" [name]="'Pharmacie ' + (profilFields()[3]?.[1] || '')" sub="Officine connectée" [fields]="profilFields()"/>
+        <app-simple-profile role="pharma" title="Mon officine" [name]="structureName()" sub="Officine connectée" [fields]="profilFields()"/>
       }
 
       @case ('history') {
         <div>
-          <pf-page-head title="Historique des mouvements" sub="Traçabilité complète de l'inventaire."/>
+          <pf-page-head title="Historique des mouvements" sub="Traçabilité complète : qui, quoi, quand, pourquoi."/>
           <pf-card>
             <table class="pf-table">
-              <thead><tr><th>Date</th><th>Type</th><th>Médicament</th><th>Quantité</th><th>Stock Résultant</th><th>Utilisateur</th></tr></thead>
+              <thead><tr><th>Date</th><th>Type</th><th>Médicament</th><th>Quantité</th><th>Stock résultant</th><th>Motif</th><th>Utilisateur</th></tr></thead>
               <tbody>
                 @for (h of history(); track h.id) {
                   <tr>
-                    <td class="muted">{{ h.date }}</td>
-                    <td>
-                      <pf-tag [s]="h.type === 'Vente' || h.type === 'Réservation' ? 'amber' : h.type === 'Réapprovisionnement' ? 'green' : 'blue'">{{ h.type }}</pf-tag>
-                    </td>
-                    <td><strong>{{ h.medName }}</strong></td>
-                    <td><span [class.pf-in]="h.qty > 0" [class.pf-out]="h.qty <= 0">{{ h.qty > 0 ? '+' : '' }}{{ h.qty }}</span></td>
-                    <td>{{ h.newStock }}</td>
+                    <td class="muted">{{ h.created_at | date:'d MMM, HH:mm' }}</td>
+                    <td><pf-tag [s]="movementTag(h)">{{ h.type_label || h.type }}</pf-tag></td>
+                    <td><strong>{{ h.medicine }}</strong></td>
+                    <td><span [class.pf-in]="h.direction === 'entrée'" [class.pf-out]="h.direction === 'sortie'">{{ signedQty(h) }}</span></td>
+                    <td>{{ h.new_quantity }}</td>
+                    <td class="muted pf-td-wrap">{{ h.reason || '—' }}</td>
                     <td class="muted">{{ h.user }}</td>
                   </tr>
                 }
-                @if (history().length === 0) { <tr><td colspan="6" class="muted pf-td-empty">Aucun mouvement récent.</td></tr> }
+                @if (history().length === 0) { <tr><td colspan="7" class="muted pf-td-empty">Aucun mouvement récent.</td></tr> }
               </tbody>
             </table>
           </pf-card>
@@ -187,13 +382,13 @@
       @case ('ordo') {
         <div>
           <pf-page-head title="Ordonnances reçues" sub="Ordonnances numériques envoyées par les patients — à lire et à traiter."/>
+          <pf-card>
           @if (prescriptions().length === 0) {
-            <pf-card><div class="pf-empty"><nv-icon name="doc" [size]="34" color="var(--color-gray)"/><p>Aucune ordonnance reçue.</p></div></pf-card>
+            <div class="pf-empty"><nv-icon name="doc" [size]="28" color="var(--color-gray)"/><p>Aucune ordonnance reçue. Les patients peuvent vous en envoyer depuis leur espace.</p></div>
           }
           @for (o of prescriptions(); track o.id) {
-            <pf-card>
-              <div class="pf-row pf-row-top">
-                <span class="pf-liic blue lg"><nv-icon name="doc" [size]="22"/></span>
+              <div class="pf-row pf-rowline">
+                <span class="pf-liic {{ o.status === 'pending' ? 'amber' : 'green' }}"><nv-icon name="doc" [size]="18"/></span>
                 <div class="pf-row-body">
                   <div class="pf-medname">{{ o.patient || 'Patient' }}</div>
                   <p class="muted pf-row-sub">{{ o.phone || '—' }} · {{ o.notes || 'Sans note' }}</p>
@@ -204,12 +399,12 @@
                     <button class="btn btn-outline btn-sm" (click)="rejectOrdo(o)">Rejeter</button>
                     <button class="btn btn-green btn-sm" (click)="openProcess(o)">Traiter</button>
                   } @else {
-                    <span class="chip" [class.chip-green]="o.status === 'confirmed' || o.status === 'collected'">{{ o.status }}</span>
+                    <span class="chip" [class.chip-green]="o.status === 'confirmed' || o.status === 'collected'" [class.chip-gray]="o.status === 'cancelled'">{{ ordoLabel(o.status) }}</span>
                   }
                 </div>
               </div>
-            </pf-card>
           }
+          </pf-card>
         </div>
       }
     }
@@ -218,17 +413,20 @@
     <!-- Modals -->
     @if (addRefModal()) {
       <div class="pf-modal-overlay" (click)="addRefModal.set(false)">
-        <form class="pf-modal" (click)="$event.stopPropagation()" (submit)="submitAddRef(medName.value, medForm.value, medQty.value, medSeuil.value); $event.preventDefault()">
+        <form class="pf-modal" (click)="$event.stopPropagation()" (submit)="submitAddRef(medName.value, medQty.value, medSeuil.value, medBatch.value, medExp.value); $event.preventDefault()">
           <div class="pf-modal-head">
             <h3>Ajouter une référence</h3>
             <button type="button" class="pf-modal-close" (click)="addRefModal.set(false)"><nv-icon name="x" [size]="20"/></button>
           </div>
           <div class="pf-modal-body">
-            <div class="s-field"><label>Médicament *</label><input #medName required placeholder="Nom du médicament (ex: Paracétamol)"/></div>
-            <div class="s-field"><label>Forme / Dosage</label><input #medForm placeholder="Ex: Comprimé 500mg"/></div>
+            <div class="s-field"><label>Médicament *</label><input #medName required placeholder="Nom du médicament (ex : Paracétamol)"/></div>
             <div class="pf-fieldrow">
               <div class="s-field"><label>Quantité initiale *</label><input #medQty required type="number" min="0" placeholder="0"/></div>
               <div class="s-field"><label>Seuil d'alerte *</label><input #medSeuil required type="number" min="0" placeholder="10"/></div>
+            </div>
+            <div class="pf-fieldrow">
+              <div class="s-field"><label>N° de lot</label><input #medBatch placeholder="Ex : LOT-2026-114"/></div>
+              <div class="s-field"><label>Date de péremption</label><input #medExp type="date"/></div>
             </div>
           </div>
           <div class="pf-modal-foot">
@@ -274,10 +472,11 @@
               <div class="pf-libody"><strong>{{ s.name }}</strong><span>Actuellement en stock : {{ s.q }} u.</span></div>
             </div>
             <div class="s-field"><label>Quantité vendue *</label><input #vQty required type="number" min="1" [max]="s.q" value="1" /></div>
+            @if (isPro()) { <p class="muted pf-intro">Pour une vente avec facture et TVA, utilisez « Ventes &amp; comptabilité ».</p> }
           </div>
           <div class="pf-modal-foot">
             <button type="button" class="btn btn-ghost btn-sm" (click)="sellModal.set(null)">Annuler</button>
-            <button type="submit" class="btn btn-green btn-sm">Enregistrer Vente</button>
+            <button type="submit" class="btn btn-green btn-sm">Enregistrer la vente</button>
           </div>
         </form>
       </div>
@@ -287,29 +486,55 @@
       <div class="pf-modal-overlay" (click)="adjustModal.set(null)">
         <form class="pf-modal" (click)="$event.stopPropagation()" (submit)="submitAdjust(aQty.value, aMotif.value); $event.preventDefault()">
           <div class="pf-modal-head">
-            <h3>Ajustement inventaire</h3>
+            <h3>Correction après inventaire</h3>
             <button type="button" class="pf-modal-close" (click)="adjustModal.set(null)"><nv-icon name="x" [size]="20"/></button>
           </div>
           <div class="pf-modal-body">
             <div class="pf-li pf-li-flat">
               <span class="pf-liic blue"><nv-icon name="box" [size]="18"/></span>
-              <div class="pf-libody"><strong>{{ s.name }}</strong><span>Actuellement en stock : {{ s.q }} u.</span></div>
+              <div class="pf-libody"><strong>{{ s.name }}</strong><span>Stock système disponible : {{ s.q }} u. ({{ s.reserved }} réservée(s) en plus)</span></div>
             </div>
             <div class="pf-fieldrow">
-              <div class="s-field"><label>Écart (ex: -5 ou +2) *</label><input #aQty required type="number" placeholder="-1" /></div>
+              <div class="s-field"><label>Stock réel compté (hors réservations) *</label><input #aQty required type="number" min="0" [value]="s.q"/></div>
               <div class="s-field"><label>Motif *</label>
                 <select #aMotif required>
-                  <option value="Périmé">Produit périmé</option>
-                  <option value="Casse">Casse / Perte</option>
-                  <option value="Ecart Inventaire">Erreur d'inventaire</option>
+                  <option value="Écart d'inventaire">Erreur d'inventaire</option>
+                  <option value="Casse / perte">Casse / perte</option>
+                  <option value="Vol">Vol</option>
                   <option value="Autre">Autre</option>
                 </select>
               </div>
             </div>
+            <p class="muted pf-intro">L'écart est calculé automatiquement et tracé dans l'historique.</p>
           </div>
           <div class="pf-modal-foot">
             <button type="button" class="btn btn-ghost btn-sm" (click)="adjustModal.set(null)">Annuler</button>
-            <button type="submit" class="btn btn-green btn-sm">Ajuster</button>
+            <button type="submit" class="btn btn-green btn-sm">Enregistrer</button>
+          </div>
+        </form>
+      </div>
+    }
+
+    @if (expireModal(); as s) {
+      <div class="pf-modal-overlay" (click)="expireModal.set(null)">
+        <form class="pf-modal" (click)="$event.stopPropagation()" (submit)="submitExpire(xQty.value, xReason.value); $event.preventDefault()">
+          <div class="pf-modal-head">
+            <h3>Retirer un lot périmé</h3>
+            <button type="button" class="pf-modal-close" (click)="expireModal.set(null)"><nv-icon name="x" [size]="20"/></button>
+          </div>
+          <div class="pf-modal-body">
+            <div class="pf-li pf-li-flat">
+              <span class="pf-liic red"><nv-icon name="clock" [size]="18"/></span>
+              <div class="pf-libody"><strong>{{ s.name }}</strong><span>Lot {{ s.batch || '—' }} · {{ expiryLabel(s) }} · {{ s.q }} u. disponibles</span></div>
+            </div>
+            <div class="pf-fieldrow">
+              <div class="s-field"><label>Quantité à retirer</label><input #xQty type="number" min="1" [max]="s.q" [placeholder]="'Tout le lot (' + s.q + ')'"/></div>
+              <div class="s-field"><label>Motif</label><input #xReason placeholder="Retrait lot périmé"/></div>
+            </div>
+          </div>
+          <div class="pf-modal-foot">
+            <button type="button" class="btn btn-ghost btn-sm" (click)="expireModal.set(null)">Annuler</button>
+            <button type="submit" class="btn btn-danger btn-sm">Retirer du stock</button>
           </div>
         </form>
       </div>
@@ -329,28 +554,30 @@
             </div>
 
             <div class="s-field">
-              <label>Fournisseurs à solliciter * <span class="muted">— stock lu chez chaque fournisseur</span></label>
+              <label>Distributeurs à solliciter * <span class="muted">— stock lu chez chaque distributeur privé</span></label>
               @if (suppliersLoading()) {
                 <div class="pf-note-sm"><span class="pf-spin pf-spin-sm"></span> Recherche des fournisseurs…</div>
               }
-              @for (d of suppliers(); track d.id) {
-                <label class="pf-li pf-li-pick">
-                  <input type="checkbox" [checked]="selectedSuppliers().has(d.id)" (change)="toggleSupplier(d.id)" [disabled]="alreadyAsked(s).has(d.id)" class="pf-check"/>
-                  <span class="pf-liic {{ d.has_stock ? 'green' : '' }}"><nv-icon name="truck" [size]="16"/></span>
-                  <div class="pf-libody">
-                    <strong>{{ d.name }} @if (d.is_partner) { <span class="chip chip-blue chip-inline">Partenaire</span> }</strong>
-                    <span>{{ d.kind }} · {{ d.city }}</span>
-                  </div>
-                  @if (alreadyAsked(s).has(d.id)) {
-                    <span class="chip chip-amber">Déjà demandé</span>
-                  } @else if (d.has_stock) {
-                    <pf-tag s="ok">{{ d.available }} u. dispo</pf-tag>
-                  } @else {
-                    <pf-tag s="out">Non disponible</pf-tag>
-                  }
-                </label>
-              }
-              @if (!suppliersLoading() && suppliers().length === 0) { <div class="pf-note-sm">Aucun fournisseur enregistré.</div> }
+              <div class="pf-picklist">
+                @for (d of suppliers(); track d.id) {
+                  <label class="pf-li pf-li-pick">
+                    <input type="checkbox" [checked]="selectedSuppliers().has(d.id)" (change)="toggleSupplier(d.id)" [disabled]="alreadyAsked(s).has(d.id)" class="pf-check"/>
+                    <span class="pf-liic {{ d.has_stock ? 'green' : '' }}"><nv-icon name="truck" [size]="16"/></span>
+                    <div class="pf-libody">
+                      <strong><span class="pf-pickname" [title]="d.name">{{ d.name }}</span>@if (d.is_partner) { <span class="chip chip-blue">Partenaire</span> }</strong>
+                      <span>{{ d.kind }} · {{ d.city }}</span>
+                    </div>
+                    @if (alreadyAsked(s).has(d.id)) {
+                      <span class="chip chip-amber">Déjà demandé</span>
+                    } @else if (d.has_stock) {
+                      <pf-tag s="ok">{{ d.available }} u.</pf-tag>
+                    } @else {
+                      <pf-tag s="out">Rupture</pf-tag>
+                    }
+                  </label>
+                }
+              </div>
+              @if (!suppliersLoading() && suppliers().length === 0) { <div class="pf-note-sm">Aucun distributeur privé enregistré.</div> }
             </div>
 
             <div class="pf-fieldrow">
@@ -361,7 +588,7 @@
           <div class="pf-modal-foot">
             <button type="button" class="btn btn-ghost btn-sm" (click)="supplierModal.set(null)">Annuler</button>
             <button type="submit" class="btn btn-green btn-sm" [disabled]="sending() || selectedSuppliers().size === 0">
-              <nv-icon name="send" [size]="15"/> Envoyer à {{ selectedSuppliers().size }} fournisseur(s)
+              <nv-icon name="send" [size]="15"/> Envoyer à {{ selectedSuppliers().size }} distributeur(s)
             </button>
           </div>
         </form>

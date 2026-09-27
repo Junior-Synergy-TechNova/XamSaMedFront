@@ -3,6 +3,16 @@ import { RoleId, NotifKind } from '../../interfaces/models';
 
 export interface Toast { id: number; msg: string; kind: NotifKind; }
 
+/** Déclenche le téléchargement d'un fichier reçu de l'API (PDF, CSV…). */
+export function saveBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 const STORAGE_KEY = 'nova-role';
 /** Section active de la sidebar, mémorisée par rôle pour survivre au rechargement. */
 const SECTION_KEY = 'nova-section';

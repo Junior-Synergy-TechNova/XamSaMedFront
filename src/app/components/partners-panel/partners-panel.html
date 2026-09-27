@@ -1,0 +1,86 @@
+    <div class="pf-partners-head">
+      @if (rule()) { <p class="muted pf-partners-rule"><nv-icon name="shield" [size]="15"/> {{ rule() }}</p> }
+      <button class="btn btn-green btn-sm" (click)="openInvite()"><nv-icon name="link" [size]="16"/> Connecter un partenaire</button>
+    </div>
+
+    @if (toAnswer().length > 0) {
+      <pf-card title="Invitations reçues" sub="Acceptez pour rejoindre le réseau de ces structures">
+        <span right class="chip chip-amber">{{ toAnswer().length }} à traiter</span>
+        @for (p of toAnswer(); track p.id) {
+          <div class="pf-li">
+            <span class="pf-liic amber"><nv-icon [name]="icon(p.type)" [size]="18"/></span>
+            <div class="pf-libody"><strong>{{ p.partner }}</strong><span>{{ p.kind }} · {{ p.city || '—' }}</span></div>
+            <div class="pf-li-act">
+              <button class="btn btn-ghost btn-sm" (click)="reject(p)">Refuser</button>
+              <button class="btn btn-green btn-sm" (click)="accept(p)"><nv-icon name="checkC" [size]="15"/> Accepter</button>
+            </div>
+          </div>
+        }
+      </pf-card>
+    }
+
+    <pf-card title="Partenaires connectés" [sub]="active().length + ' structure(s) dans votre réseau'">
+      @if (loading()) { <div class="pf-note-sm"><span class="pf-spin pf-spin-sm"></span> Chargement…</div> }
+      @for (p of active(); track p.id) {
+        <div class="pf-li">
+          <span class="pf-liic green"><nv-icon [name]="icon(p.type)" [size]="18"/></span>
+          <div class="pf-libody"><strong>{{ p.partner }}</strong><span>{{ p.kind }} · {{ p.city || '—' }}{{ p.phone ? ' · ' + p.phone : '' }}</span></div>
+          <span class="chip" [class.chip-blue]="p.sector === 'public'" [class.chip-gray]="p.sector !== 'public'">{{ p.sector === 'public' ? 'Public' : 'Privé' }}</span>
+          <button class="btn btn-ghost btn-sm btn-danger" title="Retirer" (click)="remove(p)"><nv-icon name="x" [size]="14"/></button>
+        </div>
+      }
+      @if (!loading() && active().length === 0) { <div class="pf-note">Aucun partenaire connecté pour le moment.</div> }
+    </pf-card>
+
+    @if (waiting().length > 0) {
+      <pf-card title="Invitations envoyées" sub="En attente de réponse">
+        @for (p of waiting(); track p.id) {
+          <div class="pf-li">
+            <span class="pf-liic"><nv-icon [name]="icon(p.type)" [size]="18"/></span>
+            <div class="pf-libody"><strong>{{ p.partner }}</strong><span>{{ p.kind }} · {{ p.city || '—' }}</span></div>
+            <span class="chip chip-amber">En attente</span>
+            <button class="btn btn-ghost btn-sm" (click)="remove(p)">Annuler</button>
+          </div>
+        }
+      </pf-card>
+    }
+
+    @if (inviteOpen()) {
+      <div class="pf-modal-overlay" (click)="inviteOpen.set(false)">
+        <div class="pf-modal" (click)="$event.stopPropagation()">
+          <div class="pf-modal-head">
+            <h3>Connecter un partenaire</h3>
+            <button type="button" class="pf-modal-close" (click)="inviteOpen.set(false)"><nv-icon name="x" [size]="20"/></button>
+          </div>
+          <div class="pf-modal-body">
+            <form class="pf-fieldrow" (submit)="search(q.value, t.value); $event.preventDefault()">
+              <div class="s-field"><label>Type</label>
+                <select #t (change)="search(q.value, t.value)">
+                  @for (o of types(); track o.value) { <option [value]="o.value">{{ o.label }}</option> }
+                </select>
+              </div>
+              <div class="s-field"><label>Nom, ville ou code</label><input #q placeholder="Ex : Ubipharm, Dakar, PHM-DKR-001" (input)="search(q.value, t.value)"/></div>
+            </form>
+            <span class="pf-caption">Structures connectables</span>
+            @if (searching()) { <div class="pf-note-sm"><span class="pf-spin pf-spin-sm"></span> Recherche…</div> }
+            <div class="pf-picklist">
+              @for (c of candidates(); track c.id) {
+                <div class="pf-li">
+                  <span class="pf-liic"><nv-icon [name]="icon(c.type)" [size]="16"/></span>
+                  <div class="pf-libody"><strong>{{ c.name }}</strong><span>{{ c.kind }} · {{ c.city || '—' }}{{ c.code ? ' · ' + c.code : '' }}</span></div>
+                  <button class="btn btn-outline btn-sm" (click)="invite({ partner_id: c.id })">Inviter</button>
+                </div>
+              }
+            </div>
+            @if (!searching() && candidates().length === 0) { <div class="pf-note-sm">Aucune structure connectable pour ce critère.</div> }
+            <form class="s-field pf-mt" (submit)="invite({ identifier: ident.value }); $event.preventDefault()">
+              <label>Ou par email / code structure</label>
+              <div class="pf-partners-inline">
+                <input #ident placeholder="contact@structure.sn ou DIST-UBI-001"/>
+                <button type="submit" class="btn btn-green btn-sm">Envoyer</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    }

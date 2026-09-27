@@ -1,6 +1,6 @@
 @reference "../../../styles.css";
 :host { @apply contents; }
-.pf-pagehead { @apply flex justify-between items-end gap-5 mb-6 flex-wrap; }
-.pf-pagehead h1 { @apply text-[27px] font-extrabold; }
-.pf-pagehead p { @apply text-[14.5px] mt-1; }
-.pf-pagehead-act { @apply flex gap-2.5 flex-wrap; }
+.pf-pagehead { @apply flex justify-between items-end gap-6 mb-9 flex-wrap; }
+.pf-pagehead h1 { @apply text-[30px] font-semibold text-blue tracking-[-.01em]; }
+.pf-pagehead p { @apply text-[16px] mt-2 max-w-[720px] leading-relaxed; }
+.pf-pagehead-act { @apply flex gap-3 flex-wrap; }

@@ -29,6 +29,16 @@ export class SimpleProfile {
 
   readonly editModal = signal(false);
   readonly pwdModal = signal(false);
+  // Affichage en clair de chaque champ du formulaire mot de passe.
+  readonly showCur = signal(false);
+  readonly showNew = signal(false);
+  readonly showConf = signal(false);
+
+  // À chaque ouverture, les champs repartent masqués.
+  openPwdModal(): void {
+    this.showCur.set(false); this.showNew.set(false); this.showConf.set(false);
+    this.pwdModal.set(true);
+  }
 
   submitProfile(name: string, phone: string, email: string): void {
     const payload: { name?: string; phone?: string; email?: string } = {};

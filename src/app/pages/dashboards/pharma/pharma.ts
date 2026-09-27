@@ -1,35 +1,44 @@
 import { ChangeDetectionStrategy, Component, computed, inject, model, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
-import { forkJoin, map, switchMap, throwError } from 'rxjs';
+import { DatePipe } from '@angular/common';
+import { map, switchMap, throwError } from 'rxjs';
 import { Icon } from '../../../components/icon/icon';
 import { Card } from '../../../components/card/card';
 import { PageHead } from '../../../components/page-head/page-head';
 import { Stat } from '../../../components/stat/stat';
 import { Bar } from '../../../components/bar/bar';
 import { Tag } from '../../../components/tag/tag';
-import { PlatformState } from '../../../services/platform/platform';
+import { PartnersPanel, PartnerTypeOption } from '../../../components/partners-panel/partners-panel';
+import { IncomingDeliveries } from '../../../components/incoming-deliveries/incoming-deliveries';
+import { PlatformState, saveBlob } from '../../../services/platform/platform';
 import { PharmacyService } from '../../../services/pharmacy/pharmacy';
 import { MedicineService } from '../../../services/medicines/medicines';
 import { AuthService } from '../../../services/auth/auth';
 import { StructureService } from '../../../services/structures/structures';
-import { DemandeRow, StockRow } from '../../../interfaces/models';
-import { ApiErrorBody, ApiGroupedAlert, ApiPrescription, ApiRestockRequest, ApiSupplier } from '../../../interfaces/api';
+import { DemandeRow, ExpiryLevel, StockRow } from '../../../interfaces/models';
+import {
+  ApiErrorBody, ApiGroupedAlert, ApiPrescription, ApiRestockRequest, ApiSale, ApiSalesStats, ApiStockMovement, ApiSupplier,
+} from '../../../interfaces/api';
 import { PharmaDemandes } from '../pharma-demandes/pharma-demandes';
 import { SimpleProfile } from '../profile/profile';
 
 type BarTone = 'green' | 'amber' | 'red' | 'blue';
+type StatusFilter = 'all' | 'ok' | 'low' | 'out';
+type ExpiryFilter = 'all' | 'soon' | 'expired';
 
-/** Ligne de l'historique des mouvements (vue). */
-interface MovementRow { id: number; date: string; type: string; medName: string; qty: number; newStock: number; user: string; }
+/** Ligne du panier de vente (module Vente & Comptabilité). */
+interface CartLine { stockId: number; name: string; qty: number; price: number; requiresRx: boolean; available: number; }
+
 const EMPTY_SET: ReadonlySet<number> = new Set<number>();
 
 /* ============================================================
-   PHARMACIEN — tableau de bord, stock, alertes, demandes (API réelle)
+   PHARMACIEN — tableau de bord, stock (lots / péremption), alertes,
+   demandes, ordonnances, ventes (offre Pro), réceptions, réseau.
    ============================================================ */
 @Component({
   selector: 'app-pharma-dash',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, Card, PageHead, Stat, Bar, Tag, PharmaDemandes, SimpleProfile],
+  imports: [Icon, Card, PageHead, Stat, Bar, Tag, PharmaDemandes, SimpleProfile, PartnersPanel, IncomingDeliveries, DatePipe],
   templateUrl: './pharma.html',
   styleUrl: './pharma.css',
 })
@@ -38,6 +47,7 @@ export class PharmaDash {
   private readonly pharmacy = inject(PharmacyService);
   private readonly medicines = inject(MedicineService);
   private readonly structures = inject(StructureService);
+  protected readonly auth = inject(AuthService);
 
   readonly section = model.required<string>();
   readonly loading = signal(true);
@@ -48,6 +58,21 @@ export class PharmaDash {
   readonly restockModal = signal<StockRow | null>(null);
   readonly sellModal = signal<StockRow | null>(null);
   readonly adjustModal = signal<StockRow | null>(null);
+  readonly expireModal = signal<StockRow | null>(null);
+
+  // --- Filtres du stock : statut, médicament contrôlé, péremption proche ---
+  readonly statusFilter = signal<StatusFilter>('all');
+  readonly controlledOnly = signal(false);
+  readonly expiryFilter = signal<ExpiryFilter>('all');
+  readonly filteredStock = computed(() => {
+    const status = this.statusFilter();
+    const expiry = this.expiryFilter();
+    return this.stock().filter(s =>
+      (status === 'all' || (status === 'out' ? s.s === 'out' || s.s === 'crit' : s.s === status))
+      && (!this.controlledOnly() || s.controlled)
+      && (expiry === 'all'
+        || (expiry === 'expired' ? s.expiryLevel === 'expired' : ['warn', 'crit', 'expired'].includes(s.expiryLevel))));
+  });
 
   // Demande de réapprovisionnement ciblée : fournisseurs (lus en base avec
   // leur stock du médicament) + sélection multiple.
@@ -74,20 +99,55 @@ export class PharmaDash {
   // Ordonnances numériques reçues
   readonly prescriptions = signal<ApiPrescription[]>([]);
   readonly processModal = signal<ApiPrescription | null>(null);
+  readonly pendingPrescriptions = computed(() => this.prescriptions().filter(p => p.status === 'pending').length);
 
   // Alertes groupées reçues (recherches patient)
   readonly groupedAlerts = signal<ApiGroupedAlert[]>([]);
 
-  // Historique des mouvements (traçabilité)
-  readonly history = signal<MovementRow[]>([]);
+  // Historique complet des mouvements (traçabilité : qui / quoi / quand / pourquoi)
+  readonly history = signal<ApiStockMovement[]>([]);
 
   readonly crit = computed(() => this.stock().filter(s => s.s === 'crit' || s.s === 'out'));
   readonly alerts = computed(() => this.stock().filter(s => s.s !== 'ok'));
   readonly lowCount = computed(() => this.stock().filter(s => s.s === 'low').length);
   readonly newDem = computed(() => this.demandes().filter(d => d.status === 'pending').length);
   readonly topStock = computed(() => this.stock().slice(0, 5));
+  /** Lots orange / rouge (péremption < 3 mois ou dépassée). */
+  readonly expiring = computed(() => this.stock()
+    .filter(s => ['warn', 'crit', 'expired'].includes(s.expiryLevel))
+    .sort((a, b) => (a.daysToExpiry ?? 0) - (b.daysToExpiry ?? 0)));
+  readonly expiredCount = computed(() => this.stock().filter(s => s.expiryLevel === 'expired').length);
 
-  protected readonly auth = inject(AuthService);
+  readonly structureName = computed(() => this.auth.structure()?.name ?? 'Mon officine');
+  readonly headerSub = computed(() => {
+    const s = this.auth.structure();
+    return s ? `${s.name} — ${s.city ?? ''} · offre ${this.planLabel(s.plan)}` : 'Officine';
+  });
+
+  // --- Module Vente & Comptabilité (offre Pro) ---
+  readonly isPro = this.auth.isPro;
+  readonly sales = signal<ApiSale[]>([]);
+  readonly salesStats = signal<ApiSalesStats | null>(null);
+  readonly cart = signal<CartLine[]>([]);
+  readonly vatRate = signal(0);
+  readonly savingSale = signal(false);
+  readonly cartNeedsRx = computed(() => this.cart().some(l => l.requiresRx));
+  /** Médicaments du panier qui exigent une ordonnance (les autres sont en vente libre). */
+  readonly rxNames = computed(() => this.cart().filter(l => l.requiresRx).map(l => l.name.split(' · ')[0]).join(', '));
+  readonly rxRef = signal('');
+  readonly cartTotals = computed(() => {
+    const ht = this.cart().reduce((sum, l) => sum + l.qty * l.price, 0);
+    const vat = Math.round(ht * this.vatRate()) / 100;
+    return { ht, vat, ttc: ht + vat };
+  });
+  readonly sellable = computed(() => this.stock().filter(s => s.q > 0 && s.expiryLevel !== 'expired'));
+  readonly revenueMax = computed(() => Math.max(1, ...(this.salesStats()?.daily ?? []).map(d => d.revenue)));
+
+  readonly partnerTypes: readonly PartnerTypeOption[] = [
+    { value: 'distributor', label: 'Distributeur privé' },
+    { value: 'pharmacy', label: 'Officine (réseau inter-pharmacies)' },
+    { value: 'hospital', label: 'Hôpital / clinique' },
+  ];
 
   readonly profilFields = computed<readonly [string, string][]>(() => {
     const u = this.auth.user();
@@ -99,6 +159,7 @@ export class PharmaDash {
       ['Téléphone', u.phone || '+221 33 000 00 00'],
       ['Email', u.email || 'Non renseigné'],
       ['Région', str(meta['region']) ?? u.structure?.region ?? u.structure?.city ?? 'Non renseignée'],
+      ['Offre', this.planLabel(u.structure?.plan)],
     ];
   });
 
@@ -107,34 +168,23 @@ export class PharmaDash {
   reload(): void {
     this.loading.set(true);
     this.pharmacy.stock().subscribe({
-      next: s => {
-        this.loading.set(false);
-        this.stock.set(s);
-        if (s.length) {
-          forkJoin(s.map(stock => this.pharmacy.stockMovements(stock.stockId))).subscribe({
-            next: movements => this.history.set(movements.flat().map((movement): MovementRow => ({
-              id: movement.id,
-              date: movement.created_at ? new Date(movement.created_at).toLocaleString('fr-FR') : '',
-              type: movement.type_label ?? movement.type,
-              medName: movement.medicine ?? '—',
-              qty: movement.direction === 'sortie' ? -movement.quantity : movement.quantity,
-              newStock: movement.new_quantity,
-              user: movement.user ?? '—',
-            }))),
-            error: () => this.history.set([]),
-          });
-        } else this.history.set([]);
-      },
-      error: () => { this.loading.set(false); this.stock.set([]); this.history.set([]); },
+      next: s => { this.loading.set(false); this.stock.set(s); },
+      error: () => { this.loading.set(false); this.stock.set([]); },
     });
+    this.pharmacy.movements().subscribe({ next: m => this.history.set(m), error: () => { /* ignore */ } });
     this.pharmacy.demandes().subscribe({ next: d => this.demandes.set(d), error: () => { /* ignore */ } });
     this.pharmacy.restockRequests().subscribe({ next: r => this.restockRequests.set(r), error: () => { /* ignore */ } });
     this.pharmacy.prescriptions().subscribe({ next: p => this.prescriptions.set(p), error: () => { /* ignore */ } });
     this.pharmacy.groupedAlerts().subscribe({ next: g => this.groupedAlerts.set(g), error: () => { /* ignore */ } });
+    if (this.isPro()) this.reloadSales();
   }
 
   private apiError(e: HttpErrorResponse, fallback: string): string {
     return (e.error as ApiErrorBody | null)?.message ?? fallback;
+  }
+
+  planLabel(plan: string | null | undefined): string {
+    return plan === 'pro' ? 'Pro' : plan === 'institutionnel' ? 'Institutionnel' : 'Starter';
   }
 
   pct(s: StockRow): number {
@@ -151,17 +201,31 @@ export class PharmaDash {
   }
   alertLabel(s: string): string { return s === 'low' ? 'Stock faible' : s === 'out' ? 'Rupture' : 'Critique'; }
 
-  restock(s: StockRow): void {
-    this.restockModal.set(s);
+  /** Code couleur péremption : vert > 3 mois, orange < 3 mois, rouge < 1 mois ou expiré. */
+  expiryTag(level: ExpiryLevel): string { return level === 'ok' ? 'ok' : level === 'warn' ? 'low' : level === 'none' ? 'vue' : 'crit'; }
+  expiryLabel(s: StockRow): string {
+    if (s.expiryLevel === 'none' || !s.expiry) return 'Non renseignée';
+    const date = new Date(s.expiry).toLocaleDateString('fr-FR');
+    if (s.expiryLevel === 'expired') return `Périmé (${date})`;
+    return s.daysToExpiry !== null && s.daysToExpiry < 90 ? `${date} · J-${s.daysToExpiry}` : date;
   }
+
+  movementTag(m: ApiStockMovement): string {
+    return m.type === 'tension_detected' || m.type === 'expired' ? 'crit'
+      : m.direction === 'entrée' ? 'ok' : m.direction === 'sortie' ? 'low' : 'new';
+  }
+  signedQty(m: ApiStockMovement): string {
+    return m.direction === 'entrée' ? '+' + m.quantity : m.direction === 'sortie' ? '−' + m.quantity : '—';
+  }
+  when(iso: string | null): string { return iso ? new Date(iso).toLocaleString('fr-FR') : ''; }
+
+  restock(s: StockRow): void { this.restockModal.set(s); }
 
   submitRestock(qtyInput: string): void {
     const s = this.restockModal();
     if (!s) return;
-
     const qty = parseInt(qtyInput, 10);
     if (isNaN(qty) || qty <= 0) return;
-
     this.pharmacy.restock(s.stockId, qty).subscribe({
       next: () => {
         this.platform.notify(`${s.name} réapprovisionné de ${qty} unités`, 'ok');
@@ -172,7 +236,7 @@ export class PharmaDash {
     });
   }
 
-  submitAddRef(name: string, form: string, qty: string, seuil: string): void {
+  submitAddRef(name: string, qty: string, seuil: string, batch: string, expiry: string): void {
     const quantity = parseInt(qty, 10);
     const threshold = parseInt(seuil, 10);
     if (!name.trim() || isNaN(quantity) || quantity < 0 || isNaN(threshold) || threshold < 0) {
@@ -183,16 +247,17 @@ export class PharmaDash {
       switchMap(matches => {
         const medicine = matches[0];
         if (!medicine) return throwError(() => new Error('not_found'));
-        return this.pharmacy.addStock(Number(medicine.id), quantity, threshold).pipe(map(() => medicine));
+        return this.pharmacy.addStock(Number(medicine.id), quantity, threshold, batch.trim(), expiry).pipe(map(() => medicine));
       }),
     ).subscribe({
       next: medicine => { this.platform.notify(`${medicine.nom} a été ajouté au stock`, 'ok'); this.addRefModal.set(false); this.reload(); },
       error: (e: unknown) => this.platform.notify(
-        e instanceof Error && e.message === 'not_found' ? 'Médicament introuvable dans le catalogue' : 'Cette référence existe peut-être déjà dans le stock', 'alert'),
+        e instanceof Error && e.message === 'not_found' ? 'Médicament introuvable dans le catalogue'
+          : e instanceof HttpErrorResponse ? this.apiError(e, 'Cette référence existe peut-être déjà dans le stock') : 'Échec de l\'ajout', 'alert'),
     });
   }
 
-  // --- Vente ---
+  // --- Vente hors plateforme (sans facture) ---
   sell(s: StockRow): void { this.sellModal.set(s); }
   submitSell(qtyInput: string): void {
     const s = this.sellModal();
@@ -212,21 +277,33 @@ export class PharmaDash {
     });
   }
 
-  // --- Ajustement ---
+  // --- Ajustement d'inventaire : le stock réel constaté, l'écart est calculé par le serveur ---
   adjust(s: StockRow): void { this.adjustModal.set(s); }
-  submitAdjust(qtyInput: string, motif: string): void {
+  submitAdjust(realInput: string, motif: string): void {
     const s = this.adjustModal();
     if (!s) return;
-    const diff = parseInt(qtyInput, 10);
-    if (isNaN(diff)) return;
-    const target = Math.max(0, s.q + diff);
-    this.pharmacy.inventoryAdjustment(s.stockId, target, motif).subscribe({
+    const real = parseInt(realInput, 10);
+    if (isNaN(real) || real < 0) { this.platform.notify('Quantité réelle invalide', 'alert'); return; }
+    this.pharmacy.inventoryAdjustment(s.stockId, real + s.reserved, motif).subscribe({
       next: () => {
-        this.platform.notify(`Ajustement enregistré (${diff}) - Motif: ${motif}`, 'info');
+        const diff = real - s.q;
+        this.platform.notify(diff === 0 ? 'Stock conforme — aucun écart' : `Écart d'inventaire enregistré (${diff > 0 ? '+' : ''}${diff})`, 'info');
         this.adjustModal.set(null);
         this.reload();
       },
       error: (e: HttpErrorResponse) => this.platform.notify(this.apiError(e, 'Échec de l\'ajustement'), 'alert'),
+    });
+  }
+
+  // --- Retrait d'un lot périmé ---
+  submitExpire(qtyInput: string, reason: string): void {
+    const s = this.expireModal();
+    if (!s) return;
+    const qty = qtyInput ? parseInt(qtyInput, 10) : undefined;
+    if (qty !== undefined && (isNaN(qty) || qty <= 0)) { this.platform.notify('Quantité invalide', 'alert'); return; }
+    this.pharmacy.expire(s.stockId, qty, reason.trim() || undefined).subscribe({
+      next: r => { this.platform.notify(r.message, 'ok'); this.expireModal.set(null); this.reload(); },
+      error: (e: HttpErrorResponse) => this.platform.notify(this.apiError(e, 'Échec du retrait'), 'alert'),
     });
   }
 
@@ -282,13 +359,13 @@ export class PharmaDash {
         this.supplierModal.set(null);
         this.pharmacy.restockRequests().subscribe({ next: r => this.restockRequests.set(r), error: () => { /* ignore */ } });
       },
-      error: (e: HttpErrorResponse) => { this.sending.set(false); this.platform.notify(this.apiError(e, 'Échec de l’envoi de la demande'), 'alert'); },
+      error: (e: HttpErrorResponse) => { this.sending.set(false); this.platform.notify(this.apiError(e, 'Échec de l\'envoi de la demande'), 'alert'); },
     });
   }
 
   requestStatusLabel(r: ApiRestockRequest): string {
     return r.status === 'resolved' ? 'Livraison planifiée' + (r.delivery_date ? ' · ' + r.delivery_date : '')
-      : r.status === 'rejected' ? 'Refusée' + (r.rejection_reason ? ' · ' + r.rejection_reason : '')
+      : r.status === 'rejected' ? 'Refusée'
       : 'En attente';
   }
   requestTag(status: string): string { return status === 'resolved' ? 'ok' : status === 'rejected' ? 'crit' : 'low'; }
@@ -298,13 +375,8 @@ export class PharmaDash {
 
   downloadOrdo(p: ApiPrescription): void {
     this.pharmacy.downloadPrescription(p.id).subscribe({
-      next: blob => {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url; a.download = `ordonnance-${p.id}`; a.click();
-        URL.revokeObjectURL(url);
-      },
-      error: () => this.platform.notify('Impossible de télécharger l’ordonnance', 'alert'),
+      next: blob => saveBlob(blob, `ordonnance-${p.id}`),
+      error: () => this.platform.notify('Impossible de télécharger l\'ordonnance', 'alert'),
     });
   }
 
@@ -327,6 +399,10 @@ export class PharmaDash {
     });
   }
 
+  ordoLabel(status: string): string {
+    return status === 'confirmed' ? 'Prête au retrait' : status === 'collected' ? 'Retirée' : status === 'cancelled' ? 'Refusée' : 'À traiter';
+  }
+
   rejectOrdo(p: ApiPrescription): void {
     this.pharmacy.rejectPrescription(p.id, 'Ordonnance non traitable').subscribe({
       next: () => { this.platform.notify('Ordonnance rejetée', 'info'); this.reload(); },
@@ -342,4 +418,66 @@ export class PharmaDash {
       error: () => this.platform.notify('Échec de la réponse', 'alert'),
     });
   }
+
+  // --- Ventes & comptabilité (offre Pro) ---
+  reloadSales(): void {
+    this.pharmacy.sales().subscribe({ next: s => this.sales.set(s), error: () => this.sales.set([]) });
+    this.pharmacy.salesStats().subscribe({ next: s => this.salesStats.set(s), error: () => this.salesStats.set(null) });
+  }
+
+  addToCart(stockIdInput: string, qtyInput: string, priceInput: string): void {
+    const s = this.stock().find(r => r.stockId === Number(stockIdInput));
+    const qty = parseInt(qtyInput, 10);
+    const price = Number(priceInput);
+    if (!s || isNaN(qty) || qty <= 0 || isNaN(price) || price < 0) { this.platform.notify('Médicament, quantité et prix requis', 'alert'); return; }
+    const already = this.cart().find(l => l.stockId === s.stockId)?.qty ?? 0;
+    if (qty + already > s.q) { this.platform.notify(`Stock insuffisant (${s.q} disponible(s))`, 'alert'); return; }
+    this.cart.update(lines => already
+      ? lines.map(l => l.stockId === s.stockId ? { ...l, qty: l.qty + qty, price } : l)
+      : [...lines, { stockId: s.stockId, name: s.name + (s.sub ? ' · ' + s.sub : ''), qty, price, requiresRx: s.requiresRx, available: s.q }]);
+  }
+  removeLine(stockId: number): void { this.cart.update(lines => lines.filter(l => l.stockId !== stockId)); }
+  setVat(value: string): void { const v = Number(value); this.vatRate.set(isNaN(v) || v < 0 ? 0 : v); }
+
+  submitSale(customer: string, payment: string): void {
+    const rxRef = this.cartNeedsRx() ? this.rxRef() : '';
+    if (this.cart().length === 0) { this.platform.notify('Ajoutez au moins un médicament', 'alert'); return; }
+    if (this.cartNeedsRx() && !rxRef.trim()) { this.platform.notify(`Référence d'ordonnance requise pour : ${this.rxNames()}`, 'alert'); return; }
+    this.savingSale.set(true);
+    this.pharmacy.createSale({
+      items: this.cart().map(l => ({ stock_id: l.stockId, quantity: l.qty, unit_price: l.price })),
+      vat_rate: this.vatRate(),
+      customer_name: customer.trim() || undefined,
+      prescription_ref: rxRef.trim() || undefined,
+      payment_method: payment,
+    }).subscribe({
+      next: res => {
+        this.savingSale.set(false);
+        this.platform.notify(res.message, 'ok');
+        this.cart.set([]);
+        this.rxRef.set('');
+        this.reload();
+        this.downloadReceipt(res.data);
+      },
+      error: (e: HttpErrorResponse) => { this.savingSale.set(false); this.platform.notify(this.apiError(e, 'Échec de la vente'), 'alert'); },
+    });
+  }
+
+  downloadReceipt(sale: ApiSale): void {
+    this.pharmacy.receipt(sale.id).subscribe({
+      next: blob => saveBlob(blob, `${sale.receipt_number}.pdf`),
+      error: () => this.platform.notify('Reçu indisponible', 'alert'),
+    });
+  }
+
+  exportSales(from: string, to: string): void {
+    this.pharmacy.exportSales(from || undefined, to || undefined).subscribe({
+      next: blob => { saveBlob(blob, `ventes-${from || 'mois'}-${to || 'courant'}.csv`); this.platform.notify('Export comptable téléchargé', 'ok'); },
+      error: () => this.platform.notify('Échec de l\'export', 'alert'),
+    });
+  }
+
+  fcfa(v: number): string { return Math.round(v).toLocaleString('fr-FR') + ' FCFA'; }
+  barPct(v: number): number { return Math.max(2, Math.round((v / this.revenueMax()) * 100)); }
+  shortDate(iso: string): string { return iso.slice(8, 10) + '/' + iso.slice(5, 7); }
 }

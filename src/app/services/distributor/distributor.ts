@@ -3,8 +3,8 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, catchError, map, of } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
-  ApiDelivery, ApiDestination, ApiForecast, ApiIncomingRequest, ApiInstitutionalOrder, ApiPnaDashboard, ApiRegionalDemand, ApiZone,
-  DistributorAlertsResponse, ShortageAlert,
+  ApiDelivery, ApiDestination, ApiForecast, ApiIncomingRequest, ApiInstitutionalOrder, ApiPnaDashboard, ApiRegionalDemand, ApiShortageReport,
+  ApiZone, DistributorAlertsResponse, ShortageAlert,
 } from '../../interfaces/api';
 import { DemandeReg, ZoneInfo, ZoneLevel, DeliveryRow, DeliveryStatus } from '../../interfaces/models';
 
@@ -33,7 +33,14 @@ export interface DistributorDashboard {
   critical_zones: number;
   pending_alerts: number;
   pending_requests: number;
-  structure: { id: number; name: string; type: string; city: string | null; region: string | null } | null;
+  /** Tensions portant sur des médicaments contrôlés (priorisés). */
+  controlled_alerts: number;
+  /** Ruptures confirmées par des alertes groupées patients, non traitées. */
+  shortage_reports: number;
+  partners: number;
+  structure: { id: number; name: string; type: string; sector?: string; city: string | null; region: string | null } | null;
+  /** Périmètre de livraison (règles §3.3), lisible. */
+  scope: string;
 }
 
 /**
@@ -105,6 +112,21 @@ export class DistributorService {
     return this.http.post(`${this.base}/distributor/requests/${id}/reject`, { reason });
   }
 
+  // --- RUPTURES CONFIRMÉES PAR ALERTE GROUPÉE ---
+
+  /** GET /distributor/shortage-reports */
+  shortageReports(): Observable<ApiShortageReport[]> {
+    return this.http.get<{ data: ApiShortageReport[] }>(`${this.base}/distributor/shortage-reports`).pipe(
+      map(r => r.data ?? []),
+      catchError(() => of([])),
+    );
+  }
+
+  /** POST /distributor/shortage-reports/{id}/notify-available — informe le périmètre + les patients. */
+  notifyAvailable(id: number): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.base}/distributor/shortage-reports/${id}/notify-available`, {});
+  }
+
   // --- LIVRAISONS ---
 
   /** GET /distributor/destinations?medicine_id= — structures livrables (selon le type du fournisseur) + état de stock. */
@@ -117,9 +139,12 @@ export class DistributorService {
     );
   }
 
-  /** GET /distributor/deliveries */
-  deliveries(): Observable<DeliveryRow[]> {
-    return this.http.get<{ data: ApiDelivery[] }>(`${this.base}/distributor/deliveries`).pipe(
+  /** GET /distributor/deliveries?city=&medicine= (filtres serveur ; le statut est filtré côté vue). */
+  deliveries(filters: { city?: string; medicine?: string } = {}): Observable<DeliveryRow[]> {
+    let params = new HttpParams().set('per_page', '200');
+    if (filters.city) params = params.set('city', filters.city);
+    if (filters.medicine) params = params.set('medicine', filters.medicine);
+    return this.http.get<{ data: ApiDelivery[] }>(`${this.base}/distributor/deliveries`, { params }).pipe(
       map(r => (r.data ?? []).map(toDeliveryRow)),
       catchError(() => of([])),
     );
@@ -222,6 +247,7 @@ function toDemandeReg(d: ApiRegionalDemand): DemandeReg {
     zone: d.zone,
     medId: d.medicine_id,
     med: d.medicine,
+    controlled: d.is_controlled ?? false,
     need: Math.max(0, d.estimated_need),
     tension: asZoneLevel(d.tension),
     officines: d.officines_count,
@@ -237,8 +263,10 @@ function toDeliveryRow(d: ApiDelivery & { status_label?: string }): DeliveryRow 
     zone: d.city ?? '—',
     destination: d.destination ?? '—',
     med: d.medicine ?? '—',
+    controlled: d.is_controlled ?? false,
     qty: Number(d.quantity ?? 0),
     date: d.delivery_date ? String(d.delivery_date).slice(0, 10) : '',
     status: (d.status_label ?? d.status ?? 'Planifiée') as DeliveryStatus,
+    slip: d.slip_number ?? null,
   };
 }

@@ -1,80 +1,90 @@
 @reference "../../../styles.css";
 /* ===================== APP SHELL (sidebar + barre haute + contenu) ===================== */
 :host { @apply contents; }
-.pf-app { @apply grid grid-cols-[264px_minmax(0,1fr)] min-h-screen bg-gray-bg transition-[grid-template-columns] duration-[240ms] ease-in-out; }
-.pf-app.col { @apply grid-cols-[88px_minmax(0,1fr)]; }
+.pf-app { @apply grid grid-cols-[272px_minmax(0,1fr)] min-h-screen bg-gray-bg transition-[grid-template-columns] duration-200 ease-in-out; }
+.pf-app.col { @apply grid-cols-[72px_minmax(0,1fr)]; }
 
 /* ---- Sidebar ---- */
-.pf-side { @apply bg-linear-[180deg,var(--color-blue)_0%,var(--color-blue-700)_100%] text-white flex flex-col px-3.5 py-5 sticky top-0 h-screen overflow-y-auto overflow-x-hidden; }
-.pf-sidetop { @apply px-2 pt-1.5 pb-4; }
-.pf-rolepill { @apply flex items-center gap-[11px] bg-white/8 border border-white/12 rounded-xl px-3 py-[11px] mb-3.5; }
-.pf-rolepillic { @apply w-[34px] h-[34px] rounded-[9px] bg-green text-white grid place-items-center flex-none; }
-.pf-rolepilltxt span { @apply block text-[10.5px] text-white/60 tracking-[.08em] uppercase; }
-.pf-rolepilltxt strong { @apply font-title font-bold text-[14px] text-white; }
+.pf-side { @apply bg-blue text-white flex flex-col px-4 py-6 sticky top-0 h-screen overflow-y-auto overflow-x-hidden; }
+/* Défilement du menu : invisible au repos, fin et translucide au survol */
+.pf-side { scrollbar-color: transparent transparent; }
+.pf-side:hover { scrollbar-color: rgba(255, 255, 255, .25) transparent; }
+.pf-side::-webkit-scrollbar-thumb { @apply bg-transparent; }
+.pf-side:hover::-webkit-scrollbar-thumb { @apply bg-white/25; }
+.pf-side:hover::-webkit-scrollbar-thumb:hover { @apply bg-white/40; }
+.pf-sidetop { @apply px-2 pt-1 pb-6; }
+/* Identité de la structure connectée : on sait toujours où l'on travaille */
+.pf-rolepill { @apply flex items-center gap-3 bg-white/[.06] rounded-[10px] px-3.5 py-3.5 mb-6; }
+.pf-rolepillic { @apply w-9 h-9 rounded-[8px] bg-green text-white grid place-items-center flex-none; }
+.pf-rolepilltxt strong { @apply block font-semibold text-[14.5px] text-white leading-tight truncate; }
+.pf-rolepilltxt span { @apply block text-[13px] text-white/65 leading-tight mt-1 truncate; }
 .pf-nav { @apply flex flex-col gap-1 flex-1; }
-.pf-navitem { @apply flex items-center gap-[13px] w-full text-left text-white/72 font-title font-semibold text-[14px] px-3 py-[11px] rounded-[10px] transition duration-150 relative; }
-.pf-navitem:hover { @apply bg-white/8 text-white; }
-.pf-navitem.on { @apply bg-green text-white; }
+.pf-navitem { @apply flex items-center gap-3 w-full text-left text-white/75 font-medium text-[15px] px-3.5 h-12 rounded-[10px] transition-colors duration-150 relative; }
+.pf-navitem:hover { @apply bg-white/[.07] text-white; }
+/* Entrée active : fond léger + repère vert, le texte reste lisible */
+.pf-navitem.on { @apply bg-white/[.12] text-white shadow-[inset_3px_0_0_var(--color-green)]; }
+.pf-navitem.on .pf-navic { @apply text-green-light; }
 .pf-navic { @apply grid place-items-center flex-none; }
-.pf-navbadge { @apply ml-auto bg-red text-white text-[10px] font-bold min-w-[18px] h-[18px] rounded-[9px] grid place-items-center px-[5px]; }
-.pf-navitem.on .pf-navbadge { @apply bg-white/25; }
-.pf-collapsible { @apply block max-w-[190px] opacity-100 overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-200; }
+.pf-navbadge { @apply ml-auto bg-red text-white text-[11px] font-semibold min-w-[20px] h-5 rounded-[10px] grid place-items-center px-1.5; }
+.pf-collapsible { @apply block min-w-0 max-w-[180px] opacity-100 overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-200; }
 .pf-collapsible.is-hidden { @apply max-w-0 opacity-0; }
-.pf-sidefoot { @apply flex flex-col gap-1 border-t border-white/12 pt-2.5 mt-2.5; }
+.pf-sidefoot { @apply flex flex-col gap-0.5 border-t border-white/10 pt-2 mt-2; }
 
 /* Sidebar repliée (bouton « Réduire » ou écran étroit, cf. `compact()`) */
 .pf-app.col .pf-sidetop { @apply flex justify-center px-0 pt-1.5 pb-[18px]; }
-.pf-app.col .pf-rolepill { @apply justify-center gap-0 w-14 h-14 p-0 mx-auto mt-0 mb-[18px]; }
-.pf-app.col .pf-rolepillic { @apply w-[38px] h-[38px] m-0; }
-.pf-app.col .pf-navitem { @apply justify-center gap-0 w-14 h-12 mx-auto p-0 rounded-xl; }
-.pf-app.col .pf-navbadge { @apply absolute top-1 right-1 min-w-4 h-4 px-[3px] text-[9px] border-2 border-green z-[2]; }
+.pf-app.col .pf-rolepill { @apply justify-center gap-0 w-12 h-12 p-0 mx-auto mt-0 mb-4; }
+.pf-app.col .pf-rolepillic { @apply w-8 h-8 m-0; }
+.pf-app.col .pf-navitem { @apply justify-center gap-0 w-11 h-10 mx-auto p-0; }
+.pf-app.col .pf-navbadge { @apply absolute top-0.5 right-0.5 min-w-4 h-4 px-[3px] text-[9.5px] border-2 border-blue z-[2]; }
 .pf-app.col .pf-sidefoot { @apply items-center; }
 
 /* ---- Zone principale ---- */
 .pf-main { @apply flex flex-col min-w-0; }
-.pf-top { @apply sticky top-0 z-30 bg-white/90 backdrop-blur-[12px] border-b border-gray-line flex items-center gap-[18px] px-[30px] py-3.5; }
-.pf-topsearch { @apply relative flex items-center gap-2.5 bg-gray-bg border border-gray-line rounded-full px-[18px] py-2.5 flex-1 max-w-[440px]; }
-.pf-topsearch input { @apply border-0 bg-transparent outline-none font-body text-[14px] w-full text-black; }
-.pf-global-results { @apply absolute top-[calc(100%+8px)] left-0 right-0 z-20 bg-white border border-gray-line rounded-sm shadow-[0_10px_24px_rgba(18,45,65,.14)] overflow-hidden; }
+.pf-top { @apply sticky top-0 z-30 bg-white border-b border-gray-line flex items-center gap-5 px-12 h-[72px]; }
+.pf-topsearch { @apply relative flex items-center gap-2.5 bg-gray-bg border border-gray-line rounded-[10px] px-4 h-11 flex-1 max-w-[420px] focus-within:bg-white focus-within:border-green; }
+.pf-topsearch input { @apply border-0 bg-transparent outline-none font-body text-[15px] w-full text-black; }
+.pf-global-results { @apply absolute top-[calc(100%+6px)] left-0 right-0 z-20 bg-white border border-gray-line rounded-[8px] shadow-md overflow-hidden; }
 .pf-global-results button { @apply flex flex-col gap-[3px] w-full px-3 py-2.5 text-left border-0 bg-white cursor-pointer; }
 .pf-global-results button:hover { @apply bg-gray-bg; }
-.pf-global-results span { @apply text-gray-text text-[11px]; }
+.pf-global-results span { @apply text-gray-text text-[12px]; }
 .pf-global-state { @apply px-3 py-3.5 text-gray-text text-[13px] text-center; }
 .pf-topright { @apply ml-auto flex items-center gap-3; }
-.pf-iconbtn { @apply relative w-[42px] h-[42px] rounded-[11px] grid place-items-center text-blue bg-white border border-gray-line transition duration-150; }
-.pf-iconbtn:hover, .pf-iconbtn.on { @apply bg-blue-soft border-blue-soft; }
-.pf-notifdot { @apply absolute -top-[5px] -right-[5px] bg-red text-white text-[10.5px] font-bold min-w-[18px] h-[18px] rounded-[9px] grid place-items-center border-2 border-white; }
+.pf-iconbtn { @apply relative w-11 h-11 rounded-[10px] grid place-items-center text-gray-text bg-white border border-gray-line transition-colors duration-150; }
+.pf-iconbtn:hover, .pf-iconbtn.on { @apply bg-gray-bg text-black; }
+.pf-notifdot { @apply absolute -top-[6px] -right-[6px] bg-red text-white text-[10.5px] font-semibold min-w-[18px] h-[18px] rounded-[9px] grid place-items-center border-2 border-white px-1; }
 .pf-notifwrap, .pf-rolesw { @apply relative; }
-.pf-notifpanel { @apply absolute top-[52px] right-0 w-[340px] p-2 z-40 shadow-lg; }
+.pf-notifpanel { @apply absolute top-[54px] right-0 w-[400px] max-h-[70vh] overflow-y-auto p-1.5 z-40 shadow-lg; }
 .pf-notifhead { @apply flex justify-between items-center px-3 py-2.5; }
-.pf-notifhead strong { @apply font-title text-blue text-[15px]; }
-.pf-notifitem { @apply flex gap-[11px] w-full border-0 bg-transparent px-3 py-[11px] rounded-[10px] text-left cursor-pointer; }
+.pf-notifhead strong { @apply font-semibold text-black text-[14px]; }
+.pf-notifitem { @apply flex gap-3 w-full border-0 bg-transparent px-3.5 py-3.5 rounded-[10px] text-left cursor-pointer; }
 .pf-notifitem:hover { @apply bg-gray-bg; }
-.pf-notificon { @apply w-8 h-8 rounded-[9px] grid place-items-center flex-none; }
-.pf-notificon.ok { @apply bg-green-soft text-green; }
-.pf-notificon.alert { @apply bg-red-soft text-red; }
-.pf-notificon.info { @apply bg-blue-soft text-blue; }
-.pf-notifitem strong { @apply block font-title text-[13.5px] text-blue; }
+.pf-notificon { @apply w-7 h-7 rounded-[6px] grid place-items-center flex-none bg-gray-bg; }
+.pf-notificon.ok { @apply text-green; }
+.pf-notificon.alert { @apply text-red; }
+.pf-notificon.info { @apply text-blue; }
+.pf-notifitem strong { @apply block font-medium text-[13.5px] text-black; }
 .pf-notifitem span { @apply text-[12.5px] text-gray-text; }
 .pf-notifempty { @apply p-3.5 text-[13px]; }
-.pf-roleswbtn { @apply flex items-center gap-[9px] bg-white border border-gray-line rounded-full pl-1.5 pr-3 py-1.5 transition duration-150; }
-.pf-roleswbtn:hover { @apply border-green; }
-.pf-avatar { @apply w-[30px] h-[30px] rounded-full bg-blue text-green grid place-items-center flex-none; }
-.pf-rolesname { @apply font-title font-bold text-[13.5px] text-blue; }
-.pf-rolemenu { @apply absolute top-[50px] right-0 w-[280px] p-2 z-40 shadow-lg; }
-.pf-rolemenuh { @apply block font-title text-[11px] tracking-[.1em] uppercase text-gray-text px-2.5 py-2; }
-.pf-rolemenuit { @apply flex items-center gap-[11px] w-full text-left p-2.5 rounded-[9px] font-title font-semibold text-[13.5px] text-black; }
+.pf-roleswbtn { @apply flex items-center gap-2.5 bg-white border border-gray-line rounded-[10px] pl-1.5 pr-3 h-11 transition-colors duration-150; }
+.pf-roleswbtn:hover, .pf-roleswbtn.on { @apply bg-gray-bg; }
+.pf-avatar { @apply w-8 h-8 rounded-[8px] bg-blue text-white grid place-items-center flex-none; }
+.pf-rolesname { @apply font-medium text-[14.5px] text-black max-w-[180px] truncate; }
+.pf-rolemenu { @apply absolute top-[54px] right-0 w-[280px] p-1.5 z-40 shadow-lg; }
+.pf-rolemenuh { @apply px-2.5 py-2 mb-1 border-b border-gray-line; }
+.pf-rolemenuh strong { @apply block text-[13.5px] font-semibold text-black; }
+.pf-rolemenuh span { @apply block text-[12.5px] text-gray-text; }
+.pf-rolemenuit { @apply flex items-center gap-2.5 w-full text-left px-2.5 py-2 rounded-[7px] font-medium text-[13.5px] text-black; }
 .pf-rolemenuit:hover { @apply bg-gray-bg; }
 .pf-rolemenuit.on { @apply text-blue; }
-.pf-rolemenuic { @apply w-[30px] h-[30px] rounded-sm bg-blue-soft text-blue grid place-items-center flex-none; }
-.pf-content { @apply p-[30px] max-w-[1240px] w-full mx-auto; }
+.pf-rolemenuic { @apply grid place-items-center flex-none text-gray-text; }
+.pf-content { @apply px-12 py-10 max-w-[1360px] w-full mx-auto; }
 
 /* ---- Responsive ---- */
 @media (max-width: 860px) {
-  .pf-app, .pf-app.col { @apply grid-cols-[76px_minmax(0,1fr)]; }
+  .pf-app, .pf-app.col { @apply grid-cols-[68px_minmax(0,1fr)]; }
   .pf-side { @apply px-2.5; }
-  .pf-app.col .pf-rolepill { @apply w-[52px] h-[52px]; }
-  .pf-app.col .pf-navitem { @apply w-[52px] h-[46px]; }
+  .pf-app.col .pf-rolepill { @apply w-12 h-12; }
+  .pf-app.col .pf-navitem { @apply w-11 h-10; }
   .pf-rolesname { @apply hidden; }
 }
 @media (max-width: 760px) {

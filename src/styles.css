@@ -1,128 +1,136 @@
 @import "tailwindcss";
 
 /* ===========================================================
-   XamSaMed — Charte graphique DevTech, exprimée en Tailwind v4.
-   Couleurs principales : Bleu foncé #003366 · Vert émeraude #2E8B57 · Blanc
-   Couleurs secondaires : Gris moyen #A9A9A9 · Noir
-   Typo : Montserrat (titres) · Open Sans (corps)
+   XamSaMed — système visuel, exprimé en Tailwind v4.
+   Palette : bleu nuit #003366 (identité, titres) · vert #2E8B57 (action, état sain)
+   Typo    : IBM Plex Sans, une seule famille — chiffres tabulaires pour les stocks.
+
+   Principes (outil de travail quotidien, pas une vitrine) :
+   - calme et dense : blanc, filets gris, pas d'ombres ni de dégradés décoratifs ;
+   - la couleur ne sert qu'à signaler un état (rupture, tension, sain, action) ;
+   - un seul langage d'état : liseré coloré à gauche d'une ligne + pastille « point + texte ».
 
    Règle : ce fichier ne contient que les tokens (@theme), le reset et les
-   éléments PARTAGÉS par plusieurs pages (boutons, chips, cartes, modals,
-   primitives de dashboard, formulaires). Le style propre à une page ou à
-   un composant vit dans son `name.css`, qui commence par
-   `@reference "…/styles.css"` pour pouvoir utiliser @apply.
+   éléments PARTAGÉS par plusieurs pages. Le style propre à une page vit dans
+   son `name.css`, qui commence par `@reference "…/styles.css"`.
    =========================================================== */
 @theme {
-  /* La charte remplace entièrement la palette Tailwind par défaut. */
   --color-*: initial;
   --color-white: #ffffff;
-  --color-black: #000000;
+  --color-black: #16212d;           /* texte courant : ardoise dérivée du bleu nuit */
   --color-blue: #003366;
-  --color-blue-700: #002247;
-  --color-blue-soft: #e6ecf2;
-  --color-blue-soft-2: #f2f6fa;
+  --color-blue-700: #00264d;
+  --color-blue-soft: #e8eef5;
+  --color-blue-soft-2: #f3f6fa;
   --color-green: #2e8b57;
-  --color-green-700: #256e45;
-  --color-green-text: #236e44;
-  --color-green-soft: #e7f1ec;
-  --color-green-soft-2: #f1f8f4;
-  --color-green-light: #9fdcb8;
-  --color-gray: #a9a9a9;
-  --color-gray-line: #e3e6ea;
-  --color-gray-bg: #f4f6f8;
-  --color-gray-text: #7d8590;
-  --color-red: #cf4338;
-  --color-red-text: #b3261e;
-  --color-red-soft: #fdeceb;
-  --color-amber: #d8a13a;
-  --color-amber-text: #9a6a12;
-  --color-amber-soft: #fdf3e4;
+  --color-green-700: #25744a;
+  --color-green-text: #1f6b41;
+  --color-green-soft: #e6f2eb;
+  --color-green-soft-2: #f2f8f4;
+  --color-green-light: #a7d7bb;
+  --color-gray: #9aa4af;
+  --color-gray-line: #e1e5ea;
+  --color-gray-bg: #f5f7f9;
+  --color-gray-text: #5c6876;       /* secondaire : contraste AA sur blanc */
+  --color-red: #c8372d;
+  --color-red-text: #a52a21;
+  --color-red-soft: #fcebea;
+  --color-amber: #d49a2a;
+  --color-amber-text: #8f5f0a;
+  --color-amber-soft: #fcf3e2;
 
-  --font-title: "Montserrat", sans-serif;
-  --font-body: "Open Sans", system-ui, sans-serif;
-  --font-sans: "Open Sans", system-ui, sans-serif;
-  --font-mono: "Roboto Mono", "SF Mono", ui-monospace, monospace;
+  --font-title: "IBM Plex Sans", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, sans-serif;
+  --font-sans: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
 
   --radius-sm: 8px;
-  --radius-md: 14px;
-  --radius-lg: 22px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
 
-  --shadow-sm: 0 1px 2px rgba(0, 51, 102, .06), 0 1px 3px rgba(0, 51, 102, .05);
-  --shadow-md: 0 4px 16px rgba(0, 51, 102, .08);
-  --shadow-lg: 0 18px 50px rgba(0, 51, 102, .16);
-  --shadow-btn-blue: 0 8px 20px rgba(0, 51, 102, .22);
-  --shadow-btn-green: 0 8px 20px rgba(46, 139, 87, .28);
-  --shadow-focus: 0 0 0 3px #e7f1ec;
+  --shadow-sm: 0 1px 2px rgba(0, 38, 77, .05);
+  --shadow-md: 0 4px 14px rgba(0, 38, 77, .08);
+  --shadow-lg: 0 16px 40px rgba(0, 38, 77, .16);
+  --shadow-btn-blue: none;
+  --shadow-btn-green: none;
+  --shadow-focus: 0 0 0 3px rgba(46, 139, 87, .22);
 
   --animate-spin-fast: pf-spin .7s linear infinite;
-  --animate-fadein: fadein .2s ease;
-  --animate-modalin: modalin .3s cubic-bezier(.16, 1, .3, 1);
+  --animate-fadein: fadein .15s ease;
+  --animate-modalin: modalin .2s cubic-bezier(.16, 1, .3, 1);
   @keyframes pf-spin { to { transform: rotate(360deg) } }
   @keyframes fadein { from { opacity: 0 } to { opacity: 1 } }
-  @keyframes modalin { from { opacity: 0; transform: translateY(16px) } to { opacity: 1; transform: none } }
+  @keyframes modalin { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: none } }
 }
 
 /* ---------- Base ---------- */
 @layer base {
   html { @apply scroll-smooth; }
-  body { @apply font-body text-black bg-white antialiased leading-[1.55]; }
-  h1, h2, h3, h4, h5 { @apply font-title text-blue leading-[1.12] tracking-[-.01em]; }
+  body { @apply font-body text-black bg-white antialiased leading-[1.6] text-[15px]; font-variant-numeric: tabular-nums; }
+  h1, h2, h3, h4, h5 { @apply font-title text-blue leading-[1.2] tracking-[-.005em] font-semibold; }
   a { @apply text-green no-underline; }
   button { @apply cursor-pointer border-0 bg-transparent; font-family: inherit; }
   img { @apply max-w-full block; }
   ::selection { @apply bg-green text-white; }
-  *::-webkit-scrollbar { @apply w-2.5 h-2.5; }
-  *::-webkit-scrollbar-thumb { @apply bg-gray-line rounded-sm border-2 border-white; }
+  :focus-visible { @apply outline-2 outline-offset-2 outline-green; }
+  /* Barres de défilement fines et discrètes (Firefox + Chromium) */
+  * { scrollbar-width: thin; scrollbar-color: #c9d0d8 transparent; }
+  *::-webkit-scrollbar { @apply w-1.5 h-1.5; }
+  *::-webkit-scrollbar-track { @apply bg-transparent; }
+  *::-webkit-scrollbar-thumb { @apply bg-[#c9d0d8] rounded-full; }
   *::-webkit-scrollbar-thumb:hover { @apply bg-gray; }
+  *::-webkit-scrollbar-corner { @apply bg-transparent; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+  }
 }
 
 /* Spinner d'amorçage (index.html, avant le bootstrap Angular) */
 .boot { @apply min-h-screen flex items-center justify-center text-gray-text font-title; }
 
-/* ---------- Boutons ---------- */
-.btn { @apply inline-flex items-center gap-[9px] font-title font-semibold text-[15px] px-[22px] py-[13px] rounded-full whitespace-nowrap transition duration-[180ms]; }
-.btn svg { @apply w-[18px] h-[18px]; }
+/* ---------- Boutons : rectangles francs, aucune ombre ni saut au survol ---------- */
+.btn { @apply inline-flex items-center justify-center gap-2 font-title font-semibold text-[14.5px] leading-none h-11 px-5 rounded-[10px] whitespace-nowrap transition-colors duration-150 border border-transparent; }
+.btn svg { @apply w-4 h-4; }
 .btn-primary { @apply bg-blue text-white; }
-.btn-primary:hover { @apply bg-blue-700 -translate-y-px shadow-btn-blue; }
+.btn-primary:hover { @apply bg-blue-700; }
 .btn-green { @apply bg-green text-white; }
-.btn-green:hover { @apply bg-green-700 -translate-y-px shadow-btn-green; }
-.btn-outline { @apply bg-white text-blue shadow-[inset_0_0_0_1.5px_var(--color-blue)]; }
-.btn-outline:hover { @apply bg-blue text-white; }
-.btn-ghost { @apply bg-transparent text-blue px-4 py-[11px]; }
-.btn-ghost:hover { @apply bg-blue-soft; }
+.btn-green:hover { @apply bg-green-700; }
+.btn-outline { @apply bg-white text-black border-gray-line; }
+.btn-outline:hover { @apply bg-gray-bg border-gray; }
+.btn-ghost { @apply bg-transparent text-blue; }
+.btn-ghost:hover { @apply bg-blue-soft-2; }
 .btn-danger { @apply bg-red text-white; }
 .btn-danger:hover { @apply bg-red-text; }
-.btn-ghost.btn-danger { @apply bg-transparent text-red; }
+.btn-ghost.btn-danger { @apply bg-transparent text-red-text; }
 .btn-ghost.btn-danger:hover { @apply bg-red-soft; }
-.btn-sm { @apply px-4 py-[9px] text-[13.5px]; }
-.btn-lg { @apply px-[30px] py-4 text-[16.5px]; }
-.btn-block { @apply w-full justify-center; }
-.btn[disabled] { @apply opacity-50 cursor-not-allowed; }
+.btn-sm { @apply h-9 px-3.5 text-[13.5px] rounded-[8px]; }
+.btn-lg { @apply h-[52px] px-7 text-[16px]; }
+.btn-block { @apply w-full; }
+.btn[disabled] { @apply opacity-45 cursor-not-allowed; }
 
-/* ---------- Badges / chips ---------- */
-.chip { @apply inline-flex items-center gap-1.5 text-[12.5px] font-bold font-title px-3 py-[5px] rounded-full tracking-[.01em]; }
+/* ---------- Pastilles ---------- */
+.chip { @apply inline-flex items-center gap-1.5 text-[13px] font-medium leading-none px-2.5 py-[7px] rounded-[7px] whitespace-nowrap align-middle; }
 .chip-green { @apply bg-green-soft text-green-text; }
 .chip-blue { @apply bg-blue-soft text-blue; }
 .chip-gray { @apply bg-gray-bg text-gray-text; }
 .chip-red { @apply bg-red-soft text-red-text; }
 .chip-amber { @apply bg-amber-soft text-amber-text; }
-.chip-inline { @apply ml-1.5; }
+.chip-inline { @apply ml-2; }
 .dot { @apply w-2 h-2 rounded-full inline-block flex-none; }
 
-/* ---------- Cartes ---------- */
-.card { @apply bg-white border border-gray-line rounded-md shadow-sm; }
-/* Empilement vertical des blocs d'une page : espace visible entre cartes et grilles
-   successives (l'hôte <pf-card> est `contents`, la marge va sur sa section). */
+/* ---------- Panneaux ---------- */
+.card { @apply bg-white border border-gray-line rounded-md; }
+/* Empilement vertical des blocs d'une page (l'hôte <pf-card> est `contents`). */
 pf-card + pf-card > .card,
 .pf-cols + pf-card > .card, .pf-half + pf-card > .card, .pf-cols3 + pf-card > .card,
 pf-card + .pf-cols, pf-card + .pf-half, pf-card + .pf-cols3, pf-card + .pf-statgrid, pf-card + .pf-banner,
-.pf-cols + .pf-cols, .pf-cols + .pf-half, .pf-half + .pf-cols, .pf-half + .pf-half { @apply mt-5; }
-/* …mais pas entre cartes côte à côte dans une grille (l'espace vient du gap de la grille). */
+.pf-cols + .pf-cols, .pf-cols + .pf-half, .pf-half + .pf-cols, .pf-half + .pf-half { @apply mt-7; }
 .pf-cols > pf-card > .card, .pf-half > pf-card > .card, .pf-cols3 > pf-card > .card { @apply mt-0; }
+.pf-cols > div > pf-card + pf-card > .card { @apply mt-7; }
 
-/* Loader (spinner) affiché pendant le chargement des données */
-.pf-loader { @apply flex flex-col items-center justify-center gap-3.5 py-[70px] text-gray-text text-[14px]; }
-.pf-spin { @apply w-[34px] h-[34px] rounded-full border-[3px] border-gray-line border-t-green animate-spin-fast; }
+/* Chargement */
+.pf-loader { @apply flex flex-col items-center justify-center gap-3 py-[70px] text-gray-text text-[14px]; }
+.pf-spin { @apply w-7 h-7 rounded-full border-[3px] border-gray-line border-t-green animate-spin-fast; }
 .pf-spin-sm { @apply inline-block w-3.5 h-3.5 border-2 align-[-2px] mr-1.5; }
 
 /* ---------- Helpers ---------- */
@@ -130,143 +138,205 @@ pf-card + .pf-cols, pf-card + .pf-half, pf-card + .pf-cols3, pf-card + .pf-statg
 .pf-mt { @apply mt-3.5; }
 .pf-mt-xs { @apply mt-1; }
 
-/* ---------- Formulaires (login, site, modals) ---------- */
-.s-field { @apply mb-[15px] flex flex-col; }
-.s-field label { @apply font-title font-semibold text-[13px] text-blue mb-[7px]; }
+/* ---------- Formulaires ---------- */
+.s-field { @apply mb-5 flex flex-col; }
+.s-field label { @apply font-medium text-[14px] text-black mb-2; }
 .s-field label .muted { @apply font-normal; }
-.s-field input, .s-field select, .s-field textarea {
-  @apply font-body text-[14.5px] text-black border-[1.5px] border-gray-line rounded-[10px] px-3.5 py-3 bg-white w-full transition duration-150;
+/* `:not(…)` : une case à cocher n'est pas un champ texte (sinon `w-full`). */
+.s-field input:not([type="checkbox"]):not([type="radio"]), .s-field select, .s-field textarea,
+.pf-fieldrow input:not([type="checkbox"]):not([type="radio"]) {
+  @apply font-body text-[15px] text-black border border-gray-line rounded-[10px] h-12 px-4 bg-white w-full transition-[border-color,box-shadow] duration-150;
 }
-.s-field input:focus, .s-field select:focus, .s-field textarea:focus { @apply outline-none border-green shadow-focus; }
-.s-field textarea { @apply resize-y; }
-.pf-fieldrow { @apply grid grid-cols-2 gap-3 mb-4; }
-.pf-fieldrow input { @apply font-body text-[14.5px] text-black border-[1.5px] border-gray-line rounded-[10px] px-3.5 py-3 bg-white w-full; }
-.pf-fieldrow input:focus { @apply outline-none border-green shadow-focus; }
-.pf-check { @apply w-[18px] h-[18px] accent-green; }
+.s-field textarea { @apply h-auto py-3 resize-y; }
+.s-field input:disabled, .s-field select:disabled { @apply bg-gray-bg text-gray-text; }
+.s-field input:not([type="checkbox"]):not([type="radio"]):focus, .s-field select:focus, .s-field textarea:focus,
+.pf-fieldrow input:not([type="checkbox"]):not([type="radio"]):focus { @apply outline-none border-green shadow-focus; }
+.pf-fieldrow { @apply grid grid-cols-2 gap-4 mb-5; }
+/* Mot de passe : bouton « œil » superposé à droite du champ */
+.pf-pwd { @apply relative flex; }
+.pf-pwd input { @apply pr-[44px]!; }
+.pf-pwdeye { @apply absolute right-[4px] top-1/2 -translate-y-1/2 w-8 h-8 grid place-items-center rounded-[6px] text-gray-text transition-colors duration-150; }
+.pf-pwdeye:hover { @apply text-green bg-gray-bg; }
+.pf-check { @apply w-[18px] h-[18px] flex-none accent-green cursor-pointer; }
+.pf-check:disabled { @apply cursor-not-allowed; }
 
-/* ===================== MODALS (toutes les pages plateforme) ===================== */
-.pf-modal-overlay { @apply fixed inset-0 bg-blue-700/40 backdrop-blur-[3px] z-[150] flex items-center justify-center p-5 animate-fadein; }
-.pf-modal { @apply bg-white rounded-lg w-full max-w-[500px] shadow-lg flex flex-col max-h-[90vh] animate-modalin; }
-.pf-modal-head { @apply px-6 py-5 border-b border-gray-line flex justify-between items-center; }
-.pf-modal-head h3 { @apply text-[19px] font-extrabold text-blue; }
-.pf-modal-close { @apply text-gray-text transition duration-150; }
-.pf-modal-close:hover { @apply text-blue bg-gray-bg rounded-sm; }
-.pf-modal-body { @apply p-6 overflow-y-auto flex flex-col gap-4; }
+/* ===================== MODALS ===================== */
+.pf-modal-overlay { @apply fixed inset-0 bg-blue-700/35 z-[150] flex items-center justify-center p-5 animate-fadein; }
+.pf-modal { @apply bg-white rounded-lg w-full max-w-[560px] shadow-lg flex flex-col max-h-[90vh] animate-modalin; }
+.pf-modal-head { @apply px-8 pt-7 pb-5 border-b border-gray-line flex justify-between items-center; }
+.pf-modal-head h3 { @apply text-[21px] font-semibold text-blue; }
+.pf-modal-close { @apply w-8 h-8 grid place-items-center rounded-[6px] text-gray-text transition-colors duration-150; }
+.pf-modal-close:hover { @apply text-black bg-gray-bg; }
+.pf-modal-body { @apply px-8 py-7 overflow-y-auto flex flex-col gap-5; }
 .pf-modal-body .s-field, .pf-modal-body .pf-fieldrow { @apply m-0; }
-.pf-modal-body .pf-intro { @apply text-[13.5px]; }
-.pf-modal-foot { @apply px-6 py-4 border-t border-gray-line flex justify-end gap-3 bg-gray-bg rounded-b-lg; }
+.pf-modal-body .pf-intro { @apply text-[14.5px]; }
+.pf-modal-foot { @apply px-8 py-5 border-t border-gray-line flex justify-end gap-3 bg-white rounded-b-lg; }
 
-/* ===================== PRIMITIVES DASHBOARD (partagées par les 5 espaces) ===================== */
-.pf-statgrid { @apply grid grid-cols-4 gap-4 mb-[22px]; }
-.pf-staticon { @apply w-[42px] h-[42px] rounded-[11px] grid place-items-center; }
+/* ===================== PRIMITIVES DASHBOARD ===================== */
+/* Indicateurs : une seule bande découpée en cellules (pas une grille de cartes). */
+.pf-statgrid { @apply grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))] gap-px bg-gray-line border border-gray-line rounded-md overflow-hidden mb-8; }
+.pf-statgrid > pf-stat > .card { @apply border-0 rounded-none h-full; }
+.pf-staticon { @apply w-9 h-9 rounded-[8px] grid place-items-center; }
 .pf-staticon.blue { @apply bg-blue-soft text-blue; }
 .pf-staticon.green { @apply bg-green-soft text-green; }
 .pf-staticon.red { @apply bg-red-soft text-red; }
 .pf-staticon.amber { @apply bg-amber-soft text-amber-text; }
 
-.pf-cols { @apply grid grid-cols-[1.6fr_1fr] gap-5 items-start; }
-.pf-cols3 { @apply grid grid-cols-3 gap-4; }
-.pf-half { @apply grid grid-cols-2 gap-5 items-start; }
+.pf-cols { @apply grid grid-cols-[1.55fr_1fr] gap-7 items-start; }
+.pf-cols3 { @apply grid grid-cols-3 gap-6; }
+.pf-half { @apply grid grid-cols-2 gap-7 items-start; }
 
-/* tableaux */
-.pf-table { @apply w-full border-collapse; }
-.pf-table th { @apply text-left font-title font-bold text-[12px] tracking-[.04em] uppercase text-gray-text px-3 pb-3 border-b border-gray-line; }
-.pf-table td { @apply px-3 py-3.5 border-b border-gray-line text-[14px] align-middle; }
+/* Tableaux : en-tête en casse normale, lignes aérées, chiffres alignés */
+.pf-table { @apply w-full border-separate border-spacing-0; }
+.pf-table th { @apply text-left font-medium text-[13px] text-gray-text px-4 pt-1 pb-3.5 border-b border-gray-line whitespace-nowrap; }
+.pf-table td { @apply px-4 py-[18px] border-b border-gray-line text-[15px] align-middle whitespace-nowrap; }
+.pf-table th:first-child, .pf-table td:first-child { @apply pl-1; }
+.pf-table th:last-child, .pf-table td:last-child { @apply pr-1; }
 .pf-table tr:last-child td { @apply border-b-0; }
-.pf-table tbody tr { @apply transition duration-[120ms]; }
-.pf-table tbody tr:hover { @apply bg-gray-bg; }
-.pf-table .pf-td-empty { @apply text-center py-4; }
+.pf-table tbody tr { @apply transition-colors duration-100; }
+.pf-table tbody tr:hover td { @apply bg-gray-bg; }
+.pf-table tbody tr:hover td:first-child { @apply rounded-l-[10px]; }
+.pf-table tbody tr:hover td:last-child { @apply rounded-r-[10px]; }
+.pf-table .pf-td-id { @apply text-gray-text text-[14px] tabular-nums; }
+/* Texte libre (motif, villes…) : peut passer à la ligne pour ne pas élargir le tableau */
+.pf-table .pf-td-wrap { @apply whitespace-normal min-w-[180px] max-w-[320px] text-[14px] leading-snug; }
+/* Un panneau qui contient un tableau large défile horizontalement au lieu de couper le texte */
+.card:has(> .pf-table) { @apply overflow-x-auto; }
+.pf-table .pf-td-empty { @apply text-center py-10 whitespace-normal; }
 .pf-table .pf-td-right { @apply text-right; }
 .pf-table .pf-td-bar { @apply min-w-[110px]; }
 .pf-table .pf-td-bar.lg { @apply min-w-[160px]; }
-.pf-medname { @apply font-title font-bold text-blue text-[14px]; }
-.pf-medsub { @apply text-[12px] text-gray-text; }
-.pf-num { @apply font-title font-bold text-blue; }
-.pf-num-sm { @apply text-[13px]; }
-.pf-accent { @apply text-blue; }
-.pf-in { @apply text-green; }
-.pf-out { @apply text-red; }
+.pf-medname { @apply font-semibold text-black text-[15.5px]; }
+.pf-medsub { @apply text-[13.5px] text-gray-text mt-1; }
+.pf-num { @apply font-semibold text-black text-[16px]; }
+.pf-num-sm { @apply text-[14.5px]; }
+.pf-accent { @apply text-blue font-medium; }
+.pf-in { @apply text-green-text font-semibold; }
+.pf-out { @apply text-red-text font-semibold; }
 
-/* listes : chaque élément est une sous-carte distincte, séparée par un espace visible */
-.pf-li { @apply flex items-center gap-3.5 px-4 py-[15px] bg-white border border-gray-line rounded-md; }
-.pf-li + .pf-li { @apply mt-4; }
+/* Listes : chaque ligne est un bloc distinct, séparé du suivant par un vrai vide ;
+   l'état se lit sur la case de l'icône (fond teinté + icône colorée). */
+.pf-li { @apply flex items-center gap-5 px-6 py-5 bg-white border border-gray-line rounded-[12px]; }
+.pf-li + .pf-li { @apply mt-3.5; }
 .pf-li-top { @apply items-start; }
-.pf-li-flat { @apply p-0 border-0 mb-2; }        /* rappel d'un élément dans un modal */
-.pf-li-sm { @apply py-2.5; }                     /* ligne compacte (sous-liste) */
-.pf-li-pick { @apply py-2.5 cursor-pointer; }    /* ligne cochable (choix de fournisseur) */
-.pf-li-sm + .pf-li-sm, .pf-li-pick + .pf-li-pick { @apply mt-2; }
-.pf-liic { @apply w-[42px] h-[42px] rounded-[11px] grid place-items-center flex-none bg-blue-soft text-blue; }
+.pf-li-flat { @apply p-0 border-0! rounded-none mb-2; }
+.pf-li-sm { @apply py-3.5; }
+.pf-li-sm + .pf-li-sm { @apply mt-2.5; }
+
+/* Case d'icône : porte l'état de la ligne (rouge rupture, orange tension, vert sain) */
+.pf-liic { @apply w-11 h-11 rounded-[10px] grid place-items-center flex-none bg-gray-bg text-gray-text text-[14px] font-semibold; }
 .pf-liic.green { @apply bg-green-soft text-green; }
 .pf-liic.red { @apply bg-red-soft text-red; }
 .pf-liic.amber { @apply bg-amber-soft text-amber-text; }
+.pf-liic.blue { @apply bg-blue-soft text-blue; }
 .pf-liic.lg { @apply w-12 h-12; }
 .pf-libody { @apply flex-1 min-w-0; }
-.pf-libody strong { @apply block font-title font-bold text-blue text-[14.5px]; }
-.pf-libody span { @apply text-[13px] text-gray-text; }
-.pf-libody .muted { @apply font-medium; }
-.pf-li-act { @apply flex gap-2 items-center flex-none; }
-.pf-li-act.tight { @apply gap-1.5; }
+.pf-libody strong { @apply block font-semibold text-black text-[16px] leading-snug mb-1.5; }
+.pf-libody span { @apply text-[14.5px] text-gray-text leading-relaxed; }
+.pf-libody .muted { @apply font-normal; }
+.pf-li-act { @apply flex gap-3 items-center flex-none flex-wrap justify-end; }
+.pf-li-act.tight { @apply gap-2 flex-nowrap; }
 
-/* fiche « élément » d'une carte (alerte, demande, ordonnance…) */
-.pf-row { @apply flex gap-4 items-center flex-wrap; }
+/* Liste cochable (choix des fournisseurs à solliciter) */
+.pf-picklist { @apply flex flex-col gap-2.5 max-h-[340px] overflow-y-auto; }
+.pf-picklist .pf-li { @apply mt-0; }
+.pf-li-pick { @apply py-4 gap-4 cursor-pointer transition-colors duration-150; }
+.pf-li-pick:hover { @apply border-green-light bg-green-soft-2; }
+.pf-li-pick:has(.pf-check:checked) { @apply border-green bg-green-soft-2; }
+.pf-li-pick:has(.pf-check:disabled) { @apply bg-gray-bg cursor-not-allowed; }
+.pf-li-pick:has(.pf-check:disabled) .pf-libody strong { @apply text-gray-text; }
+.pf-li-pick .pf-libody strong { @apply flex items-center gap-1.5 min-w-0 leading-tight; }
+.pf-li-pick .pf-pickname { @apply truncate; }
+.pf-li-pick .pf-libody > span { @apply block truncate; }
+.pf-li-pick .chip { @apply flex-none; }
+
+/* Fiche « élément » (alerte, demande, ordonnance…) */
+.pf-row { @apply flex gap-5 items-center flex-wrap; }
 .pf-row-top { @apply items-start; }
 .pf-row-body { @apply flex-1 min-w-[200px]; }
 .pf-row-head { @apply flex items-center gap-2.5 flex-wrap; }
-.pf-row-head .pf-medname, .pf-row-body > .pf-medname { @apply text-[16px]; }
-.pf-row-sub { @apply text-[13.5px] mt-1; }
-.pf-row-sub strong { @apply text-blue; }
+.pf-row-head .pf-medname, .pf-row-body > .pf-medname { @apply text-[17px]; }
+.pf-row-sub { @apply text-[14.5px] mt-2 leading-relaxed; }
+.pf-row-sub strong { @apply text-black; }
 
-/* ligne « libellé + barre de progression » */
-.pf-progress { @apply py-3 border-b border-gray-line; }
-.pf-progress-head { @apply flex justify-between mb-2 items-center; }
+/* Fiches empilées dans un même panneau (alertes, ordonnances, alertes groupées) */
+.pf-rowline { @apply px-6 py-6 bg-white border border-gray-line rounded-[12px]; }
+.pf-rowline + .pf-rowline { @apply mt-3.5; }
+
+/* Libellé + barre de progression */
+.pf-progress { @apply py-5 border-b border-gray-line last:border-b-0; }
+.pf-progress-head { @apply flex justify-between gap-4 mb-3 items-center; }
 .pf-progress-meta { @apply flex gap-2.5 items-center; }
 .pf-progress-meta .muted { @apply text-[13px]; }
-.pf-progress-pct { @apply font-title font-bold text-blue; }
-.pf-progress-pct.hot { @apply text-red; }
+.pf-progress-pct { @apply font-semibold text-black; }
+.pf-progress-pct.hot { @apply text-red-text; }
 
-/* états vides / messages secondaires */
-.pf-empty { @apply text-center p-[34px] text-gray-text; }
-.pf-empty nv-icon { @apply block mx-auto mb-2.5; }
+/* États vides / messages secondaires : dire quoi faire, sans décor */
+.pf-empty { @apply text-center px-8 py-12 text-gray-text text-[15px] leading-relaxed; }
+.pf-empty nv-icon { @apply block mx-auto mb-3 opacity-70; }
 .pf-empty.ok { @apply text-green; }
 .pf-empty.ok p { @apply text-gray-text; }
-.pf-empty p { @apply mt-2; }
+.pf-empty p { @apply mt-1 max-w-[520px] mx-auto; }
 .pf-empty .btn { @apply mt-4; }
-.pf-note { @apply py-3.5 text-gray-text; }
-.pf-note-sm { @apply py-2.5 text-gray-text; }
-.pf-hint { @apply py-1.5 text-[13px] text-gray-text; }
-.pf-caption { @apply block text-[13px] font-semibold text-gray-text my-1.5; }
+.pf-note { @apply py-5 px-1 text-gray-text text-[15px]; }
+.pf-note-sm { @apply py-3 text-gray-text text-[14px]; }
+.pf-hint { @apply py-2 text-[13.5px] text-gray-text; }
+.pf-caption { @apply block text-[13.5px] font-medium text-gray-text mt-5 mb-2.5; }
 .pf-map-placeholder { @apply min-h-[300px] flex items-center justify-center text-gray-text; }
 .pf-defer-placeholder { @apply p-12 text-center text-gray-text; }
 
-/* mini empty / info banners */
-.pf-banner { @apply flex items-center gap-3.5 bg-blue text-white rounded-md px-6 py-5 mb-[22px]; }
-.pf-banner.green { @apply bg-green; }
-.pf-banner.amber { @apply bg-amber-text; }
-.pf-banner .pf-bannic { @apply w-[46px] h-[46px] rounded-xl bg-white/18 grid place-items-center flex-none; }
-.pf-banner strong { @apply font-title font-bold text-[16px] block; }
-.pf-banner p { @apply text-white/80 text-[14px]; }
-.pf-banner .btn { @apply ml-auto; }
+/* Bandeaux : encadré teinté + liseré (information, avertissement, succès) */
+.pf-banner { @apply flex items-center gap-5 bg-blue-soft-2 text-black border border-blue-soft rounded-md px-7 py-6 mb-8 shadow-[inset_3px_0_0_var(--color-blue)]; }
+.pf-banner.green { @apply bg-green-soft-2 border-green-soft shadow-[inset_3px_0_0_var(--color-green)]; }
+.pf-banner.amber { @apply bg-amber-soft border-amber-soft shadow-[inset_3px_0_0_var(--color-amber)]; }
+.pf-banner.red { @apply bg-red-soft border-red-soft shadow-[inset_3px_0_0_var(--color-red)]; }
+.pf-banner .pf-bannic { @apply grid place-items-center flex-none text-blue; }
+.pf-banner.green .pf-bannic { @apply text-green; }
+.pf-banner.amber .pf-bannic { @apply text-amber-text; }
+.pf-banner.red .pf-bannic { @apply text-red; }
+.pf-banner strong { @apply font-semibold text-[16px] block mb-1; }
+.pf-banner p { @apply text-gray-text text-[15px] leading-relaxed; }
+.pf-banner .btn { @apply ml-auto flex-none; }
 .pf-banner .pf-banner-body { @apply flex-1; }
-.pf-banner .btn-white { @apply bg-white text-green; }
+.pf-banner .btn-white { @apply bg-white text-black border-gray-line; }
+.pf-banner .btn-white:hover { @apply bg-gray-bg; }
 
-/* carte (zone-map + pharmacies patient) */
+/* Barre de filtres (stock officine, livraisons, stock hospitalier) */
+.pf-filters { @apply flex gap-2.5 mb-6 flex-wrap items-center; }
+.pf-filters .btn-primary { @apply bg-blue text-white; }
+.pf-filter-sep { @apply w-px h-6 bg-gray-line mx-2; }
+.pf-filters input, .pf-filters select { @apply h-9 px-3.5 border border-gray-line rounded-[8px] text-[14px] bg-white; }
+
+/* Mini-histogramme — hauteur de barre = donnée */
+.pf-spark { @apply flex items-end gap-1 h-[150px] pt-4; }
+.pf-spark-bar { @apply flex-1 min-w-[4px] rounded-t-[2px] bg-green/70 hover:bg-green transition-colors; }
+.pf-spark-bar.red { @apply bg-red/75 hover:bg-red; }
+.pf-spark-bar.amber { @apply bg-amber/75 hover:bg-amber; }
+.pf-spark-axis { @apply flex justify-between text-[13px] text-gray-text mt-3; }
+
+/* Carte (zone-map + pharmacies patient) */
 .pf-map {
   @apply relative border border-gray-line rounded-md h-[360px] overflow-hidden bg-blue-soft-2;
   background-image:
-    linear-gradient(0deg, rgba(0, 51, 102, .04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 51, 102, .04) 1px, transparent 1px);
+    linear-gradient(0deg, rgba(0, 51, 102, .035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 51, 102, .035) 1px, transparent 1px);
   background-size: 100% 32px, 32px 100%;
 }
 .pf-mappin { @apply absolute -translate-x-1/2 -translate-y-full flex flex-col items-center cursor-pointer; }
-.pf-mapdot { @apply w-[18px] h-[18px] rounded-[50%_50%_50%_0] rotate-45 shadow-[0_3px_8px_rgba(0,0,0,.25)]; }
-.pf-maplegend { @apply absolute bottom-3 left-3 bg-white border border-gray-line rounded-[10px] px-3 py-2.5 flex flex-col gap-1.5 text-[12px] font-title font-semibold; }
+.pf-mapdot { @apply w-[16px] h-[16px] rounded-[50%_50%_50%_0] rotate-45 shadow-[0_2px_6px_rgba(0,0,0,.25)]; }
+.pf-maplegend { @apply absolute bottom-3 left-3 bg-white border border-gray-line rounded-[8px] px-3 py-2 flex flex-col gap-1 text-[12px] font-medium; }
 .pf-maplegend > div { @apply flex items-center gap-[7px]; }
 
-/* icône de rôle (login + profil) */
-.pf-roleic { @apply w-[46px] h-[46px] rounded-xl bg-blue-soft text-blue grid place-items-center flex-none; }
+/* Icône de rôle (login + profil) */
+.pf-roleic { @apply w-10 h-10 rounded-[8px] bg-blue-soft text-blue grid place-items-center flex-none; }
 
-/* responsive partagé */
+/* Responsive partagé */
 @media (max-width: 1100px) {
-  .pf-statgrid { @apply grid-cols-2; }
   .pf-cols, .pf-cols3, .pf-half { @apply grid-cols-1; }
+}
+@media (max-width: 640px) {
+  .pf-statgrid { @apply grid-cols-2; }
+  .pf-fieldrow { @apply grid-cols-1; }
+  .pf-li { @apply flex-wrap; }
+  .pf-li-act { @apply w-full justify-start; }
 }

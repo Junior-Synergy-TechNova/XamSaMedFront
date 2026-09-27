@@ -8,17 +8,28 @@ export type BackendRole =
 /** Type de structure en base (structures.type). */
 export type StructureType = 'pharmacy' | 'hospital' | 'distributor' | 'pna' | 'pra';
 
+/** Secteur (§3.3) : public = PNA, PRA, hôpitaux publics ; privé = distributeurs, officines, cliniques. */
+export type Sector = 'public' | 'private';
+
+/** Offre commerciale (§10) — le module Vente & Comptabilité est réservé à « pro ». */
+export type Plan = 'starter' | 'pro' | 'institutionnel';
+
 /** Structure rattachée à l'utilisateur (renvoyée par /login et /me). */
 export interface ApiUserStructure {
   id: number;
   name: string;
   type: StructureType;
+  sector?: Sector | null;
+  plan?: Plan | null;
   code?: string | null;
   city: string | null;
   region: string | null;
   address?: string | null;
   contact_phone?: string | null;
   contact_email?: string | null;
+  /** Coordonnées de la structure : servent de point de référence pour « la plus proche ». */
+  latitude?: number | string | null;
+  longitude?: number | string | null;
 }
 
 export interface ApiUser {
@@ -42,6 +53,19 @@ export interface LoginResponse {
   token: string;
 }
 
+/** Canal OTP (§13) : email actif ; SMS / WhatsApp selon la configuration Twilio du serveur. */
+export type OtpChannel = 'email' | 'sms' | 'whatsapp';
+
+/** POST /login/otp/request */
+export interface OtpRequestResponse {
+  status: string;
+  channel: OtpChannel;
+  message: string;
+  expires_in: number;
+  channels: Record<OtpChannel, boolean>;
+  debug_code?: string;
+}
+
 /* ---- GET /distributor/alerts (réponse actuellement mockée côté backend) ---- */
 export interface PharmacyReport {
   pharmacy_id: number;
@@ -51,6 +75,7 @@ export interface PharmacyReport {
 export interface ShortageAlert {
   medicine_id: number;
   name: string;
+  is_controlled?: boolean;
   pharmacies: PharmacyReport[];
   severity: 'high' | 'medium' | 'low' | string;
 }
@@ -63,10 +88,14 @@ export interface DistributorAlertsResponse {
 export interface ApiMedicine {
   id: number;
   name: string;
+  dci?: string | null;
   brand: string | null;
   form: string | null;
   dosage: string | null;
   is_controlled: boolean;
+  requires_prescription?: boolean;
+  /** pharmaceutical | hospital | both — séparation officine ↔ hôpital. */
+  category?: string;
 }
 
 export interface GlobalSearchResult {
@@ -90,12 +119,17 @@ export interface ApiAvailabilityRow {
   available: number;
   label: string;
   distance_label?: string | null;
+  /** Renseigné quand l'appel fournit une position GPS (tri PostGIS côté API). */
+  distance_metres?: number | string | null;
 }
 export interface ApiStructure {
   id: number;
   name: string;
   type: string;
+  sector?: Sector | null;
+  plan?: Plan | null;
   city: string | null;
+  region?: string | null;
   address: string | null;
   phone: string | null;
   latitude: number | string | null;
@@ -126,7 +160,15 @@ export interface ApiStockRow {
   threshold?: number;
   threshold_qty?: number;
   status: string;
+  requires_prescription?: boolean;
+  category?: string;
+  batch_number?: string | null;
+  expiry_date?: string | null;
+  /** Code couleur péremption : ok (> 3 mois) | warn (< 3 mois) | crit (< 1 mois) | expired | none. */
+  expiry_level?: ExpiryLevel;
+  days_to_expiry?: number | null;
 }
+export type ExpiryLevel = 'none' | 'ok' | 'warn' | 'crit' | 'expired';
 export interface ApiDemande {
   id: number;
   medicine: string | null;
@@ -142,6 +184,7 @@ export interface ApiDemande {
 export interface ApiRegionalDemandPharmacy {
   id: number;
   name: string;
+  type?: string;
   address: string | null;
   phone: string | null;
   status: string;
@@ -151,6 +194,7 @@ export interface ApiRegionalDemand {
   zone: string;
   medicine_id: number;
   medicine: string;
+  is_controlled?: boolean;
   officines_count: number;
   estimated_need: number;
   tension: string;
@@ -159,11 +203,12 @@ export interface ApiRegionalDemand {
 
 /* ---- Chaîne d'approvisionnement ---- */
 
-/** GET /distributors?medicine_id= — fournisseurs (privés + PRA) avec leur stock du médicament. */
+/** GET /distributors?medicine_id= — fournisseurs autorisés (règles §3.3) avec leur stock du médicament. */
 export interface ApiSupplier {
   id: number;
   name: string;
   type: 'distributor' | 'pra' | string;
+  sector?: Sector | null;
   kind: string;
   city: string | null;
   region: string | null;
@@ -204,6 +249,7 @@ export interface ApiIncomingRequest {
   quantity_requested: number | null;
   service: string | null;
   message: string | null;
+  is_controlled?: boolean;
   targeted: boolean;
   status: string;
   delivery_id: number | null;
@@ -217,6 +263,7 @@ export interface ApiDestination {
   id: number;
   name: string;
   type: StructureType;
+  kind?: string;
   city: string | null;
   region: string | null;
   phone: string | null;
@@ -254,11 +301,17 @@ export interface ApiZone {
   tensions?: number;
   level: string;
 }
+/** Deux niveaux d'urgence hospitaliers (§6.4) : tension (stock critique non nul) / rupture (zéro). */
+export type HospitalSeverity = 'tension' | 'rupture';
+
 export interface ApiHospitalAlert {
   id: number;
   medicine_id?: number | null;
   medicine: string | null;
   service: string | null;
+  unit?: string | null;
+  severity?: HospitalSeverity;
+  is_controlled?: boolean;
   level: string;
   remaining: string | null;
   remaining_quantity?: number | null;
@@ -268,22 +321,81 @@ export interface ApiHospitalAlert {
 }
 export interface ApiCriticalMedicine {
   medicine_id: number;
+  stock_id?: number | null;
   medicine: string | null;
   available: number;
+  threshold?: number;
   status: string;
+  severity?: HospitalSeverity | null;
+  last_issue?: { quantity: number; service: string | null; unit: string | null; at: string } | null;
 }
+
+/** GET /hospital/stock — ligne de stock de la pharmacie hospitalière. */
+export interface ApiHospitalStockRow extends ApiStockRow {
+  severity: HospitalSeverity | null;
+}
+
+/** GET /hospital/dispensations — sortie tracée vers un service / une unité. */
+export interface ApiDispensation {
+  id: number;
+  medicine: string | null;
+  medicine_id: number | null;
+  quantity: number;
+  service: string | null;
+  unit: string | null;
+  patient_ref: string | null;
+  new_quantity: number;
+  user: string | null;
+  reason: string | null;
+  created_at: string | null;
+}
+export interface ApiDispensationByService { service: string; quantity: number; count: number; units: string[]; }
 export interface ApiOverview {
   ruptures: number;
   low: number;
   zones_tracked: number;
   medicines_in_tension: number;
+  alerts_today?: number;
+  controlled_ruptures?: number;
 }
 export interface ApiTension {
   medicine_id: number;
   medicine: string | null;
+  is_controlled?: boolean;
   pct: number;
   shortage: number;
+  ruptures?: number;
   total: number;
+  /** Écart (points de %) avec la situation d'il y a 7 jours — reconstitué depuis stock_movements. */
+  variation: number;
+  /** Score de tension nationale (0–100). */
+  score: number;
+}
+
+/** GET /public-health/trends */
+export interface ApiTrendPoint { date: string; ruptures: number; low: number; alerts?: number; }
+export interface ApiTrends {
+  current: { ruptures: number; low: number; date: string };
+  last_7_days: ApiTrendPoint[];
+  last_30_days: ApiTrendPoint[];
+  delta_7: { ruptures: number; low: number };
+  delta_30: { ruptures: number; low: number };
+}
+
+/** GET /public-health/controlled — suivi spécial des médicaments contrôlés. */
+export interface ApiControlledMedicine {
+  medicine_id: number;
+  medicine: string;
+  form: string | null;
+  dosage: string | null;
+  structures: number;
+  available_units: number;
+  ruptures: number;
+  tensions: number;
+  hospitals_in_rupture: string[];
+  cities: string[];
+  issued_30d: number;
+  level: string;
 }
 
 /* ---- Pharmacie : ordonnances, mouvements, alertes groupées ---- */
@@ -304,6 +416,7 @@ export interface ApiStockMovement {
   id: number;
   type: string;
   type_label?: string;
+  medicine_id?: number | null;
   quantity: number;
   old_quantity: number;
   new_quantity: number;
@@ -342,11 +455,17 @@ export interface ApiGroupedSearchPharmacy {
   phone: string | null;
   quantity?: number | null;
 }
+/** Équivalent thérapeutique classé (§9) : pertinence + disponibilité réelle. */
 export interface ApiGroupedSearchEquivalent {
   id: number;
   name: string | null;
   dosage: string | null;
   form: string | null;
+  score?: number;
+  reasons?: string[];
+  note?: string;
+  available_pharmacies?: number;
+  nearest_km?: number | null;
 }
 /** GET /grouped-search/{id}/status */
 export interface ApiGroupedSearchStatus {
@@ -369,6 +488,8 @@ export interface ApiPartner {
   partner_id: number | null;
   partner: string | null;
   type: string | null;
+  kind?: string | null;
+  sector?: Sector | null;
   city: string | null;
   phone: string | null;
   status: 'pending' | 'active' | 'rejected' | string;
@@ -376,7 +497,7 @@ export interface ApiPartner {
   can_respond: boolean;
   connected_at: string | null;
 }
-export interface ApiPartnerCandidate { id: number; name: string; type: string; city?: string | null; }
+export interface ApiPartnerCandidate { id: number; name: string; type: string; kind?: string; sector?: Sector | null; city?: string | null; code?: string | null; }
 export interface ApiHospitalDashboard { [key: string]: number | string | null | undefined; }
 
 /* ---- Distributeur / PNA ---- */
@@ -430,13 +551,71 @@ export interface ApiDelivery {
   id: number | string;
   structure?: string | null;
   destination?: string | null;
+  destination_type?: string | null;
   zone?: string | null;
   city?: string | null;
   medicine?: string | null;
+  is_controlled?: boolean;
   quantity?: number;
   delivery_date?: string | null;
   status: string;
+  slip_number?: string | null;
+  received_by_recipient?: boolean;
 }
+
+/** GET /deliveries/incoming — approvisionnement entrant (côté destinataire). */
+export interface ApiIncomingDelivery {
+  id: number;
+  supplier: string | null;
+  supplier_type: string | null;
+  medicine_id: number;
+  medicine: string | null;
+  is_controlled: boolean;
+  quantity: number;
+  delivery_date: string | null;
+  status: 'planned' | 'in_transit' | 'delivered' | string;
+  slip_number: string | null;
+  delivered_at: string | null;
+  notes: string | null;
+}
+
+/** GET /distributor/shortage-reports — ruptures confirmées par alerte groupée patient. */
+export interface ApiShortageReport {
+  id: number;
+  medicine_id: number;
+  medicine: string;
+  searches: number;
+  message: string | null;
+  own_available: number | null;
+  created_at: string | null;
+}
+
+/* ---- Module Vente & Comptabilité (offre Pro) ---- */
+export interface ApiSaleItem { medicine_id: number; medicine: string | null; quantity: number; unit_price: number; line_total: number; }
+export interface ApiSale {
+  id: number;
+  receipt_number: string;
+  customer_name: string | null;
+  prescription_ref: string | null;
+  payment_method: string | null;
+  payment_label: string;
+  vat_rate: number;
+  total_ht: number;
+  total_vat: number;
+  total_ttc: number;
+  seller: string | null;
+  items: ApiSaleItem[];
+  created_at: string;
+}
+export interface ApiSalesStats {
+  today: { revenue: number; count: number };
+  week: { revenue: number; count: number };
+  month: { revenue: number; count: number };
+  daily: { date: string; revenue: number }[];
+  top: { medicine_id: number; medicine: string | null; quantity: number; revenue: number }[];
+  currency: string;
+}
+export interface NewSaleLine { stock_id: number; quantity: number; unit_price: number; }
 
 /* ---- Santé publique : rapports & administration ---- */
 
@@ -445,6 +624,7 @@ export interface ApiReport {
   id: number;
   type: string;
   period: string;
+  payload?: { region?: string | null; medicine_id?: number | null } | null;
   status: 'completed' | 'generating' | 'failed' | string;
   file_path: string | null;
   generated_at: string | null;
@@ -470,4 +650,4 @@ export interface ApiNotification {
 }
 
 /** Réponse d'erreur Laravel (validation / métier). */
-export interface ApiErrorBody { message?: string; errors?: Record<string, string[]>; }
+export interface ApiErrorBody { message?: string; code?: string; errors?: Record<string, string[]>; }

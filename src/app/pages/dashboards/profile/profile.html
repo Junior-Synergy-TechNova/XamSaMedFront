@@ -14,7 +14,7 @@
           }
           <div class="pf-profacts">
             <button class="btn btn-green btn-sm" (click)="editModal.set(true)"><nv-icon name="user" [size]="15"/> Modifier mon profil</button>
-            <button class="btn btn-outline btn-sm" (click)="pwdModal.set(true)"><nv-icon name="shield" [size]="15"/> Mot de passe</button>
+            <button class="btn btn-outline btn-sm" (click)="openPwdModal()"><nv-icon name="shield" [size]="15"/> Mot de passe</button>
           </div>
         </pf-card>
         <pf-card title="Accès rapide" sub="QR code de votre espace">
@@ -56,9 +56,33 @@
               <button type="button" class="pf-modal-close" (click)="pwdModal.set(false)"><nv-icon name="x" [size]="20"/></button>
             </div>
             <div class="pf-modal-body">
-              <div class="s-field"><label>Mot de passe actuel *</label><input #pCur required type="password" autocomplete="current-password"/></div>
-              <div class="s-field"><label>Nouveau mot de passe *</label><input #pNew required type="password" autocomplete="new-password" minlength="6"/></div>
-              <div class="s-field"><label>Confirmer *</label><input #pConf required type="password" autocomplete="new-password"/></div>
+              <div class="s-field">
+                <label>Mot de passe actuel *</label>
+                <div class="pf-pwd">
+                  <input #pCur required [type]="showCur() ? 'text' : 'password'" autocomplete="current-password"/>
+                  <button type="button" class="pf-pwdeye" (click)="showCur.set(!showCur())" [attr.aria-label]="showCur() ? 'Masquer le mot de passe' : 'Afficher le mot de passe'" [attr.title]="showCur() ? 'Masquer' : 'Afficher'">
+                    <nv-icon [name]="showCur() ? 'eyeOff' : 'eye'" [size]="18"/>
+                  </button>
+                </div>
+              </div>
+              <div class="s-field">
+                <label>Nouveau mot de passe *</label>
+                <div class="pf-pwd">
+                  <input #pNew required [type]="showNew() ? 'text' : 'password'" autocomplete="new-password" minlength="6"/>
+                  <button type="button" class="pf-pwdeye" (click)="showNew.set(!showNew())" [attr.aria-label]="showNew() ? 'Masquer le mot de passe' : 'Afficher le mot de passe'" [attr.title]="showNew() ? 'Masquer' : 'Afficher'">
+                    <nv-icon [name]="showNew() ? 'eyeOff' : 'eye'" [size]="18"/>
+                  </button>
+                </div>
+              </div>
+              <div class="s-field">
+                <label>Confirmer *</label>
+                <div class="pf-pwd">
+                  <input #pConf required [type]="showConf() ? 'text' : 'password'" autocomplete="new-password"/>
+                  <button type="button" class="pf-pwdeye" (click)="showConf.set(!showConf())" [attr.aria-label]="showConf() ? 'Masquer le mot de passe' : 'Afficher le mot de passe'" [attr.title]="showConf() ? 'Masquer' : 'Afficher'">
+                    <nv-icon [name]="showConf() ? 'eyeOff' : 'eye'" [size]="18"/>
+                  </button>
+                </div>
+              </div>
             </div>
             <div class="pf-modal-foot">
               <button type="button" class="btn btn-ghost btn-sm" (click)="pwdModal.set(false)">Annuler</button>

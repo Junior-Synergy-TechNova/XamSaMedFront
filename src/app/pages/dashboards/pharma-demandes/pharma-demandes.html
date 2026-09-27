@@ -5,20 +5,19 @@
         <div><strong>Confidentialité préservée</strong><p>Seuls les médicaments demandés sont concernés. Aucun partage global de votre inventaire.</p></div>
       </div>
 
+      <pf-card>
       @if (demandes().length === 0) {
-        <pf-card>
           <div class="pf-empty">
-            <nv-icon name="checkC" [size]="34" color="var(--color-green)"/>
+            <nv-icon name="checkC" [size]="28" color="var(--color-green)"/>
             <p>Toutes les demandes ont été traitées.</p>
           </div>
-        </pf-card>
       }
 
       @for (d of demandes(); track d.id) {
-        <pf-card>
+        <div class="pf-rowline">
           <div class="pf-row pf-row-top">
-            <span class="pf-liic lg {{ d.urgency === 'Critique' ? 'red' : d.urgency === 'Élevé' ? 'amber' : 'green' }}">
-              <nv-icon [name]="typeIcon(d.type)" [size]="22"/>
+            <span class="pf-liic {{ d.urgency === 'Critique' ? 'red' : d.urgency === 'Élevé' ? 'amber' : 'green' }}">
+              <nv-icon [name]="typeIcon(d.type)" [size]="18"/>
             </span>
             <div class="pf-row-body">
               <div class="pf-row-head">
@@ -46,14 +45,23 @@
           </div>
           @if (orient() === d.id) {
             <div class="pf-orient">
-              <p class="pf-orient-title">Officines disposant de {{ d.medName }} ({{ d.qty }} u. demandées) :</p>
+              <p class="pf-orient-title">
+                Officines disposant de {{ d.medName }} ({{ d.qty }} u. demandées)
+                <span class="muted pf-orient-sort">· triées de la plus proche à la plus éloignée{{ originLabel() }}</span>
+              </p>
               @if (orientLoading()) {
                 <div class="pf-note-sm"><span class="pf-spin pf-spin-sm"></span> Vérification des stocks…</div>
               }
-              @for (p of orientOptions(); track p.structureId) {
-                <div class="pf-li pf-li-sm">
+              @for (p of orientOptions(); track p.structureId; let first = $first) {
+                <div class="pf-li pf-li-sm" [class.pf-li-near]="first && p.distKm !== null">
                   <span class="pf-liic green"><nv-icon name="pin" [size]="16"/></span>
-                  <div class="pf-libody"><strong>{{ p.pharmacy }}</strong><span>{{ p.city }} · {{ p.dist }} · {{ p.phone }}</span></div>
+                  <div class="pf-libody">
+                    <strong>{{ p.pharmacy }}</strong>
+                    <span>{{ p.city }} · {{ p.dist }} · {{ p.phone }}</span>
+                  </div>
+                  @if (first && p.distKm !== null) {
+                    <span class="chip chip-green pf-orient-near"><nv-icon name="pin" [size]="13"/> La plus proche</span>
+                  }
                   <pf-tag [s]="p.s">{{ p.available }} u. dispo</pf-tag>
                   <button class="btn btn-green btn-sm" (click)="doOrient(d, p)">Orienter ici</button>
                 </div>
@@ -64,6 +72,7 @@
               <button type="button" class="btn btn-ghost btn-sm pf-orient-cancel" (click)="orient.set(null)">Annuler</button>
             </div>
           }
-        </pf-card>
+        </div>
       }
+      </pf-card>
     </div>

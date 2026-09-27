@@ -1,6 +1,7 @@
 @reference "../../../styles.css";
 :host { @apply contents; }
-.pf-block { @apply p-[22px]; }
-.pf-blockhead { @apply flex justify-between items-center gap-3.5 mb-[18px]; }
-.pf-blockhead h3 { @apply text-[18px] font-bold; }
-.pf-blockhead .muted { @apply text-[13px]; }
+.pf-block { @apply p-7; }
+/* En-tête du panneau : titre + contexte, séparé du contenu par un filet */
+.pf-blockhead { @apply flex justify-between items-center gap-4 -mx-7 -mt-7 mb-4 px-7 py-6 border-b border-gray-line flex-wrap; }
+.pf-blockhead h3 { @apply text-[18px] font-semibold text-black; }
+.pf-blockhead .muted { @apply block text-[14.5px] mt-1.5; }

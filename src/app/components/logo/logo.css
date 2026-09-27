@@ -1,9 +1,9 @@
 @reference "../../../styles.css";
 :host { @apply contents; }
-.nv-logo { @apply flex items-center gap-2.5 relative z-[1]; }
-.nv-logo-mark { @apply w-[38px] h-[38px] rounded-[11px] bg-blue grid place-items-center flex-none shadow-[0_4px_12px_rgba(0,51,102,.22)]; }
+.nv-logo { @apply flex items-center gap-2.5 relative z-[1] flex-none whitespace-nowrap; }
+.nv-logo-mark { @apply w-[38px] h-[38px] rounded-[11px] bg-blue grid place-items-center flex-none ; }
 .nv-logo-text { @apply flex flex-col leading-none; }
-.nv-logo-name { @apply font-title font-extrabold text-[18px] tracking-[-.02em] text-blue; }
+.nv-logo-name { @apply font-title font-bold text-[18px] tracking-[-.01em] text-blue; }
 .nv-logo-name em { @apply not-italic text-green; }
 .nv-logo-tag { @apply font-body text-[9.5px] tracking-[.22em] uppercase mt-[3px] text-gray-text; }
 .nv-logo.light .nv-logo-name { @apply text-white; }

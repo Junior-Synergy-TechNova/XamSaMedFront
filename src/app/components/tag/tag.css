@@ -1,2 +1,4 @@
 @reference "../../../styles.css";
 :host { @apply contents; }
+/* Pastille d'état : point coloré + texte (un seul langage d'état dans toute l'app) */
+.pf-tag::before { content: ""; @apply w-1.5 h-1.5 rounded-full bg-current flex-none; }

@@ -7,7 +7,7 @@ import { Logo } from '../../components/logo/logo';
 import { PlatformState } from '../../services/platform/platform';
 import { AuthService } from '../../services/auth/auth';
 import { NAV, roleById } from '../../data/mock-data';
-import { Notif, RoleId } from '../../interfaces/models';
+import { NavItem, Notif, RoleId } from '../../interfaces/models';
 import { GlobalSearchResult } from '../../interfaces/api';
 import { MedicineService } from '../../services/medicines/medicines';
 import { NotificationService } from '../../services/notifications/notifications';
@@ -53,6 +53,19 @@ export class AppShell {
   readonly notifications = signal<Notif[]>([]);
 
   readonly current = computed(() => { const r = this.role(); return r ? roleById(r) : null; });
+  /** Identité affichée en tête de sidebar : la structure connectée et sa nature (lues en base). */
+  readonly identity = computed(() => {
+    const s = this.auth.structure();
+    const role = this.current();
+    if (!s) return { name: role ? this.shortLabel(role.label) : '', kind: role?.id === 'sante' ? 'Supervision nationale' : 'Espace personnel' };
+    const kinds: Record<string, string> = {
+      pharmacy: 'Officine', distributor: 'Distributeur privé', pna: 'PNA, niveau national', pra: 'PRA ' + (s.region ?? s.city ?? ''),
+      hospital: s.sector === 'private' ? 'Hôpital privé' : 'Hôpital public',
+    };
+    const plan = s.type === 'pharmacy' ? (s.plan === 'pro' ? ', offre Pro' : ', offre Starter') : '';
+    return { name: s.name, kind: (kinds[s.type] ?? s.type) + plan };
+  });
+  readonly userName = computed(() => this.auth.user()?.name ?? '');
   readonly nav = computed(() => {
     const r = this.role();
     if (!r) return [];
@@ -60,7 +73,7 @@ export class AppShell {
       if (item.target) result[item.target] = (result[item.target] ?? 0) + 1;
       return result;
     }, {});
-    return NAV[r].map(item => ({ ...item, badge: counts[item.id] ?? 0 }));
+    return this.navFor(r).map(item => ({ ...item, badge: counts[item.id] ?? 0 }));
   });
   readonly notifs = computed(() => {
     const role = this.role();
@@ -74,7 +87,8 @@ export class AppShell {
     else {
       // Reprend la section active avant le rechargement si elle existe encore dans la nav du rôle.
       const saved = this.platform.restoreSection(r);
-      this.sec.set(saved && NAV[r].some(n => n.id === saved) ? saved : NAV[r][0].id);
+      const items = this.navFor(r);
+      this.sec.set(saved && items.some(n => n.id === saved) ? saved : items[0].id);
       // Persiste chaque changement, qu'il vienne de la sidebar ou d'un bouton du dashboard.
       effect(() => { const role = this.role(); if (role) this.platform.saveSection(role, this.sec()); });
     }
@@ -101,6 +115,18 @@ export class AppShell {
     if (r) this.notificationService.load(r).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(notifications => this.notifications.set(notifications));
   }
 
+  /**
+   * Entrées de navigation du rôle, filtrées selon la structure lue en base :
+   * ex. « Commandes PRA » réservé aux hôpitaux publics, « Institutionnel » à la PNA / aux PRA.
+   */
+  private navFor(role: RoleId): NavItem[] {
+    const structure = this.auth.structure();
+    const sector = structure?.sector ?? (structure?.type === 'hospital' ? 'public' : null);
+    return NAV[role].filter(item =>
+      (!item.types || (structure !== null && item.types.includes(structure.type)))
+      && (!item.sector || item.sector === sector));
+  }
+
   shortLabel(label: string): string { return label.split(' / ')[0]; }
   select(id: string): void { this.sec.set(id); this.notifOpen.set(false); }
   openNotification(index: number): void {
@@ -114,7 +140,9 @@ export class AppShell {
         next.add(`${role}:${notification.t}:${notification.d}`);
         return next;
       });
-      this.select(notification.target ?? NAV[role][0].id);
+      const items = this.navFor(role);
+      const target = notification.target && items.some(n => n.id === notification.target) ? notification.target : items[0].id;
+      this.select(target);
     }
   }
   searchGlobal(event: Event): void {

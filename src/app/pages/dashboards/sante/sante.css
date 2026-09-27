@@ -1,7 +1,7 @@
 @reference "../../../../styles.css";
 /* ===================== SANTÉ PUBLIQUE — vue nationale & administration ===================== */
 :host { @apply contents; }
-.pf-rank { @apply bg-blue text-white font-title font-extrabold; }
+.pf-rank { @apply bg-blue-soft text-blue font-semibold; }
 .pf-reports { @apply mb-[17px]; }
 .pf-reports .pf-staticon { @apply mb-3.5; }
 .pf-reports h3 { @apply text-[16px]; }
@@ -10,5 +10,12 @@
 .pf-keystats { @apply mt-1; }
 .pf-keystat { @apply py-1; }
 .pf-keystat .pf-staticon { @apply mb-2.5; }
-.pf-keystat strong { @apply block font-title text-[22px] text-blue; }
+.pf-keystat strong { @apply block font-semibold text-[22px] text-black; }
 .pf-keystat .muted { @apply text-[13px]; }
+/* Tendance des ruptures : colonnes empilées tensions (orange) + ruptures (rouge) */
+.pf-trend { @apply gap-1.5 h-[140px]; }
+.pf-trend-col { @apply flex-1 h-full flex flex-col justify-end gap-[2px]; }
+.pf-trend-col .pf-spark-bar { @apply flex-none w-full min-w-0; }
+.pf-filters-flat { @apply mb-0; }
+/* Champ non pertinent pour le type de rapport choisi */
+.pf-field-off { @apply opacity-50; }

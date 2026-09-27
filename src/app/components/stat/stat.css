@@ -1,9 +1,15 @@
 @reference "../../../styles.css";
+/* Cellule d'indicateur : libellé, puis chiffre. La couleur n'apparaît que
+   lorsqu'un indicateur « rouge » ou « orange » demande une action (valeur ≠ 0). */
 :host { @apply contents; }
-.pf-stat { @apply p-5; }
-.pf-statrow { @apply flex justify-between items-center mb-3.5; }
-.pf-statdelta { @apply font-title font-bold text-[12.5px]; }
-.pf-statdelta.up { @apply text-green; }
-.pf-statdelta.down { @apply text-red; }
-.pf-statval { @apply block font-title font-extrabold text-[30px] text-blue leading-none; }
-.pf-statlabel { @apply text-[13px] text-gray-text mt-1.5 block; }
+.pf-stat { @apply px-6 py-6 flex flex-col justify-between gap-3 min-h-[124px]; }
+.pf-statlabel { @apply flex items-center gap-2 text-[14px] text-gray-text leading-tight; }
+.pf-statlabel nv-icon { @apply flex-none opacity-80; }
+.pf-statval { @apply block font-semibold text-[32px] text-black leading-none tracking-[-.015em]; }
+.pf-stat.is-alert[data-tone="red"] .pf-statval { @apply text-red-text; }
+.pf-stat.is-alert[data-tone="amber"] .pf-statval { @apply text-amber-text; }
+.pf-stat.is-alert[data-tone="red"] { @apply shadow-[inset_0_3px_0_var(--color-red)]; }
+.pf-stat.is-alert[data-tone="amber"] { @apply shadow-[inset_0_3px_0_var(--color-amber)]; }
+.pf-statdelta { @apply font-medium text-[12px]; }
+.pf-statdelta.up { @apply text-green-text; }
+.pf-statdelta.down { @apply text-red-text; }

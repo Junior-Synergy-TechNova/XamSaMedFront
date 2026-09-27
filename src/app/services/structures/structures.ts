@@ -5,23 +5,74 @@ import { environment } from '../../../environments/environment';
 import { ApiStructure, ApiSupplier } from '../../interfaces/api';
 import { Pharmacy } from '../../interfaces/models';
 
-const REF = { lat: 14.6928, lng: -17.4467 }; // Dakar Plateau — position patient de démo
+/** Point géographique (degrés décimaux). */
+export interface GeoPoint { lat: number; lng: number }
 
-/** Distance à vol d'oiseau (Haversine) depuis la position de démo, en km. */
-export function distanceKm(lat: number, lng: number): number {
+/** Dakar Plateau — position de référence par défaut (patient de démo). */
+export const REF: GeoPoint = { lat: 14.6928, lng: -17.4467 };
+
+/** Coordonnées exploitables, ou null si l'une des deux manque / est invalide. */
+export function toPoint(lat: number | string | null | undefined, lng: number | string | null | undefined): GeoPoint | null {
+  const la = Number(lat);
+  const ln = Number(lng);
+  if (lat === null || lat === undefined || lng === null || lng === undefined) return null;
+  if (!isFinite(la) || !isFinite(ln)) return null;
+  return { lat: la, lng: ln };
+}
+
+/** Position de la structure de l'utilisateur connecté (null si non géolocalisée). */
+export function structurePoint(s: { latitude?: number | string | null; longitude?: number | string | null } | null | undefined): GeoPoint | null {
+  return s ? toPoint(s.latitude, s.longitude) : null;
+}
+
+/** Distance à vol d'oiseau (Haversine) entre deux points, en km. */
+export function haversineKm(a: GeoPoint, b: GeoPoint): number {
   const R = 6371;
   const toRad = (d: number) => (d * Math.PI) / 180;
-  const dLat = toRad(lat - REF.lat);
-  const dLng = toRad(lng - REF.lng);
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(REF.lat)) * Math.cos(toRad(lat)) * Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(a));
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+/** Distance depuis la position de référence par défaut, en km. */
+export function distanceKm(lat: number, lng: number): number {
+  return haversineKm(REF, { lat, lng });
+}
+
+/**
+ * Libellé d'une distance (« 9,2 km », « 850 m », « < 100 m »), « — » si
+ * inconnue. En dessous du kilomètre on passe en mètres : « 0,0 km » ne
+ * distinguait pas une officine voisine d'une distance non calculée.
+ */
+export function kmLabel(km: number | null): string {
+  if (km === null) return '—';
+  if (km < 0.1) return '< 100 m';
+  if (km < 1) return Math.round(km * 1000) + ' m';
+  return km.toFixed(1).replace('.', ',') + ' km';
 }
 
 export function distanceLabel(lat: number | string | null, lng: number | string | null): string {
-  const la = Number(lat);
-  const ln = Number(lng);
-  if (!isFinite(la) || !isFinite(ln)) return '—';
-  return distanceKm(la, ln).toFixed(1).replace('.', ',') + ' km';
+  const p = toPoint(lat, lng);
+  return kmLabel(p ? haversineKm(REF, p) : null);
+}
+
+/**
+ * Recalcule la distance de chaque ligne depuis `from` (si fourni) puis trie du
+ * plus proche au plus loin — les lignes sans coordonnées ferment la liste.
+ * `from` null : conserve les distances déjà calculées et se contente de trier.
+ */
+export function rankByDistance<T extends { lat: number | null; lng: number | null; distKm: number | null; dist: string }>(
+  rows: readonly T[],
+  from: GeoPoint | null,
+): T[] {
+  const withDist = rows.map(r => {
+    if (!from) return r;
+    const p = toPoint(r.lat, r.lng);
+    const km = p ? haversineKm(from, p) : null;
+    return { ...r, distKm: km, dist: kmLabel(km) };
+  });
+  return withDist.sort((a, b) => (a.distKm ?? Infinity) - (b.distKm ?? Infinity));
 }
 
 /** Projette des coordonnées géographiques (région de Dakar) dans une boîte 0–100 % pour la mini-carte. */

@@ -1,13 +1,12 @@
 @reference "../../../../styles.css";
 /* ===================== DISTRIBUTEUR / PNA / PRA ===================== */
 :host { @apply contents; }
-.pf-filters { @apply flex gap-2 mb-4 flex-wrap; }
 .pf-handled { @apply mt-2.5; }
 .pf-handled summary { @apply cursor-pointer text-[13px]; }
 /* Tensions par zone : besoin estimé en colonne chiffrée, avant le bouton */
 .pf-zone { @apply font-semibold text-blue; }
 .pf-need { @apply flex flex-col items-end flex-none min-w-[92px] mr-1 leading-tight; }
-.pf-need-val { @apply font-title font-extrabold text-[20px] text-blue; }
+.pf-need-val { @apply font-semibold text-[18px] text-black; }
 .pf-need-val.pf-need-zero { @apply text-gray; }
 .pf-need-lbl { @apply text-[11.5px] text-gray-text whitespace-nowrap; }
 /* Prévisions : détail chiffré sous la barre de probabilité */

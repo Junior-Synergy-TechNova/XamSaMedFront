@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, model, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
+import { DatePipe } from '@angular/common';
 import { Icon } from '../../../components/icon/icon';
 import { Card } from '../../../components/card/card';
 import { PageHead } from '../../../components/page-head/page-head';
@@ -7,10 +8,15 @@ import { Stat } from '../../../components/stat/stat';
 import { Bar } from '../../../components/bar/bar';
 import { Tag } from '../../../components/tag/tag';
 import { ZoneMap } from '../../../components/zone-map/zone-map';
-import { PlatformState } from '../../../services/platform/platform';
+import { PartnersPanel, PartnerTypeOption } from '../../../components/partners-panel/partners-panel';
+import { IncomingDeliveries } from '../../../components/incoming-deliveries/incoming-deliveries';
+import { PlatformState, saveBlob } from '../../../services/platform/platform';
+import { DeliveryReceiptService } from '../../../services/deliveries/deliveries';
 import { DistributorDashboard, DistributorService } from '../../../services/distributor/distributor';
 import { MedicineService } from '../../../services/medicines/medicines';
-import { ApiDestination, ApiErrorBody, ApiForecast, ApiIncomingRequest, ApiInstitutionalOrder, ApiPnaDashboard, ShortageAlert } from '../../../interfaces/api';
+import {
+  ApiDestination, ApiErrorBody, ApiForecast, ApiIncomingRequest, ApiInstitutionalOrder, ApiPnaDashboard, ApiShortageReport, ShortageAlert,
+} from '../../../interfaces/api';
 import { DemandeReg, DeliveryRow, DeliveryStatus, SupplierKind, ZoneInfo } from '../../../interfaces/models';
 import { AuthService } from '../../../services/auth/auth';
 
@@ -40,7 +46,7 @@ interface PlanContext {
 @Component({
   selector: 'app-distrib-dash',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, Card, PageHead, Stat, Bar, Tag, ZoneMap],
+  imports: [Icon, Card, PageHead, Stat, Bar, Tag, ZoneMap, PartnersPanel, IncomingDeliveries, DatePipe],
   templateUrl: './distrib.html',
   styleUrl: './distrib.css',
 })
@@ -49,6 +55,7 @@ export class DistribDash {
   private readonly distributor = inject(DistributorService);
   private readonly medicines = inject(MedicineService);
   private readonly auth = inject(AuthService);
+  private readonly receipts = inject(DeliveryReceiptService);
 
   readonly section = model.required<string>();
   readonly demandes = signal<DemandeReg[]>([]);
@@ -67,9 +74,15 @@ export class DistribDash {
   readonly handledRequests = computed(() => this.requests().filter(r => r.status !== 'pending'));
   readonly rejectModal = signal<ApiIncomingRequest | null>(null);
 
-  // --- LIVRAISONS ---
+  // --- RUPTURES CONFIRMÉES PAR ALERTE GROUPÉE (patients) ---
+  readonly shortageReports = signal<ApiShortageReport[]>([]);
+
+  // --- LIVRAISONS (filtres statut / ville / médicament) ---
   readonly deliveries = signal<DeliveryRow[]>([]);
   readonly filterStatus = signal<DeliveryStatus | 'Toutes'>('Toutes');
+  readonly filterCity = signal('');
+  readonly filterMed = signal('');
+  readonly deliveryCities = computed(() => [...new Set(this.deliveries().map(d => d.zone).filter(z => z && z !== '—'))].sort());
   readonly editLivraisonModal = signal<DeliveryRow | null>(null);
   readonly planModal = signal<PlanContext | null>(null);
   readonly planLoading = signal(false);
@@ -95,14 +108,27 @@ export class DistribDash {
     return s?.region ?? s?.city ?? null;
   });
 
+  /** Périmètre strict (§3.3), lu sur le type de la structure en base. */
   readonly distributorContext = computed(() => {
     const name = this.structureName();
     switch (this.distType()) {
-      case 'PNA': return `${name} — vue nationale (livre les PRA)`;
-      case 'PRA': return `${name} — région ${this.region() ?? '—'} (livre hôpitaux et officines)`;
-      default: return `${name} — distributeur privé (livre hôpitaux et officines)`;
+      case 'PNA': return `${name} — vue nationale (livre les PRA et les hôpitaux publics nationaux)`;
+      case 'PRA': return `${name} — région ${this.region() ?? '—'} (livre uniquement les hôpitaux publics de la région)`;
+      default: return `${name} — distributeur privé (livre ses officines et cliniques privées partenaires)`;
     }
   });
+  readonly partnerTypes = computed<readonly PartnerTypeOption[]>(() => {
+    switch (this.distType()) {
+      case 'PNA': return [{ value: 'distributor', label: 'PRA' }, { value: 'hospital', label: 'Hôpital public' }];
+      case 'PRA': return [{ value: 'hospital', label: 'Hôpital public de la région' }, { value: 'distributor', label: 'PNA' }];
+      default: return [{ value: 'pharmacy', label: 'Officine' }, { value: 'hospital', label: 'Clinique / hôpital privé' }];
+    }
+  });
+  readonly partnerRule = computed(() => this.distType() === 'PRIVATE'
+    ? 'Un distributeur privé ne voit et ne livre que ses officines et cliniques privées partenaires : ce réseau définit votre périmètre.'
+    : this.distType() === 'PRA'
+      ? 'Une PRA approvisionne exclusivement les hôpitaux publics de sa région (jamais les officines privées).'
+      : 'La PNA approvisionne les PRA et les grands hôpitaux publics nationaux.');
 
   readonly critZones = computed(() => this.zones().filter(z => z.niveau === 'crit').length);
   readonly tensionHigh = computed(() => this.autoAlerts().filter(a => a.severity === 'high').length);
@@ -114,7 +140,12 @@ export class DistribDash {
 
   readonly filteredDeliveries = computed(() => {
     const s = this.filterStatus();
-    return s === 'Toutes' ? this.deliveries() : this.deliveries().filter(d => d.status === s);
+    const city = this.filterCity();
+    const med = this.filterMed().trim().toLowerCase();
+    return this.deliveries().filter(d =>
+      (s === 'Toutes' || d.status === s)
+      && (!city || d.zone === city)
+      && (!med || d.med.toLowerCase().includes(med)));
   });
 
   constructor() {
@@ -134,6 +165,7 @@ export class DistribDash {
     this.distributor.alerts().subscribe({ next: a => this.autoAlerts.set(a), error: () => { /* ignore */ } });
     this.distributor.previsions().subscribe({ next: p => this.forecasts.set(p), error: () => { /* ignore */ } });
     this.distributor.deliveries().subscribe({ next: d => this.deliveries.set(d), error: () => { /* ignore */ } });
+    this.distributor.shortageReports().subscribe({ next: r => this.shortageReports.set(r), error: () => { /* ignore */ } });
   }
 
   /** Flux institutionnel selon le type de structure (lu en base). */
@@ -307,6 +339,22 @@ export class DistribDash {
     this.distributor.changeDeliveryStatus(id, 'Annulée').subscribe({
       next: () => { this.platform.notify('Livraison annulée', 'alert'); this.reload(); },
       error: e => this.platform.notify(this.apiError(e, 'Échec de l\'annulation'), 'alert'),
+    });
+  }
+
+  /** Bordereau de livraison PDF (généré à la confirmation). */
+  downloadSlip(d: DeliveryRow): void {
+    this.receipts.slip(d.id).subscribe({
+      next: blob => saveBlob(blob, `${d.slip ?? 'bordereau-' + d.id}.pdf`),
+      error: () => this.platform.notify('Bordereau indisponible', 'alert'),
+    });
+  }
+
+  /** Informe le périmètre (et les patients à l'origine des alertes groupées) du retour en stock. */
+  notifyAvailable(r: ApiShortageReport): void {
+    this.distributor.notifyAvailable(r.id).subscribe({
+      next: res => { this.platform.notify(res.message, 'ok'); this.reload(); },
+      error: e => this.platform.notify(this.apiError(e, 'Échec de la notification'), 'alert'),
     });
   }
 

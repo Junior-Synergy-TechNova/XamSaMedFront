@@ -8,11 +8,30 @@
             <button actions class="btn btn-outline btn-sm" (click)="exportReport()"><nv-icon name="doc" [size]="16"/> Exporter le rapport</button>
           </pf-page-head>
           <div class="pf-statgrid">
-            <pf-stat icon="alert" tone="red" label="Zones critiques" [value]="critZones()"/>
-            <pf-stat icon="pill" tone="amber" label="Médicaments en tension" [value]="overview().medicines_in_tension"/>
-            <pf-stat icon="bell" tone="blue" label="Ruptures signalées" [value]="overview().ruptures"/>
+            <pf-stat icon="alert" tone="red" label="Ruptures totales" [value]="overview().ruptures"/>
+            <pf-stat icon="pin" tone="red" label="Zones critiques" [value]="critZones()"/>
+            <pf-stat icon="pill" tone="amber" label="Médicaments en crise" [value]="overview().medicines_in_tension"/>
+            <pf-stat icon="bell" tone="blue" label="Alertes du jour" [value]="overview().alerts_today ?? 0"/>
+            <pf-stat icon="shield" tone="red" label="Contrôlés en rupture" [value]="controlledInRupture()"/>
             <pf-stat icon="users" tone="green" label="Zones suivies" [value]="overview().zones_tracked"/>
           </div>
+          <pf-card title="Tendance des ruptures" [sub]="'Ruptures (rouge) et tensions (orange) par jour — ' + signed(trendDelta().ruptures) + ' rupture(s) sur la période'">
+            <div right class="pf-filters pf-filters-flat">
+              <button class="btn btn-sm" [class.btn-primary]="trendRange() === 7" [class.btn-outline]="trendRange() !== 7" (click)="trendRange.set(7)">7 jours</button>
+              <button class="btn btn-sm" [class.btn-primary]="trendRange() === 30" [class.btn-outline]="trendRange() !== 30" (click)="trendRange.set(30)">30 jours</button>
+            </div>
+            <div class="pf-spark pf-trend" role="img" [attr.aria-label]="'Ruptures et tensions quotidiennes sur ' + trendRange() + ' jours'">
+              @for (p of trendPoints(); track p.date) {
+                <div class="pf-trend-col" [title]="day(p.date) + ' : ' + p.ruptures + ' rupture(s), ' + p.low + ' tension(s)'">
+                  <span class="pf-spark-bar amber" [style.height.%]="barPct(p.low)"></span>
+                  <span class="pf-spark-bar red" [style.height.%]="barPct(p.ruptures)"></span>
+                </div>
+              }
+            </div>
+            @if (trendPoints().length > 0) {
+              <div class="pf-spark-axis"><span>{{ day(trendPoints()[0].date) }}</span><span>{{ day(trendPoints()[trendPoints().length - 1].date) }}</span></div>
+            }
+          </pf-card>
           <div class="pf-cols">
             <pf-card title="Carte nationale des tensions" sub="Niveau d'approvisionnement par région">
               @defer (on viewport) {
@@ -25,7 +44,7 @@
               @for (t of topTension(); track t.nom) {
                 <div class="pf-progress">
                   <div class="pf-progress-head">
-                    <span class="pf-medname">{{ t.nom }}</span>
+                    <span class="pf-medname">{{ t.nom }} @if (t.controlled) { <span class="chip chip-red chip-inline">Contrôlé</span> }</span>
                     <strong class="pf-progress-pct pf-num-sm" [class.hot]="t.pct > 50">{{ t.pct }}%</strong>
                   </div>
                   <pf-bar [pct]="t.pct" [tone]="tone(t.pct)"/>
@@ -64,25 +83,88 @@
 
       @case ('tension') {
         <div>
-          <pf-page-head title="Médicaments en tension" sub="Suivi national des délais et niveaux de tension."/>
-          <pf-card title="Indicateurs par médicament">
+          <pf-page-head title="Médicaments en tension" sub="Score de tension nationale et évolution sur 7 jours (historique réel des stocks)."/>
+          <pf-card title="Indicateurs par médicament" sub="Tension = part des structures sous le seuil · score = tension + ruptures + priorité contrôlés">
             <table class="pf-table">
-              <thead><tr><th>Médicament</th><th>Tension nationale</th><th>Délai moyen</th><th>Niveau</th></tr></thead>
+              <thead><tr><th>Médicament</th><th>Tension nationale</th><th>Variation 7 j</th><th>Score</th><th>Niveau</th></tr></thead>
               <tbody>
                 @for (t of tension(); track t.nom) {
                   <tr>
-                    <td><div class="pf-medname">{{ t.nom }}</div></td>
+                    <td><div class="pf-medname">{{ t.nom }}</div>@if (t.controlled) { <span class="chip chip-red">Contrôlé</span> }</td>
                     <td class="pf-td-bar lg">
                       <div class="pf-progress-meta">
                         <pf-bar [pct]="t.pct" [tone]="tone(t.pct)"/>
                         <strong class="pf-num pf-num-sm">{{ t.pct }}%</strong>
                       </div>
                     </td>
-                    <td class="muted">{{ t.delai }}</td>
-                    <td><pf-tag [s]="ttag(t.pct)">{{ tlabel(t.pct) }}</pf-tag></td>
+                    <td><pf-tag [s]="varTag(t.variation)">{{ signed(t.variation) }} pts</pf-tag></td>
+                    <td><strong class="pf-num pf-num-sm">{{ t.score }}</strong></td>
+                    <td><pf-tag [s]="ttag(t.score)">{{ tlabel(t.score) }}</pf-tag></td>
                   </tr>
                 }
-                @if (tension().length === 0) { <tr><td colspan="4" class="muted pf-td-empty">Aucune tension nationale détectée.</td></tr> }
+                @if (tension().length === 0) { <tr><td colspan="5" class="muted pf-td-empty">Aucune tension nationale détectée.</td></tr> }
+              </tbody>
+            </table>
+          </pf-card>
+        </div>
+      }
+
+      @case ('ctrl') {
+        <div>
+          <pf-page-head title="Médicaments contrôlés" sub="Suivi spécial national : morphine, insulines, stupéfiants."/>
+          <pf-card>
+            <table class="pf-table">
+              <thead><tr><th>Médicament</th><th>Disponible (national)</th><th>Ruptures</th><th>Tensions</th><th>Villes touchées</th><th>Sorties hôpitaux 30 j</th><th>Niveau</th></tr></thead>
+              <tbody>
+                @for (c of controlled(); track c.medicine_id) {
+                  <tr>
+                    <td><div class="pf-medname">{{ c.medicine }}</div><div class="pf-medsub">{{ c.form }} {{ c.dosage }} · {{ c.structures }} structure(s)</div></td>
+                    <td><strong class="pf-num">{{ c.available_units }}</strong><span class="muted"> u.</span></td>
+                    <td><strong [class.pf-out]="c.ruptures > 0">{{ c.ruptures }}</strong>@if (c.hospitals_in_rupture.length) { <div class="pf-medsub">{{ c.hospitals_in_rupture.join(', ') }}</div> }</td>
+                    <td>{{ c.tensions }}</td>
+                    <td class="muted pf-td-wrap">{{ c.cities.join(', ') || '—' }}</td>
+                    <td>{{ c.issued_30d }}</td>
+                    <td>
+                      @if (c.structures === 0) { <pf-tag s="vue">Non référencé</pf-tag> }
+                      @else { <pf-tag [s]="ztag(c.level)">{{ c.level === 'crit' ? 'Rupture' : c.level === 'haute' ? 'Tension' : 'Normal' }}</pf-tag> }
+                    </td>
+                  </tr>
+                }
+                @if (controlled().length === 0) { <tr><td colspan="7" class="muted pf-td-empty">Aucun médicament contrôlé référencé.</td></tr> }
+              </tbody>
+            </table>
+          </pf-card>
+        </div>
+      }
+
+      @case ('catalogue') {
+        <div>
+          <pf-page-head title="Catalogue national" sub="Décidez quels médicaments exigent une ordonnance avant la vente en officine. Les autres restent en vente libre."/>
+          <div class="pf-filters">
+            <button class="btn btn-sm" [class.btn-primary]="catalogFilter() === 'all'" [class.btn-outline]="catalogFilter() !== 'all'" (click)="catalogFilter.set('all')">Tous ({{ catalogMeds().length }})</button>
+            <button class="btn btn-sm" [class.btn-primary]="catalogFilter() === 'rx'" [class.btn-outline]="catalogFilter() !== 'rx'" (click)="catalogFilter.set('rx')">Sur ordonnance ({{ rxCount() }})</button>
+            <button class="btn btn-sm" [class.btn-primary]="catalogFilter() === 'free'" [class.btn-outline]="catalogFilter() !== 'free'" (click)="catalogFilter.set('free')">Vente libre ({{ catalogMeds().length - rxCount() }})</button>
+          </div>
+          <pf-card>
+            <table class="pf-table">
+              <thead><tr><th>Médicament</th><th>DCI</th><th>Utilisation</th><th>Contrôlé</th><th>Délivrance</th><th></th></tr></thead>
+              <tbody>
+                @for (m of filteredCatalog(); track m.id) {
+                  <tr>
+                    <td><div class="pf-medname">{{ m.name }}</div><div class="pf-medsub">{{ m.form }} · {{ m.dosage }}</div></td>
+                    <td class="muted">{{ m.dci || '—' }}</td>
+                    <td class="muted">{{ categoryLabel(m.category) }}</td>
+                    <td>@if (m.is_controlled) { <span class="chip chip-red">Contrôlé</span> } @else { <span class="muted">—</span> }</td>
+                    <td>
+                      @if (m.requires_prescription) { <pf-tag s="new">Sur ordonnance</pf-tag> }
+                      @else { <pf-tag s="ok">Vente libre</pf-tag> }
+                    </td>
+                    <td class="pf-td-right">
+                      <button class="btn btn-outline btn-sm" (click)="toggleRx(m)">{{ m.requires_prescription ? 'Passer en vente libre' : 'Exiger une ordonnance' }}</button>
+                    </td>
+                  </tr>
+                }
+                @if (filteredCatalog().length === 0) { <tr><td colspan="6" class="muted pf-td-empty">Aucun médicament pour ce filtre.</td></tr> }
               </tbody>
             </table>
           </pf-card>
@@ -98,8 +180,8 @@
             @for (r of reports(); track r.id) {
               <pf-card>
                 <span class="pf-staticon blue"><nv-icon name="doc" [size]="20"/></span>
-                <h3>{{ r.period }}</h3>
-                <p class="muted">{{ r.type }}</p>
+                <h3>{{ reportTitle(r) }}</h3>
+                <p class="muted">{{ periodLabel(r.period) }} · {{ r.generated_at ? r.generated_at.slice(0, 10) : '' }}</p>
                 <div class="pf-reportfoot">
                   <pf-tag [s]="r.s">{{ r.statusLabel }}</pf-tag>
                   <button class="btn btn-ghost btn-sm" [disabled]="r.status !== 'completed'" (click)="exportReport(r.id)">Consulter <nv-icon name="arrow" [size]="14"/></button>
@@ -153,18 +235,24 @@
           </pf-page-head>
           <pf-card>
             <table class="pf-table">
-              <thead><tr><th>Nom</th><th>Type</th><th>Ville</th><th>Téléphone</th><th></th></tr></thead>
+              <thead><tr><th>Nom</th><th>Type</th><th>Secteur</th><th>Offre</th><th>Ville</th><th>Téléphone</th><th></th></tr></thead>
               <tbody>
                 @for (s of structures(); track s.id) {
                   <tr>
                     <td><div class="pf-medname">{{ s.name }}</div></td>
-                    <td><span class="chip">{{ s.type }}</span></td>
+                    <td>{{ typeLabel(s.type) }}</td>
+                    <td><span class="chip" [class.chip-blue]="s.sector === 'public'" [class.chip-gray]="s.sector !== 'public'">{{ sectorLabel(s) }}</span></td>
+                    <td>
+                      @if (s.type === 'pharmacy') {
+                        <button class="btn btn-sm" [class.btn-green]="s.plan === 'pro'" [class.btn-outline]="s.plan !== 'pro'" (click)="togglePlan(s)" title="Basculer Starter / Pro">{{ planLabel(s.plan) }}</button>
+                      } @else { <span class="muted">{{ planLabel(s.plan) }}</span> }
+                    </td>
                     <td class="muted">{{ s.city || '—' }}</td>
                     <td class="muted">{{ s.phone || '—' }}</td>
                     <td class="pf-td-right"><button class="btn btn-ghost btn-sm btn-danger" (click)="deleteStructure(s.id)">Désactiver</button></td>
                   </tr>
                 }
-                @if (structures().length === 0) { <tr><td colspan="5" class="muted pf-td-empty">Aucune structure.</td></tr> }
+                @if (structures().length === 0) { <tr><td colspan="7" class="muted pf-td-empty">Aucune structure.</td></tr> }
               </tbody>
             </table>
           </pf-card>
@@ -176,25 +264,39 @@
     <!-- Modals -->
     @if (generateModal()) {
       <div class="pf-modal-overlay" (click)="generateModal.set(false)">
-        <form class="pf-modal" (click)="$event.stopPropagation()" (submit)="submitGenerate(gPeriod.value, gType.value); $event.preventDefault()">
+        <form class="pf-modal" (click)="$event.stopPropagation()" (submit)="submitGenerate(gPeriod.value, gType.value, gRegion.value, gMed.value); $event.preventDefault()">
           <div class="pf-modal-head">
             <h3>Générer un rapport</h3>
             <button type="button" class="pf-modal-close" (click)="generateModal.set(false)"><nv-icon name="x" [size]="20"/></button>
           </div>
           <div class="pf-modal-body">
-            <div class="s-field"><label>Période d'analyse *</label>
-              <select #gPeriod required>
-                <option value="Cette semaine">Cette semaine</option>
-                <option value="Ce mois-ci">Ce mois-ci</option>
-                <option value="Le mois dernier">Le mois dernier</option>
-                <option value="Année en cours">Année en cours</option>
+            <div class="pf-fieldrow">
+              <div class="s-field"><label>Type de rapport *</label>
+                <select #gType required (change)="reportType.set(gType.value)">
+                  <option value="national">National</option>
+                  <option value="regional">Régional</option>
+                  <option value="medicine">Par médicament</option>
+                  <option value="tensions">Tensions critiques</option>
+                </select>
+              </div>
+              <div class="s-field"><label>Période *</label>
+                <select #gPeriod required>
+                  <option value="week">Semaine</option>
+                  <option value="month" selected>Mois</option>
+                  <option value="quarter">Trimestre</option>
+                </select>
+              </div>
+            </div>
+            <div class="s-field" [class.pf-field-off]="reportType() !== 'regional'"><label>Région</label>
+              <select #gRegion [disabled]="reportType() !== 'regional'">
+                <option value="">—</option>
+                @for (r of regions(); track r) { <option [value]="r">{{ r }}</option> }
               </select>
             </div>
-            <div class="s-field"><label>Type de rapport *</label>
-              <select #gType required>
-                <option value="Synthèse nationale">Synthèse nationale</option>
-                <option value="Tensions critiques">Tensions critiques uniquement</option>
-                <option value="Rapport régional détaillé">Rapport régional détaillé</option>
+            <div class="s-field" [class.pf-field-off]="reportType() !== 'medicine'"><label>Médicament</label>
+              <select #gMed [disabled]="reportType() !== 'medicine'">
+                <option value="">—</option>
+                @for (m of catalog(); track m.id) { <option [value]="m.id">{{ m.label }}</option> }
               </select>
             </div>
           </div>
@@ -245,7 +347,7 @@
 
     @if (structureModal()) {
       <div class="pf-modal-overlay" (click)="structureModal.set(false)">
-        <form class="pf-modal" (click)="$event.stopPropagation()" (submit)="submitStructure(stName.value, stType.value, stCity.value, stPhone.value); $event.preventDefault()">
+        <form class="pf-modal" (click)="$event.stopPropagation()" (submit)="submitStructure(stName.value, stType.value, stSector.value, stPlan.value, stCity.value, stRegion.value, stPhone.value); $event.preventDefault()">
           <div class="pf-modal-head">
             <h3>Nouvelle structure</h3>
             <button type="button" class="pf-modal-close" (click)="structureModal.set(false)"><nv-icon name="x" [size]="20"/></button>
@@ -264,7 +366,24 @@
               </div>
               <div class="s-field"><label>Ville</label><input #stCity placeholder="Dakar"/></div>
             </div>
-            <div class="s-field"><label>Téléphone</label><input #stPhone placeholder="+221…"/></div>
+            <div class="pf-fieldrow">
+              <div class="s-field"><label>Secteur (hôpital)</label>
+                <select #stSector>
+                  <option value="public">Public — approvisionné par la PRA</option>
+                  <option value="private">Privé — approvisionné par les distributeurs</option>
+                </select>
+              </div>
+              <div class="s-field"><label>Offre (officine)</label>
+                <select #stPlan>
+                  <option value="starter">Starter (gratuit)</option>
+                  <option value="pro">Pro</option>
+                </select>
+              </div>
+            </div>
+            <div class="pf-fieldrow">
+              <div class="s-field"><label>Région</label><input #stRegion placeholder="Dakar, Thiès, Saint-Louis…"/></div>
+              <div class="s-field"><label>Téléphone</label><input #stPhone placeholder="+221…"/></div>
+            </div>
           </div>
           <div class="pf-modal-foot">
             <button type="button" class="btn btn-ghost btn-sm" (click)="structureModal.set(false)">Annuler</button>

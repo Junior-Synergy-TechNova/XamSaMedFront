@@ -2,5 +2,9 @@
 /* ===================== PHARMACIE — demandes ciblées ===================== */
 :host { @apply contents; }
 .pf-orient { @apply mt-4 border-t border-gray-line pt-3.5; }
-.pf-orient-title { @apply font-title font-bold text-blue text-[14px] mb-2.5; }
+.pf-orient-title { @apply font-semibold text-black text-[14px] mb-2; }
 .pf-orient-cancel { @apply mt-1.5; }
+.pf-orient-sort { @apply font-body font-normal text-[12.5px]; }
+.pf-orient-near { @apply flex-none gap-1; }
+/* L'officine la plus proche est mise en avant : c'est l'orientation à privilégier. */
+.pf-li-near { @apply bg-green-soft-2; }

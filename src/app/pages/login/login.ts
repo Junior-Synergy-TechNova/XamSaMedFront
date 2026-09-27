@@ -6,6 +6,7 @@ import { Logo } from '../../components/logo/logo';
 import { AuthService } from '../../services/auth/auth';
 import { ROLES, roleById } from '../../data/mock-data';
 import { RoleId } from '../../interfaces/models';
+import { OtpChannel } from '../../interfaces/api';
 
 
 
@@ -44,9 +45,17 @@ export class LoginScreen {
   readonly password = signal<string>('password123');
   readonly error = signal<string | null>(null);
   readonly loading = signal(false);
+  // Affichage en clair du mot de passe (évite les fautes de frappe à l'aveugle).
+  readonly showPwd = signal(false);
+  readonly showNewPwd = signal(false);
 
-  // Flux « mot de passe oublié »
-  readonly mode = signal<'login' | 'forgot' | 'reset'>('login');
+  // Flux « mot de passe oublié » et connexion par code à usage unique (OTP)
+  readonly mode = signal<'login' | 'forgot' | 'reset' | 'otp' | 'otp-code'>('login');
+  readonly otpChannel = signal<OtpChannel>('email');
+  readonly otpIdentifier = signal('');
+  readonly otpCode = signal('');
+  /** Canaux activés côté serveur (SMS / WhatsApp dépendent de la configuration Twilio). */
+  readonly otpChannels = signal<Record<OtpChannel, boolean>>({ email: true, sms: false, whatsapp: false });
   readonly info = signal<string | null>(null);
   readonly resetCode = signal('');
   readonly newPassword = signal('');
@@ -82,8 +91,53 @@ export class LoginScreen {
   // --- Mot de passe oublié ---
   setResetCode(e: Event): void { this.resetCode.set((e.target as HTMLInputElement).value); }
   setNewPassword(e: Event): void { this.newPassword.set((e.target as HTMLInputElement).value); }
-  gotoForgot(): void { this.mode.set('forgot'); this.error.set(null); this.info.set(null); }
-  gotoLogin(): void { this.mode.set('login'); this.error.set(null); this.info.set(null); }
+  gotoForgot(): void { this.mode.set('forgot'); this.error.set(null); this.info.set(null); this.hidePwd(); }
+  gotoLogin(): void { this.mode.set('login'); this.error.set(null); this.info.set(null); this.hidePwd(); }
+  gotoOtp(): void {
+    this.mode.set('otp'); this.error.set(null); this.info.set(null);
+    if (!this.otpIdentifier()) this.otpIdentifier.set(this.email());
+  }
+
+  // --- Connexion par code à usage unique (email / SMS / WhatsApp) ---
+  setOtpIdentifier(e: Event): void { this.otpIdentifier.set((e.target as HTMLInputElement).value); }
+  setOtpCode(e: Event): void { this.otpCode.set((e.target as HTMLInputElement).value); }
+  setOtpChannel(e: Event): void {
+    const v = (e.target as HTMLSelectElement).value;
+    this.otpChannel.set(v === 'sms' || v === 'whatsapp' ? v : 'email');
+  }
+
+  requestOtp(): void {
+    if (this.loading()) return;
+    const identifier = this.otpIdentifier().trim();
+    if (!identifier) { this.error.set('Renseignez votre email ou votre numéro de téléphone.'); return; }
+    this.error.set(null); this.info.set(null); this.loading.set(true);
+    this.auth.requestOtp(identifier, this.otpChannel()).subscribe({
+      next: res => {
+        this.loading.set(false);
+        this.otpChannels.set(res.channels);
+        this.mode.set('otp-code');
+        this.info.set(res.debug_code ? `Code de démonstration : ${res.debug_code}` : res.message);
+      },
+      error: (err: HttpErrorResponse) => {
+        this.loading.set(false);
+        const channels = (err.error as { channels?: Record<OtpChannel, boolean> } | null)?.channels;
+        if (channels) this.otpChannels.set(channels);
+        this.error.set(this.errorMessage(err));
+      },
+    });
+  }
+
+  verifyOtp(): void {
+    if (this.loading()) return;
+    const code = this.otpCode().trim();
+    if (!/^\d{6}$/.test(code)) { this.error.set('Le code comporte 6 chiffres.'); return; }
+    this.error.set(null); this.loading.set(true);
+    this.auth.verifyOtp(this.otpIdentifier().trim(), code).subscribe({
+      next: () => { this.loading.set(false); this.otpCode.set(''); this.router.navigateByUrl('/app'); },
+      error: (err: HttpErrorResponse) => { this.loading.set(false); this.error.set(this.errorMessage(err)); },
+    });
+  }
+  private hidePwd(): void { this.showPwd.set(false); this.showNewPwd.set(false); }
 
   requestReset(): void {
     if (this.loading()) return;

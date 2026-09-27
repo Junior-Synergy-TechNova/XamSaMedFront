@@ -4,34 +4,40 @@
     @switch (section()) {
       @case ('home') {
         <div>
-          <pf-page-head title="Tableau de bord hôpital" sub="Hôpital Principal — Direction pharmacie"/>
+          <pf-page-head title="Tableau de bord hôpital" [sub]="headerSub()">
+            <ng-container actions>
+              <button class="btn btn-outline btn-sm" (click)="signalRupture('tension')"><nv-icon name="alert" [size]="16"/> Signaler une tension</button>
+              <button class="btn btn-danger btn-sm" (click)="signalRupture('rupture')"><nv-icon name="send" [size]="16"/> Signaler une rupture</button>
+            </ng-container>
+          </pf-page-head>
           <div class="pf-statgrid">
-            <pf-stat icon="alert" tone="red" label="Alertes internes actives" [value]="alertes().length"/>
-            <pf-stat icon="shield" tone="amber" label="Médicaments critiques suivis" [value]="critMeds().length"/>
-            <pf-stat icon="link" tone="green" label="Partenaires connectés" [value]="activePartnerCount()"/>
-            <pf-stat icon="clock" tone="blue" label="Délai moyen de réponse" value="—"/>
+            <pf-stat icon="alert" tone="red" label="Ruptures (stock à zéro)" [value]="ruptures().length"/>
+            <pf-stat icon="bell" tone="amber" label="Tensions (stock critique)" [value]="tensions().length"/>
+            <pf-stat icon="shield" tone="blue" label="Médicaments critiques suivis" [value]="critMeds().length"/>
+            <pf-stat icon="link" tone="green" label="Partenaires connectés" [value]="partnerCount()"/>
           </div>
           <div class="pf-cols">
-            <pf-card title="Alertes internes par service" sub="Stocks sous tension">
+            <pf-card title="Alertes internes par service" sub="Rupture = stock à zéro · tension = stock critique non nul">
               <span right class="chip chip-red">{{ alertes().length }} actives</span>
               @for (a of alertes(); track a.id) {
                 <div class="pf-li">
-                  <span class="pf-liic {{ a.niveau === 'crit' ? 'red' : a.niveau === 'haute' ? 'amber' : '' }}"><nv-icon name="hospital" [size]="18"/></span>
-                  <div class="pf-libody"><strong>{{ a.med }}</strong><span>{{ a.service }} · {{ a.reste }} de stock · {{ a.quand }}</span></div>
-                  <pf-tag [s]="ntag(a.niveau)">{{ a.reste }}</pf-tag>
+                  <span class="pf-liic {{ a.severity === 'rupture' ? 'red' : 'amber' }}"><nv-icon name="hospital" [size]="18"/></span>
+                  <div class="pf-libody"><strong>{{ a.med }} @if (a.controlled) { <span class="chip chip-red chip-inline">Contrôlé</span> }</strong><span>{{ a.service }}{{ a.unit ? ' → ' + a.unit : '' }} · {{ a.reste }} · {{ a.quand }}</span></div>
+                  <pf-tag [s]="sevTag(a.severity)">{{ sevLabel(a.severity) }}</pf-tag>
                 </div>
               }
               @if (alertes().length === 0) { <div class="pf-note">Aucune alerte interne active.</div> }
             </pf-card>
-            <pf-card title="Réseau partenaires" sub="Pharmacies & distributeurs reliés">
-              @for (p of realPartners(); track p.id) {
+            <pf-card title="Médicaments contrôlés" sub="Suivi en temps réel de la pharmacie interne">
+              <button right class="btn btn-ghost btn-sm" (click)="section.set('recep')"><nv-icon name="truck" [size]="15"/> {{ incomingCount() }} livraison(s) attendue(s)</button>
+              @for (m of critMeds().slice(0, 6); track m.medId) {
                 <div class="pf-li">
-                  <span class="pf-liic {{ p.type === 'pharmacy' ? 'green' : '' }}"><nv-icon [name]="p.type === 'pharmacy' ? 'pill' : 'truck'" [size]="18"/></span>
-                  <div class="pf-libody"><strong>{{ p.partner }}</strong><span>{{ p.city }} · {{ p.type === 'pharmacy' ? 'Pharmacie' : 'Distributeur' }}</span></div>
-                  <span class="chip" [class.chip-green]="p.status === 'active'" [class.chip-amber]="p.status !== 'active'">{{ p.status === 'active' ? 'Connecté' : 'En attente' }}</span>
+                  <span class="pf-liic {{ m.s === 'out' ? 'red' : m.s === 'low' ? 'amber' : 'green' }}"><nv-icon name="shield" [size]="18"/></span>
+                  <div class="pf-libody"><strong>{{ m.name }}</strong><span>{{ m.available }} u. disponibles</span></div>
+                  <pf-tag [s]="critTag(m.s)">{{ critLabel(m.s) }}</pf-tag>
                 </div>
               }
-              @if (realPartners().length === 0) { <div class="pf-note">Aucun partenaire enregistré.</div> }
+              @if (critMeds().length === 0) { <div class="pf-note">Aucun médicament contrôlé suivi.</div> }
             </pf-card>
           </div>
         </div>
@@ -39,47 +45,49 @@
 
       @case ('alert') {
         <div>
-          <pf-page-head title="Alertes internes" sub="Signalez et suivez les ruptures au niveau de chaque service.">
-            <button actions class="btn btn-green btn-sm" (click)="signalRupture()"><nv-icon name="send" [size]="16"/> Signaler une rupture</button>
+          <pf-page-head title="Alertes internes" sub="Signalez et suivez les ruptures et tensions de chaque service.">
+            <ng-container actions>
+              <button class="btn btn-outline btn-sm" (click)="signalRupture('tension')"><nv-icon name="alert" [size]="16"/> Tension</button>
+              <button class="btn btn-danger btn-sm" (click)="signalRupture('rupture')"><nv-icon name="send" [size]="16"/> Rupture</button>
+            </ng-container>
           </pf-page-head>
           <div class="pf-banner">
             <span class="pf-bannic"><nv-icon name="alert" [size]="22"/></span>
-            <div><strong>Signalement rapide</strong><p>Chaque alerte est transmise instantanément aux pharmacies et distributeurs connectés.</p></div>
+            <div><strong>Deux niveaux d'urgence</strong><p>« Rupture » = stock à zéro, « tension » = stock critique non nul. Chaque signalement est notifié automatiquement à tous vos partenaires connectés.</p></div>
           </div>
+          <pf-card title="Alertes actives" [sub]="ruptures().length + ' rupture(s), ' + tensions().length + ' tension(s)'">
           @for (a of alertes(); track a.id) {
-            <pf-card>
-              <div class="pf-row">
-                <span class="pf-liic lg {{ a.niveau === 'crit' ? 'red' : a.niveau === 'haute' ? 'amber' : 'green' }}"><nv-icon name="alert" [size]="22"/></span>
+              <div class="pf-row pf-rowline">
+                <span class="pf-liic {{ a.severity === 'rupture' ? 'red' : 'amber' }}"><nv-icon name="alert" [size]="18"/></span>
                 <div class="pf-row-body">
                   <div class="pf-row-head">
                     <span class="pf-medname">{{ a.med }}</span>
-                    <span class="chip chip-blue">{{ a.service }}</span>
-                    <pf-tag [s]="ntag(a.niveau)">{{ a.reste }} restant</pf-tag>
+                    <pf-tag [s]="sevTag(a.severity)">{{ sevLabel(a.severity) }}</pf-tag>
+                    <span class="chip chip-gray">{{ a.service }}{{ a.unit ? ' → ' + a.unit : '' }}</span>
+                    @if (a.controlled) { <span class="chip chip-red">Contrôlé</span> }
                   </div>
-                  <p class="muted pf-row-sub">Signalée {{ a.quand }}@if (alreadyAsked(a).size > 0) { · <span class="pf-accent">réappro. demandé à {{ alreadyAsked(a).size }} fournisseur(s)</span> }</p>
+                  <p class="muted pf-row-sub">{{ a.severity === 'rupture' ? 'Stock à zéro' : a.reste + ' restant' }} · signalée {{ a.quand }}@if (alreadyAsked(a).size > 0) { · <span class="pf-accent">réappro. demandé à {{ alreadyAsked(a).size }} fournisseur(s)</span> }</p>
                 </div>
                 <div class="pf-li-act">
                   <button class="btn btn-outline btn-sm" (click)="askRestock(a)"><nv-icon name="truck" [size]="15"/> Demander réappro.</button>
-                  <button class="btn btn-green btn-sm" (click)="resolve(a.id)">Marquer résolu</button>
+                  <button class="btn btn-green btn-sm" (click)="resolve(a.id)">Réappro. reçu</button>
                 </div>
               </div>
-            </pf-card>
           }
           @if (alertes().length === 0) {
-            <pf-card>
               <div class="pf-empty">
-                <nv-icon name="checkC" [size]="34" color="var(--color-green)"/>
-                <p>Aucune alerte interne active.</p>
+                <nv-icon name="checkC" [size]="28" color="var(--color-green)"/>
+                <p>Aucune alerte interne active. Signalez une tension dès qu'un stock devient critique.</p>
               </div>
-            </pf-card>
           }
+          </pf-card>
 
-          <pf-card title="Demandes de réapprovisionnement" sub="Suivi des demandes envoyées aux distributeurs et à la PRA">
+          <pf-card title="Demandes de réapprovisionnement" [sub]="isPublic() ? 'Suivi des demandes envoyées à votre PRA' : 'Suivi des demandes envoyées à vos distributeurs privés'">
             <span right class="chip chip-blue">{{ pendingRequests().length }} en attente</span>
             @for (r of restockRequests(); track r.id) {
               <div class="pf-li">
                 <span class="pf-liic {{ r.status === 'resolved' ? 'green' : r.status === 'rejected' ? 'red' : 'amber' }}"><nv-icon name="truck" [size]="18"/></span>
-                <div class="pf-libody"><strong>{{ r.medicine }}</strong><span>{{ r.distributor }}{{ r.service ? ' · ' + r.service : '' }}{{ r.quantity ? ' · ' + r.quantity + ' u.' : '' }}</span></div>
+                <div class="pf-libody"><strong>{{ r.medicine }}</strong><span>{{ r.distributor }}{{ r.service ? ' · ' + r.service : '' }}{{ r.quantity ? ' · ' + r.quantity + ' u.' : '' }}{{ r.rejection_reason ? ' — ' + r.rejection_reason : '' }}</span></div>
                 <pf-tag [s]="requestTag(r.status)">{{ requestStatusLabel(r) }}</pf-tag>
               </div>
             }
@@ -88,35 +96,96 @@
         </div>
       }
 
-      @case ('history') {
+      @case ('stock') {
         <div>
-          <pf-page-head title="Historique des alertes" sub="Retrouvez toutes les alertes internes (actives et résolues)."/>
+          <pf-page-head title="Stock & sorties" sub="Pharmacie interne — sorties tracées vers chaque service et unité (circuit fermé)."/>
+          <div class="pf-filters">
+            <button class="btn btn-sm" [class.btn-primary]="stockFilter() === 'all'" [class.btn-outline]="stockFilter() !== 'all'" (click)="stockFilter.set('all')">Tous</button>
+            <button class="btn btn-sm" [class.btn-primary]="stockFilter() === 'rupture'" [class.btn-outline]="stockFilter() !== 'rupture'" (click)="stockFilter.set('rupture')">Ruptures</button>
+            <button class="btn btn-sm" [class.btn-primary]="stockFilter() === 'tension'" [class.btn-outline]="stockFilter() !== 'tension'" (click)="stockFilter.set('tension')">Tensions</button>
+            <button class="btn btn-sm" [class.btn-primary]="stockFilter() === 'controlled'" [class.btn-outline]="stockFilter() !== 'controlled'" (click)="stockFilter.set('controlled')"><nv-icon name="shield" [size]="14"/> Contrôlés</button>
+          </div>
           <pf-card>
             <table class="pf-table">
-              <thead><tr><th>ID</th><th>Médicament</th><th>Service</th><th>Reste</th><th>Signalée</th><th>Statut</th></tr></thead>
+              <thead><tr><th>Médicament</th><th>Disponible</th><th>Seuil</th><th>Niveau</th><th>Péremption</th><th></th></tr></thead>
               <tbody>
-                @for (a of alertes(); track a.id) {
+                @for (s of filteredStock(); track s.id) {
                   <tr>
-                    <td><strong>{{ a.id }}</strong></td>
-                    <td>{{ a.med }}</td>
-                    <td>{{ a.service }}</td>
-                    <td><strong class="pf-accent">{{ a.reste }}</strong></td>
-                    <td class="muted">{{ a.quand }}</td>
-                    <td><span class="chip chip-red">Active</span></td>
+                    <td>
+                      <div class="pf-medname">{{ s.medicine_name }}</div>
+                      <div class="pf-medsub">{{ s.form }} {{ s.dosage }} @if (s.is_controlled) { <span class="chip chip-red chip-inline">Contrôlé</span> }</div>
+                    </td>
+                    <td><strong class="pf-num">{{ s.available }}</strong></td>
+                    <td class="muted">{{ s.threshold_qty }}</td>
+                    <td><pf-tag [s]="sevTag(s.severity)">{{ sevLabel(s.severity) }}</pf-tag></td>
+                    <td>
+                      @if (s.expiry_date) { <pf-tag [s]="expiryTag(s.expiry_level)">{{ s.expiry_date | date:'d MMM y' }}</pf-tag> }
+                      @else { <span class="muted">—</span> }
+                    </td>
+                    <td class="pf-td-right">
+                      <button class="btn btn-outline btn-sm" [disabled]="s.available <= 0" (click)="dispenseModal.set(s)"><nv-icon name="send" [size]="14"/> Sortie vers service</button>
+                    </td>
                   </tr>
                 }
+                @if (filteredStock().length === 0) { <tr><td colspan="6" class="muted pf-td-empty">Aucune ligne de stock pour ce filtre.</td></tr> }
+              </tbody>
+            </table>
+          </pf-card>
+
+          <div class="pf-cols">
+            <pf-card title="Sorties par service" sub="30 derniers jours">
+              @for (b of byService(); track b.service) {
+                <div class="pf-li">
+                  <span class="pf-liic"><nv-icon name="hospital" [size]="18"/></span>
+                  <div class="pf-libody"><strong>{{ b.service }}</strong><span>{{ b.count }} sortie(s){{ b.units.length ? ' · unités : ' + b.units.join(', ') : '' }}</span></div>
+                  <strong class="pf-num-sm">{{ b.quantity }} u.</strong>
+                </div>
+              }
+              @if (byService().length === 0) { <div class="pf-note">Aucune sortie enregistrée.</div> }
+            </pf-card>
+            <pf-card title="Journal des sorties" sub="Qui, quoi, quand, vers où">
+              @for (d of dispensations().slice(0, 12); track d.id) {
+                <div class="pf-li">
+                  <span class="pf-liic amber"><nv-icon name="send" [size]="16"/></span>
+                  <div class="pf-libody"><strong>{{ d.quantity }} × {{ d.medicine }}</strong><span>{{ d.service }}{{ d.unit ? ' → ' + d.unit : '' }} · {{ d.user }} · {{ when(d.created_at) }}</span></div>
+                </div>
+              }
+              @if (dispensations().length === 0) { <div class="pf-note">Aucune sortie enregistrée.</div> }
+            </pf-card>
+          </div>
+        </div>
+      }
+
+      @case ('recep') {
+        <div>
+          <pf-page-head title="Réceptions" [sub]="isPublic() ? 'Approvisionnement livré par votre PRA (ou la PNA).' : 'Approvisionnement livré par vos distributeurs privés.'"/>
+          <pf-incoming-deliveries (received)="reload()"/>
+        </div>
+      }
+
+      @case ('history') {
+        <div>
+          <pf-page-head title="Historique des alertes" sub="Toutes les alertes internes (actives et résolues)."/>
+          <pf-card>
+            <table class="pf-table">
+              <thead><tr><th>ID</th><th>Médicament</th><th>Service · unité</th><th>Niveau</th><th>Reste</th><th>Signalée</th><th>Statut</th></tr></thead>
+              <tbody>
                 @for (h of alertHistory(); track h.id) {
                   <tr>
-                    <td><strong>{{ h.id }}</strong></td>
+                    <td class="pf-td-id">#{{ h.id }}</td>
                     <td>{{ h.med }}</td>
-                    <td>{{ h.service }}</td>
+                    <td>{{ h.service }}{{ h.unit ? ' → ' + h.unit : '' }}</td>
+                    <td><pf-tag [s]="sevTag(h.severity)">{{ sevLabel(h.severity) }}</pf-tag></td>
                     <td><strong class="pf-accent">{{ h.reste }}</strong></td>
                     <td class="muted">{{ h.quand }}</td>
-                    <td><span class="chip chip-green">Résolue</span></td>
+                    <td>
+                      @if (activeIds().has(h.id)) { <span class="chip chip-red">Active</span> }
+                      @else { <span class="chip chip-green">Résolue</span> }
+                    </td>
                   </tr>
                 }
-                @if (alertes().length === 0 && alertHistory().length === 0) {
-                  <tr><td colspan="6" class="muted pf-td-empty">Aucun historique d'alerte.</td></tr>
+                @if (alertHistory().length === 0) {
+                  <tr><td colspan="7" class="muted pf-td-empty">Aucun historique d'alerte.</td></tr>
                 }
               </tbody>
             </table>
@@ -126,47 +195,14 @@
 
       @case ('res') {
         <div>
-          <pf-page-head title="Réseau de partenaires" sub="Établissez des connexions avec pharmacies et distributeurs.">
-            <button actions class="btn btn-green btn-sm" (click)="connectPartner()"><nv-icon name="link" [size]="16"/> Connecter un partenaire</button>
-          </pf-page-head>
-          <div class="pf-half">
-            <pf-card title="Pharmacies connectées">
-              @for (p of pharmacyPartners(); track p.id) {
-                <div class="pf-li">
-                  <span class="pf-liic green"><nv-icon name="pill" [size]="18"/></span>
-                  <div class="pf-libody"><strong>{{ p.partner }}</strong><span>{{ p.city }} · {{ p.phone }}</span></div>
-                  <span class="chip" [class.chip-green]="p.status === 'active'" [class.chip-amber]="p.status !== 'active'">{{ p.status === 'active' ? 'Actif' : 'En attente' }}</span>
-                  @if (p.can_respond) {
-                    <button class="btn btn-green btn-sm" (click)="acceptPartner(p.id)">Accepter</button>
-                    <button class="btn btn-ghost btn-sm" (click)="rejectPartner(p.id)">Rejeter</button>
-                  }
-                  <button class="btn btn-ghost btn-sm btn-danger" title="Retirer" (click)="removePartner(p.id)"><nv-icon name="x" [size]="14"/></button>
-                </div>
-              }
-              @if (pharmacyPartners().length === 0) { <div class="pf-note">Aucune pharmacie partenaire.</div> }
-            </pf-card>
-            <pf-card title="Distributeurs connectés">
-              @for (d of distributorPartners(); track d.id) {
-                <div class="pf-li">
-                  <span class="pf-liic"><nv-icon name="truck" [size]="18"/></span>
-                  <div class="pf-libody"><strong>{{ d.partner }}</strong><span>{{ d.city }} · Distributeur</span></div>
-                  <span class="chip" [class.chip-green]="d.status === 'active'" [class.chip-amber]="d.status !== 'active'">{{ d.status === 'active' ? 'Actif' : 'En attente' }}</span>
-                  @if (d.can_respond) {
-                    <button class="btn btn-green btn-sm" (click)="acceptPartner(d.id)">Accepter</button>
-                    <button class="btn btn-ghost btn-sm" (click)="rejectPartner(d.id)">Rejeter</button>
-                  }
-                  <button class="btn btn-ghost btn-sm btn-danger" title="Retirer" (click)="removePartner(d.id)"><nv-icon name="x" [size]="14"/></button>
-                </div>
-              }
-              @if (distributorPartners().length === 0) { <div class="pf-note">Aucun distributeur enregistré.</div> }
-            </pf-card>
-          </div>
+          <pf-page-head title="Réseau de partenaires" sub="Pharmacies et fournisseurs connectés — notifiés automatiquement de vos alertes."/>
+          <pf-partners-panel [types]="partnerTypes()" [rule]="supplierRule()"/>
         </div>
       }
 
       @case ('crit') {
         <div>
-          <pf-page-head title="Médicaments critiques" sub="Suivi renforcé des produits sensibles (stupéfiants, traitements vitaux)."/>
+          <pf-page-head title="Médicaments critiques" sub="Suivi en temps réel des produits contrôlés (stupéfiants, insulines, traitements vitaux)."/>
           <pf-card>
             <table class="pf-table">
               <thead><tr><th>Médicament</th><th>Disponible (hôpital)</th><th>Niveau de suivi</th><th>État</th></tr></thead>
@@ -188,7 +224,7 @@
 
       @case ('pra') {
         <div>
-          <pf-page-head title="Commandes PRA" sub="Commandes institutionnelles vers votre Pharmacie Régionale d'Approvisionnement.">
+          <pf-page-head title="Commandes PRA" sub="Commandes institutionnelles directes vers votre Pharmacie Régionale d'Approvisionnement.">
             <button actions class="btn btn-green btn-sm" (click)="praModal.set(true)"><nv-icon name="truck" [size]="16"/> Nouvelle commande</button>
           </pf-page-head>
           <pf-card>
@@ -213,55 +249,65 @@
     }
     }
 
+    <datalist id="hop-services">
+      @for (s of services; track s) { <option [value]="s"></option> }
+    </datalist>
+
     <!-- Modals -->
     @if (signalModal()) {
       <div class="pf-modal-overlay" (click)="signalModal.set(false)">
-        <form class="pf-modal" (click)="$event.stopPropagation()" (submit)="submitSignal(sMed.value, sSrv.value, sQty.value); $event.preventDefault()">
+        <form class="pf-modal" (click)="$event.stopPropagation()" (submit)="submitSignal(sMed.value, sSev.value, sSrv.value, sUnit.value, sQty.value); $event.preventDefault()">
           <div class="pf-modal-head">
-            <h3>Signaler une rupture interne</h3>
+            <h3>Signaler une alerte interne</h3>
             <button type="button" class="pf-modal-close" (click)="signalModal.set(false)"><nv-icon name="x" [size]="20"/></button>
           </div>
           <div class="pf-modal-body">
             <div class="s-field"><label>Médicament concerné *</label><input #sMed required placeholder="Nom du médicament"/></div>
-            <div class="pf-fieldrow">
-              <div class="s-field"><label>Service demandeur *</label>
-                <select #sSrv required>
-                  <option value="Urgences">Urgences</option>
-                  <option value="Réanimation">Réanimation</option>
-                  <option value="Cardiologie">Cardiologie</option>
-                  <option value="Pharmacie centrale">Pharmacie centrale</option>
-                </select>
-              </div>
-              <div class="s-field"><label>Quantité restante *</label><input #sQty required type="number" min="0" placeholder="Ex: 5"/></div>
+            <div class="s-field"><label>Niveau d'urgence *</label>
+              <select #sSev required [value]="signalSeverity()" (change)="signalSeverity.set(sSev.value === 'rupture' ? 'rupture' : 'tension')">
+                <option value="tension">Tension — stock critique mais non nul</option>
+                <option value="rupture">Rupture — stock à zéro</option>
+              </select>
             </div>
+            <div class="pf-fieldrow">
+              <div class="s-field"><label>Service *</label><input #sSrv required list="hop-services" placeholder="Ex : Cardiologie"/></div>
+              <div class="s-field"><label>Unité</label><input #sUnit list="hop-services" placeholder="Ex : Réanimation"/></div>
+            </div>
+            <div class="s-field"><label>Quantité restante {{ signalSeverity() === 'rupture' ? '(rupture : 0)' : '*' }}</label><input #sQty type="number" min="0" placeholder="Ex : 5" [disabled]="signalSeverity() === 'rupture'" [required]="signalSeverity() === 'tension'"/></div>
           </div>
           <div class="pf-modal-foot">
             <button type="button" class="btn btn-ghost btn-sm" (click)="signalModal.set(false)">Annuler</button>
-            <button type="submit" class="btn btn-green btn-sm">Signaler l'alerte</button>
+            <button type="submit" class="btn btn-sm" [class.btn-danger]="signalSeverity() === 'rupture'" [class.btn-green]="signalSeverity() === 'tension'">Signaler et notifier les partenaires</button>
           </div>
         </form>
       </div>
     }
 
-    @if (connectModal()) {
-      <div class="pf-modal-overlay" (click)="connectModal.set(false)">
-        <form class="pf-modal" (click)="$event.stopPropagation()" (submit)="submitConnect(cCode.value, cType.value); $event.preventDefault()">
+    @if (dispenseModal(); as s) {
+      <div class="pf-modal-overlay" (click)="dispenseModal.set(null)">
+        <form class="pf-modal" (click)="$event.stopPropagation()" (submit)="submitDispense(dQty.value, dSrv.value, dUnit.value, dRef.value); $event.preventDefault()">
           <div class="pf-modal-head">
-            <h3>Connecter un partenaire</h3>
-            <button type="button" class="pf-modal-close" (click)="connectModal.set(false)"><nv-icon name="x" [size]="20"/></button>
+            <h3>Sortie vers un service</h3>
+            <button type="button" class="pf-modal-close" (click)="dispenseModal.set(null)"><nv-icon name="x" [size]="20"/></button>
           </div>
           <div class="pf-modal-body">
-            <div class="s-field"><label>Type de partenaire *</label>
-              <select #cType required>
-                <option value="Pharmacie">Pharmacie d'officine</option>
-                <option value="Distributeur">Distributeur / Grossiste</option>
-              </select>
+            <div class="pf-li pf-li-flat">
+              <span class="pf-liic"><nv-icon name="box" [size]="18"/></span>
+              <div class="pf-libody"><strong>{{ s.medicine_name }} {{ s.dosage }}</strong><span>{{ s.available }} u. disponibles en pharmacie interne</span></div>
             </div>
-            <div class="s-field"><label>Code d'identification ou Email *</label><input #cCode required placeholder="Ex: PH-12345 ou contact@pharma.com"/></div>
+            <div class="pf-fieldrow">
+              <div class="s-field"><label>Service *</label><input #dSrv required list="hop-services" placeholder="Ex : Cardiologie"/></div>
+              <div class="s-field"><label>Unité</label><input #dUnit list="hop-services" placeholder="Ex : Bloc opératoire"/></div>
+            </div>
+            <div class="pf-fieldrow">
+              <div class="s-field"><label>Quantité *</label><input #dQty required type="number" min="1" [max]="s.available" value="1"/></div>
+              <div class="s-field"><label>Réf. patient / prescription</label><input #dRef placeholder="Optionnel"/></div>
+            </div>
+            @if (s.is_controlled) { <p class="muted pf-intro"><nv-icon name="shield" [size]="14"/> Médicament contrôlé : la sortie est tracée nominativement (qui, quand, vers quel service).</p> }
           </div>
           <div class="pf-modal-foot">
-            <button type="button" class="btn btn-ghost btn-sm" (click)="connectModal.set(false)">Annuler</button>
-            <button type="submit" class="btn btn-green btn-sm">Envoyer la demande</button>
+            <button type="button" class="btn btn-ghost btn-sm" (click)="dispenseModal.set(null)">Annuler</button>
+            <button type="submit" class="btn btn-green btn-sm">Enregistrer la sortie</button>
           </div>
         </form>
       </div>
@@ -269,44 +315,47 @@
 
     @if (supplierModal(); as a) {
       <div class="pf-modal-overlay" (click)="supplierModal.set(null)">
-        <form class="pf-modal" (click)="$event.stopPropagation()" (submit)="submitSupplierRequest(dQty.value, dMsg.value); $event.preventDefault()">
+        <form class="pf-modal" (click)="$event.stopPropagation()" (submit)="submitSupplierRequest(dQty2.value, dMsg.value); $event.preventDefault()">
           <div class="pf-modal-head">
             <h3>Demander un réapprovisionnement</h3>
             <button type="button" class="pf-modal-close" (click)="supplierModal.set(null)"><nv-icon name="x" [size]="20"/></button>
           </div>
           <div class="pf-modal-body">
             <div class="pf-li pf-li-flat">
-              <span class="pf-liic {{ a.niveau === 'crit' ? 'red' : 'amber' }}"><nv-icon name="alert" [size]="18"/></span>
-              <div class="pf-libody"><strong>{{ a.med }}</strong><span>{{ a.service }} · {{ a.reste }} restant</span></div>
+              <span class="pf-liic {{ a.severity === 'rupture' ? 'red' : 'amber' }}"><nv-icon name="alert" [size]="18"/></span>
+              <div class="pf-libody"><strong>{{ a.med }}</strong><span>{{ a.service }} · {{ a.severity === 'rupture' ? 'rupture' : a.reste + ' restant' }}</span></div>
             </div>
+            <p class="muted pf-intro"><nv-icon name="shield" [size]="14"/> {{ supplierRule() }}</p>
 
             <div class="s-field">
               <label>Fournisseurs à solliciter * <span class="muted">— stock lu chez chaque fournisseur</span></label>
               @if (suppliersLoading()) {
                 <div class="pf-note-sm"><span class="pf-spin pf-spin-sm"></span> Recherche des fournisseurs…</div>
               }
-              @for (d of suppliers(); track d.id) {
-                <label class="pf-li pf-li-pick">
-                  <input type="checkbox" [checked]="selectedSuppliers().has(d.id)" (change)="toggleSupplier(d.id)" [disabled]="alreadyAsked(a).has(d.id)" class="pf-check"/>
-                  <span class="pf-liic {{ d.has_stock ? 'green' : '' }}"><nv-icon name="truck" [size]="16"/></span>
-                  <div class="pf-libody">
-                    <strong>{{ d.name }} @if (d.is_partner) { <span class="chip chip-blue chip-inline">Partenaire</span> }</strong>
-                    <span>{{ d.kind }} · {{ d.city }}</span>
-                  </div>
-                  @if (alreadyAsked(a).has(d.id)) {
-                    <span class="chip chip-amber">Déjà demandé</span>
-                  } @else if (d.has_stock) {
-                    <pf-tag s="ok">{{ d.available }} u. dispo</pf-tag>
-                  } @else if (a.medId) {
-                    <pf-tag s="out">Non disponible</pf-tag>
-                  }
-                </label>
-              }
-              @if (!suppliersLoading() && suppliers().length === 0) { <div class="pf-note-sm">Aucun fournisseur enregistré.</div> }
+              <div class="pf-picklist">
+                @for (d of suppliers(); track d.id) {
+                  <label class="pf-li pf-li-pick">
+                    <input type="checkbox" [checked]="selectedSuppliers().has(d.id)" (change)="toggleSupplier(d.id)" [disabled]="alreadyAsked(a).has(d.id)" class="pf-check"/>
+                    <span class="pf-liic {{ d.has_stock ? 'green' : '' }}"><nv-icon name="truck" [size]="16"/></span>
+                    <div class="pf-libody">
+                      <strong><span class="pf-pickname" [title]="d.name">{{ d.name }}</span>@if (d.is_partner) { <span class="chip chip-blue">Partenaire</span> }</strong>
+                      <span>{{ d.kind }} · {{ d.city }}</span>
+                    </div>
+                    @if (alreadyAsked(a).has(d.id)) {
+                      <span class="chip chip-amber">Déjà demandé</span>
+                    } @else if (d.has_stock) {
+                      <pf-tag s="ok">{{ d.available }} u.</pf-tag>
+                    } @else if (a.medId) {
+                      <pf-tag s="out">Rupture</pf-tag>
+                    }
+                  </label>
+                }
+              </div>
+              @if (!suppliersLoading() && suppliers().length === 0) { <div class="pf-note-sm">{{ isPublic() ? 'Aucune PRA active pour votre région.' : 'Aucun distributeur privé enregistré.' }}</div> }
             </div>
 
             <div class="pf-fieldrow">
-              <div class="s-field"><label>Quantité souhaitée *</label><input #dQty required type="number" min="1" value="50"/></div>
+              <div class="s-field"><label>Quantité souhaitée *</label><input #dQty2 required type="number" min="1" value="50"/></div>
               <div class="s-field"><label>Message</label><input #dMsg placeholder="Ex : urgence réanimation"/></div>
             </div>
           </div>
@@ -339,7 +388,7 @@
                 </select>
               </div>
             </div>
-            <div class="s-field"><label>Service demandeur</label><input #oSrv placeholder="Ex : Réanimation"/></div>
+            <div class="s-field"><label>Service demandeur</label><input #oSrv list="hop-services" placeholder="Ex : Réanimation"/></div>
             <div class="s-field"><label>Notes</label><textarea #oNotes rows="2" placeholder="Précisions…"></textarea></div>
           </div>
           <div class="pf-modal-foot">

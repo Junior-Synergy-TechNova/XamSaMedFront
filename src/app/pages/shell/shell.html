@@ -7,9 +7,9 @@
           <div class="pf-sidetop">
             <nv-logo [light]="true" [compact]="compact()" (clicked)="exit()"/>
           </div>
-          <div class="pf-rolepill">
+          <div class="pf-rolepill" [title]="identity().name + ' — ' + identity().kind">
             <span class="pf-rolepillic"><nv-icon [name]="r.icon" [size]="18"/></span>
-            <span class="pf-rolepilltxt pf-collapsible" [class.is-hidden]="compact()"><span>Espace</span><strong>{{ shortLabel(r.label) }}</strong></span>
+            <span class="pf-rolepilltxt pf-collapsible" [class.is-hidden]="compact()"><strong>{{ identity().name }}</strong><span>{{ identity().kind }}</span></span>
           </div>
           <nav class="pf-nav">
             @for (n of nav(); track n.id) {
@@ -74,12 +74,12 @@
               <div class="pf-rolesw">
                 <button type="button" class="pf-roleswbtn" [class.on]="profileOpen()" (click)="toggleProfile($event)" [attr.aria-expanded]="profileOpen()" aria-label="Ouvrir le menu du profil">
                   <span class="pf-avatar"><nv-icon [name]="r.icon" [size]="16"/></span>
-                  <span class="pf-rolesname">{{ shortLabel(r.label) }}</span>
+                  <span class="pf-rolesname">{{ userName() }}</span>
                   <nv-icon name="chevron" [size]="15" [rotate]="profileOpen() ? 270 : 90"/>
                 </button>
                 @if (profileOpen()) {
                   <div class="pf-rolemenu card" (click)="$event.stopPropagation()">
-                    <span class="pf-rolemenuh">Session actuelle</span>
+                    <div class="pf-rolemenuh"><strong>{{ userName() }}</strong><span>{{ identity().name }}</span></div>
                     <button type="button" class="pf-rolemenuit" (click)="exit()">
                       <span class="pf-rolemenuic"><nv-icon name="logout" [size]="16"/></span>
                       <span>Se déconnecter</span>

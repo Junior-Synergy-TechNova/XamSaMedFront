@@ -2,8 +2,8 @@
 :host { @apply contents; }
 .pf-toasts { @apply fixed bottom-[26px] right-[26px] z-[200] flex flex-col gap-2.5; }
 .pf-toast {
-  @apply flex items-center gap-[11px] bg-white border border-gray-line border-l-4 border-l-green rounded-xl px-[18px] py-3.5 shadow-lg font-title font-semibold text-[14px] text-blue min-w-[280px];
-  animation: toastin .3s cubic-bezier(.16, 1, .3, 1);
+  @apply flex items-center gap-[11px] bg-white border border-gray-line border-l-4 border-l-green rounded-[8px] px-4 py-3 shadow-lg font-medium text-[13.5px] text-black min-w-[280px] max-w-[420px];
+  animation: toastin .2s cubic-bezier(.16, 1, .3, 1);
 }
 /* l'icône (nv-icon → svg stroke=currentColor) hérite de la couleur posée sur l'hôte */
 .pf-toast.ok nv-icon { @apply text-green; }
@@ -11,4 +11,4 @@
 .pf-toast.alert nv-icon { @apply text-red; }
 .pf-toast.info { @apply border-l-blue; }
 .pf-toast.info nv-icon { @apply text-blue; }
-@keyframes toastin { from { opacity: 0; transform: translateX(40px) } to { opacity: 1; transform: none } }
+@keyframes toastin { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: none } }

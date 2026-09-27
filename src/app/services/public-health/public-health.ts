@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, catchError, map, of } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { ApiOverview, ApiReport, ApiTension, ApiZone } from '../../interfaces/api';
+import { ApiControlledMedicine, ApiOverview, ApiReport, ApiTension, ApiTrends, ApiZone } from '../../interfaces/api';
 import { Tension, ZoneInfo } from '../../interfaces/models';
 import { toZoneInfo } from '../distributor/distributor';
 
@@ -46,11 +46,16 @@ export class PublicHealthService {
     );
   }
 
-  /** POST /public-health/reports/generate — générer un nouveau rapport. */
-  generateReport(period: string, type: string): Observable<ApiReport | null> {
-    return this.http.post<{ data: ApiReport | null }>(`${this.base}/public-health/reports/generate`, { period, type }).pipe(
-      map(r => r.data ?? null),
-      catchError(() => of(null)),
+  /** POST /public-health/reports/generate — national / régional / par médicament, sur une période. */
+  generateReport(payload: { period: string; type: string; region?: string; medicine_id?: number }): Observable<ApiReport> {
+    return this.http.post<{ data: ApiReport }>(`${this.base}/public-health/reports/generate`, payload).pipe(map(r => r.data));
+  }
+
+  /** GET /public-health/controlled — suivi spécial des médicaments contrôlés. */
+  controlled(): Observable<ApiControlledMedicine[]> {
+    return this.http.get<{ data: ApiControlledMedicine[] }>(`${this.base}/public-health/controlled`).pipe(
+      map(r => r.data ?? []),
+      catchError(() => of([])),
     );
   }
 
@@ -77,11 +82,11 @@ export class PublicHealthService {
     );
   }
 
-  /** GET /public-health/trends — tendances. */
-  trends(): Observable<Record<string, unknown>[]> {
-    return this.http.get<{ data: Record<string, unknown>[] }>(`${this.base}/public-health/trends`).pipe(
-      map(r => r.data ?? []),
-      catchError(() => of([])),
+  /** GET /public-health/trends — ruptures / tensions quotidiennes sur 7 et 30 jours (historique réel). */
+  trends(): Observable<ApiTrends | null> {
+    return this.http.get<{ data: ApiTrends }>(`${this.base}/public-health/trends`).pipe(
+      map(r => r.data ?? null),
+      catchError(() => of(null)),
     );
   }
 
@@ -95,6 +100,12 @@ export class PublicHealthService {
 }
 
 function toTension(t: ApiTension): Tension {
-  const delai = 1 + t.pct / 30;
-  return { nom: t.medicine ?? '—', pct: t.pct, delai: delai.toFixed(1).replace('.', ',') + ' j' };
+  return {
+    nom: t.medicine ?? '—',
+    pct: t.pct,
+    variation: t.variation ?? 0,
+    score: t.score ?? t.pct,
+    controlled: t.is_controlled ?? false,
+    ruptures: t.ruptures ?? 0,
+  };
 }
