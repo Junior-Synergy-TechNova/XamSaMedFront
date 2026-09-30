@@ -1,5 +1,5 @@
 export const environment = {
-  apiUrl: 'http://localhost:8000/api', //Backend Laravel
+  apiUrl: 'http://localhost/api', //Backend Laravel
 };
 
 
