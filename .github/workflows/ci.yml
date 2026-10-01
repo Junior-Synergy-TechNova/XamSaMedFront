@@ -1,0 +1,26 @@
+name: CI — XamSaMed Frontend
+
+on:
+  push:
+    branches: [develop, 'feat/**']
+  pull_request:
+    branches: [develop]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Installer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Installer les dépendances
+        run: npm install
+
+      - name: Vérifier le build
+        run: npx ng build --configuration=production
