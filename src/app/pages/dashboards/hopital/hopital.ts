@@ -23,6 +23,13 @@ import {
 
 const EMPTY_SET: ReadonlySet<number> = new Set<number>();
 
+/**
+ * Niveau tension / rupture d'une ligne de stock : celui recalculé par l'API
+ * (rupture = disponible à zéro, tension = disponible ≤ seuil de tension), sinon le statut.
+ */
+const lineLevel = (s: ApiHospitalStockRow): HospitalSeverity | null =>
+  s.alert_level !== undefined ? s.alert_level : s.severity;
+
 /** Lot à surveiller : orange (< 3 mois), rouge (< 1 mois) ou périmé. */
 const isExpiring = (s: ApiHospitalStockRow): boolean =>
   s.expiry_level === 'warn' || s.expiry_level === 'crit' || s.expiry_level === 'expired';
@@ -89,8 +96,26 @@ export class HopitalDash {
   readonly filteredStock = computed(() => {
     const f = this.stockFilter();
     const e = this.expiryFilter();
-    return this.hStock().filter(s => (f === 'all' || (f === 'controlled' ? s.is_controlled : s.severity === f))
+    return this.hStock().filter(s => (f === 'all' || (f === 'controlled' ? s.is_controlled : lineLevel(s) === f))
       && (e === 'all' || (e === 'expired' ? s.expiry_level === 'expired' : isExpiring(s))));
+  });
+  /** Répartition des lignes de stock : rupture / tension / normal. */
+  readonly stockLevels = computed(() => {
+    const levels = { rupture: 0, tension: 0, normal: 0 };
+    for (const s of this.hStock()) levels[lineLevel(s) ?? 'normal']++;
+    return levels;
+  });
+
+  // Seuil de tension propre à une ligne (PATCH /hospital/stock/{id}/alert-level)
+  readonly tensionModal = signal<ApiHospitalStockRow | null>(null);
+  readonly tensionDraft = signal<number | null>(null);
+  readonly savingTension = signal(false);
+  /** Niveau que la ligne aurait avec le seuil saisi — aperçu avant enregistrement. */
+  readonly tensionPreview = computed<HospitalSeverity | null>(() => {
+    const s = this.tensionModal();
+    if (!s) return null;
+    const t = this.tensionDraft() ?? this.defaultTension(s);
+    return s.available <= 0 ? 'rupture' : s.available <= t ? 'tension' : null;
   });
   /** Lots orange / rouge (péremption < 3 mois ou dépassée), les plus proches d'abord. */
   readonly expiring = computed(() => this.hStock()
@@ -185,6 +210,9 @@ export class HopitalDash {
   /** Deux niveaux d'urgence : rupture (rouge) / tension (orange). */
   sevTag(s: HospitalSeverity | null | undefined): string { return s === 'rupture' ? 'crit' : s === 'tension' ? 'low' : 'ok'; }
   sevLabel(s: HospitalSeverity | null | undefined): string { return s === 'rupture' ? 'Rupture' : s === 'tension' ? 'Tension' : 'Suivi normal'; }
+  level(s: ApiHospitalStockRow): HospitalSeverity | null { return lineLevel(s); }
+  /** Seuil de tension par défaut : 2 × le seuil d'alerte de la ligne. */
+  defaultTension(s: ApiHospitalStockRow): number { return 2 * (s.threshold_qty ?? 0); }
   critTag(s: string): string { return s === 'out' ? 'crit' : s === 'low' ? 'low' : 'ok'; }
   critLabel(s: string): string { return s === 'out' ? 'Rupture' : s === 'low' ? 'Tension' : 'Suivi normal'; }
   when(iso: string | null): string { return iso ? new Date(iso).toLocaleString('fr-FR') : ''; }
@@ -289,6 +317,31 @@ export class HopitalDash {
       },
       error: (e: unknown) => this.platform.notify(
         e instanceof Error && e.message === 'not_found' ? 'Médicament introuvable dans le catalogue' : 'Échec du signalement', 'alert'),
+    });
+  }
+
+  // --- Seuil de tension par ligne ---
+  openTension(s: ApiHospitalStockRow): void {
+    this.tensionDraft.set(s.tension_threshold_custom ? (s.tension_threshold ?? null) : null);
+    this.tensionModal.set(s);
+  }
+
+  /** value = seuil saisi ; null = revenir au seuil par défaut (2 × seuil d'alerte). */
+  saveTension(value: number | null): void {
+    const s = this.tensionModal();
+    if (!s) return;
+    if (value !== null && (!Number.isInteger(value) || value < 1)) { this.platform.notify('Seuil de tension invalide (entier ≥ 1)', 'alert'); return; }
+    this.savingTension.set(true);
+    this.hospital.setTensionThreshold(s.id, value).pipe(
+      switchMap(r => this.hospital.stock().pipe(map(stock => ({ r, stock })))),
+    ).subscribe({
+      next: ({ r, stock }) => {
+        this.savingTension.set(false);
+        this.hStock.set(stock);
+        this.tensionModal.set(null);
+        this.platform.notify(`${s.medicine_name} : seuil de tension ${r.tension_threshold} u. — ${this.sevLabel(r.alert_level).toLowerCase()}`, 'ok');
+      },
+      error: (e: HttpErrorResponse) => { this.savingTension.set(false); this.platform.notify(this.apiError(e, "Échec de l'enregistrement du seuil"), 'alert'); },
     });
   }
 

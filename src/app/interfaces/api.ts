@@ -333,6 +333,21 @@ export interface ApiCriticalMedicine {
 /** GET /hospital/stock — ligne de stock de la pharmacie hospitalière. */
 export interface ApiHospitalStockRow extends ApiStockRow {
   severity: HospitalSeverity | null;
+  /** Niveau de la ligne recalculé par l'API : rupture = disponible à zéro, tension = disponible ≤ tension_threshold. */
+  alert_level?: HospitalSeverity | null;
+  /** Seuil de tension effectif : propre à la ligne, sinon 2 × le seuil d'alerte. */
+  tension_threshold?: number;
+  tension_threshold_custom?: boolean;
+  alert_level_updated_at?: string | null;
+}
+
+/** PATCH /hospital/stock/{stock}/alert-level */
+export interface ApiAlertLevelUpdate {
+  status: string;
+  alert_level: HospitalSeverity | null;
+  tension_threshold: number;
+  medicine: string;
+  quantity: number;
 }
 
 /** GET /hospital/dispensations — sortie tracée vers un service / une unité. */

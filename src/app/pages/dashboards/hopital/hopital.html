@@ -118,6 +118,11 @@
       @case ('stock') {
         <div>
           <pf-page-head title="Stock & sorties" sub="Pharmacie interne — sorties tracées vers chaque service et unité (circuit fermé)."/>
+          <div class="pf-statgrid">
+            <pf-stat icon="alert" tone="red" label="Ruptures — stock à zéro" [value]="stockLevels().rupture"/>
+            <pf-stat icon="bell" tone="amber" label="Tensions — sous le seuil de tension" [value]="stockLevels().tension"/>
+            <pf-stat icon="checkC" tone="green" label="Niveau normal" [value]="stockLevels().normal"/>
+          </div>
           <div class="pf-filters">
             <button class="btn btn-sm" [class.btn-primary]="stockFilter() === 'all'" [class.btn-outline]="stockFilter() !== 'all'" (click)="stockFilter.set('all')">Tous</button>
             <button class="btn btn-sm" [class.btn-primary]="stockFilter() === 'rupture'" [class.btn-outline]="stockFilter() !== 'rupture'" (click)="stockFilter.set('rupture')">Ruptures</button>
@@ -130,7 +135,7 @@
           <pf-expiry-legend/>
           <pf-card>
             <table class="pf-table">
-              <thead><tr><th>Médicament</th><th>Disponible</th><th>Seuil</th><th>Niveau</th><th>Péremption</th><th></th></tr></thead>
+              <thead><tr><th>Médicament</th><th>Disponible</th><th>Seuils</th><th>Niveau</th><th>Péremption</th><th></th></tr></thead>
               <tbody>
                 @for (s of filteredStock(); track s.id) {
                   <tr>
@@ -139,14 +144,26 @@
                       <div class="pf-medsub">{{ s.form }} {{ s.dosage }} @if (s.is_controlled) { <span class="chip chip-red chip-inline">Contrôlé</span> }</div>
                     </td>
                     <td><strong class="pf-num">{{ s.available }}</strong></td>
-                    <td class="muted">{{ s.threshold_qty }}</td>
-                    <td><pf-tag [s]="sevTag(s.severity)">{{ sevLabel(s.severity) }}</pf-tag></td>
+                    <td>
+                      <div class="muted">alerte {{ s.threshold_qty }}</div>
+                      <div class="pf-medsub">tension ≤ {{ s.tension_threshold ?? defaultTension(s) }}@if (s.tension_threshold_custom) { · personnalisé }</div>
+                    </td>
+                    <td>
+                      @switch (level(s)) {
+                        @case ('rupture') { <pf-tag s="crit">Rupture</pf-tag><div class="pf-medsub">Stock à zéro</div> }
+                        @case ('tension') { <pf-tag s="low">Tension</pf-tag><div class="pf-medsub">{{ s.available }} ≤ {{ s.tension_threshold ?? defaultTension(s) }} u.</div> }
+                        @default { <pf-tag s="ok">Normal</pf-tag> }
+                      }
+                    </td>
                     <td>
                       <pf-expiry [level]="s.expiry_level ?? 'none'" [date]="s.expiry_date ?? null" [days]="s.days_to_expiry ?? null"/>
                       @if (s.batch_number) { <div class="pf-medsub">Lot {{ s.batch_number }}</div> }
                     </td>
                     <td class="pf-td-right">
-                      <button class="btn btn-outline btn-sm" [disabled]="s.available <= 0" (click)="dispenseModal.set(s)"><nv-icon name="send" [size]="14"/> Sortie vers service</button>
+                      <div class="pf-li-act tight">
+                        <button class="btn btn-ghost btn-sm" (click)="openTension(s)" title="Régler le seuil de tension de cette ligne">Seuil de tension</button>
+                        <button class="btn btn-outline btn-sm" [disabled]="s.available <= 0" (click)="dispenseModal.set(s)"><nv-icon name="send" [size]="14"/> Sortie vers service</button>
+                      </div>
                     </td>
                   </tr>
                 }
@@ -331,6 +348,43 @@
           <div class="pf-modal-foot">
             <button type="button" class="btn btn-ghost btn-sm" (click)="dispenseModal.set(null)">Annuler</button>
             <button type="submit" class="btn btn-green btn-sm">Enregistrer la sortie</button>
+          </div>
+        </form>
+      </div>
+    }
+
+    @if (tensionModal(); as s) {
+      <div class="pf-modal-overlay" (click)="tensionModal.set(null)">
+        <form class="pf-modal" (click)="$event.stopPropagation()" (submit)="saveTension(tensionDraft()); $event.preventDefault()">
+          <div class="pf-modal-head">
+            <h3>Seuil de tension</h3>
+            <button type="button" class="pf-modal-close" (click)="tensionModal.set(null)"><nv-icon name="x" [size]="20"/></button>
+          </div>
+          <div class="pf-modal-body">
+            <div class="pf-li pf-li-flat">
+              <span class="pf-liic {{ level(s) === 'rupture' ? 'red' : level(s) === 'tension' ? 'amber' : 'green' }}"><nv-icon name="box" [size]="18"/></span>
+              <div class="pf-libody"><strong>{{ s.medicine_name }} {{ s.dosage }}</strong><span>{{ s.available }} u. disponibles · seuil d'alerte {{ s.threshold_qty }}</span></div>
+            </div>
+            <p class="muted pf-intro">Rupture = stock à zéro. Tension = stock disponible inférieur ou égal au seuil de tension (par défaut 2 × le seuil d'alerte, soit {{ defaultTension(s) }} u.).</p>
+            <div class="s-field">
+              <label>Seuil de tension (u.)</label>
+              <input #tIn type="number" min="1" [value]="tensionDraft() ?? ''" [placeholder]="'Par défaut : ' + defaultTension(s)" (input)="tensionDraft.set(tIn.value === '' ? null : tIn.valueAsNumber)"/>
+            </div>
+            <div class="pf-li pf-li-flat">
+              <span class="pf-libody"><span>Avec ce seuil, la ligne sera :</span></span>
+              @switch (tensionPreview()) {
+                @case ('rupture') { <pf-tag s="crit">Rupture</pf-tag> }
+                @case ('tension') { <pf-tag s="low">Tension</pf-tag> }
+                @default { <pf-tag s="ok">Normal</pf-tag> }
+              }
+            </div>
+          </div>
+          <div class="pf-modal-foot">
+            @if (s.tension_threshold_custom) {
+              <button type="button" class="btn btn-ghost btn-sm" [disabled]="savingTension()" (click)="saveTension(null)">Revenir au défaut ({{ defaultTension(s) }} u.)</button>
+            }
+            <button type="button" class="btn btn-ghost btn-sm" (click)="tensionModal.set(null)">Annuler</button>
+            <button type="submit" class="btn btn-green btn-sm" [disabled]="savingTension() || tensionDraft() === null">Enregistrer</button>
           </div>
         </form>
       </div>
