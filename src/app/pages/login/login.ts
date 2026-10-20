@@ -132,7 +132,7 @@ export class LoginScreen {
     const code = this.otpCode().trim();
     if (!/^\d{6}$/.test(code)) { this.error.set('Le code comporte 6 chiffres.'); return; }
     this.error.set(null); this.loading.set(true);
-    this.auth.verifyOtp(this.otpIdentifier().trim(), code).subscribe({
+    this.auth.verifyOtp(this.otpIdentifier().trim(), this.otpChannel(), code).subscribe({
       next: () => { this.loading.set(false); this.otpCode.set(''); this.router.navigateByUrl('/app'); },
       error: (err: HttpErrorResponse) => { this.loading.set(false); this.error.set(this.errorMessage(err)); },
     });

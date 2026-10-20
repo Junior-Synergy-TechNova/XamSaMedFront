@@ -48,14 +48,14 @@ export class AuthService {
       .pipe(tap(res => this.apply(res.user, res.token)));
   }
 
-  /** POST /login/otp/request → envoie un code à usage unique (email, SMS ou WhatsApp). */
-  requestOtp(identifier: string, channel: OtpChannel): Observable<OtpRequestResponse> {
-    return this.http.post<OtpRequestResponse>(`${this.base}/login/otp/request`, { identifier, channel });
+  /** POST /auth/otp/send → envoie un code de connexion à usage unique (email, SMS ou WhatsApp). */
+  requestOtp(contact: string, channel: OtpChannel): Observable<OtpRequestResponse> {
+    return this.http.post<OtpRequestResponse>(`${this.base}/auth/otp/send`, { contact, channel, purpose: 'login' });
   }
 
-  /** POST /login/otp/verify → ouvre la session comme /login. */
-  verifyOtp(identifier: string, code: string): Observable<LoginResponse> {
-    return this.http.post<LoginResponse>(`${this.base}/login/otp/verify`, { identifier, code })
+  /** POST /auth/otp/verify → ouvre la session comme /login. */
+  verifyOtp(contact: string, channel: OtpChannel, code: string): Observable<LoginResponse> {
+    return this.http.post<LoginResponse>(`${this.base}/auth/otp/verify`, { contact, channel, code, purpose: 'login' })
       .pipe(tap(res => this.apply(res.user, res.token)));
   }
 

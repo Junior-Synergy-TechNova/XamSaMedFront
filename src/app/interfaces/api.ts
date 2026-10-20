@@ -56,12 +56,14 @@ export interface LoginResponse {
 /** Canal OTP (§13) : email actif ; SMS / WhatsApp selon la configuration Twilio du serveur. */
 export type OtpChannel = 'email' | 'sms' | 'whatsapp';
 
-/** POST /login/otp/request */
+/** POST /auth/otp/send (purpose login) */
 export interface OtpRequestResponse {
   status: string;
   channel: OtpChannel;
+  /** Destination masquée (« fat***@gmail.com », « +22177****00 »). */
+  contact: string;
   message: string;
-  expires_in: number;
+  expires_in: string;
   channels: Record<OtpChannel, boolean>;
   debug_code?: string;
 }
