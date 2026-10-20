@@ -1,6 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, model, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
-import { DatePipe } from '@angular/common';
 import { map, switchMap, throwError } from 'rxjs';
 import { Icon } from '../../../components/icon/icon';
 import { Card } from '../../../components/card/card';
@@ -9,6 +8,8 @@ import { Stat } from '../../../components/stat/stat';
 import { Tag } from '../../../components/tag/tag';
 import { PartnersPanel, PartnerTypeOption } from '../../../components/partners-panel/partners-panel';
 import { IncomingDeliveries } from '../../../components/incoming-deliveries/incoming-deliveries';
+import { ExpiryTag } from '../../../components/expiry-tag/expiry-tag';
+import { ExpiryLegend } from '../../../components/expiry-legend/expiry-legend';
 import { PlatformState } from '../../../services/platform/platform';
 import { HospitalService } from '../../../services/hospital/hospital';
 import { MedicineService } from '../../../services/medicines/medicines';
@@ -29,6 +30,10 @@ const EMPTY_SET: ReadonlySet<number> = new Set<number>();
 const lineLevel = (s: ApiHospitalStockRow): HospitalSeverity | null =>
   s.alert_level !== undefined ? s.alert_level : s.severity;
 
+/** Lot à surveiller : orange (< 3 mois), rouge (< 1 mois) ou périmé. */
+const isExpiring = (s: ApiHospitalStockRow): boolean =>
+  s.expiry_level === 'warn' || s.expiry_level === 'crit' || s.expiry_level === 'expired';
+
 /** Services / unités courants (circuit fermé type CCPC) — saisie libre possible. */
 const SERVICES = ['Urgences', 'Réanimation', 'Bloc opératoire', 'Cardiologie', 'Neurologie', 'Pédiatrie', 'Maternité', 'Endocrinologie', 'Médecine interne', 'Pharmacie centrale'];
 
@@ -40,7 +45,7 @@ const SERVICES = ['Urgences', 'Réanimation', 'Bloc opératoire', 'Cardiologie',
 @Component({
   selector: 'app-hopital-dash',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, Card, PageHead, Stat, Tag, PartnersPanel, IncomingDeliveries, DatePipe],
+  imports: [Icon, Card, PageHead, Stat, Tag, PartnersPanel, IncomingDeliveries, ExpiryTag, ExpiryLegend],
   templateUrl: './hopital.html',
   styleUrl: './hopital.css',
 })
@@ -86,9 +91,13 @@ export class HopitalDash {
   // Stock de la pharmacie interne + sorties vers service / unité
   readonly hStock = signal<ApiHospitalStockRow[]>([]);
   readonly stockFilter = signal<'all' | 'tension' | 'rupture' | 'controlled'>('all');
+  /** Filtre péremption, cumulable avec le filtre de niveau (même logique que l'espace pharmacie). */
+  readonly expiryFilter = signal<'all' | 'soon' | 'expired'>('all');
   readonly filteredStock = computed(() => {
     const f = this.stockFilter();
-    return this.hStock().filter(s => f === 'all' || (f === 'controlled' ? s.is_controlled : lineLevel(s) === f));
+    const e = this.expiryFilter();
+    return this.hStock().filter(s => (f === 'all' || (f === 'controlled' ? s.is_controlled : lineLevel(s) === f))
+      && (e === 'all' || (e === 'expired' ? s.expiry_level === 'expired' : isExpiring(s))));
   });
   /** Répartition des lignes de stock : rupture / tension / normal. */
   readonly stockLevels = computed(() => {
@@ -108,6 +117,11 @@ export class HopitalDash {
     const t = this.tensionDraft() ?? this.defaultTension(s);
     return s.available <= 0 ? 'rupture' : s.available <= t ? 'tension' : null;
   });
+  /** Lots orange / rouge (péremption < 3 mois ou dépassée), les plus proches d'abord. */
+  readonly expiring = computed(() => this.hStock()
+    .filter(isExpiring)
+    .sort((a, b) => (a.days_to_expiry ?? 0) - (b.days_to_expiry ?? 0)));
+  readonly expiredCount = computed(() => this.hStock().filter(s => s.expiry_level === 'expired').length);
   readonly dispenseModal = signal<ApiHospitalStockRow | null>(null);
   readonly dispensations = signal<ApiDispensation[]>([]);
   readonly byService = signal<ApiDispensationByService[]>([]);
@@ -201,8 +215,14 @@ export class HopitalDash {
   defaultTension(s: ApiHospitalStockRow): number { return 2 * (s.threshold_qty ?? 0); }
   critTag(s: string): string { return s === 'out' ? 'crit' : s === 'low' ? 'low' : 'ok'; }
   critLabel(s: string): string { return s === 'out' ? 'Rupture' : s === 'low' ? 'Tension' : 'Suivi normal'; }
-  expiryTag(level: string | undefined): string { return level === 'ok' ? 'ok' : level === 'warn' ? 'low' : level === 'crit' || level === 'expired' ? 'crit' : 'vue'; }
   when(iso: string | null): string { return iso ? new Date(iso).toLocaleString('fr-FR') : ''; }
+
+  /** Ouvre le stock filtré sur les lots périmés (bandeau du tableau de bord). */
+  showExpired(): void {
+    this.stockFilter.set('all');
+    this.expiryFilter.set('expired');
+    this.section.set('stock');
+  }
 
   // --- Demande de réapprovisionnement (PRA pour un hôpital public, distributeurs privés sinon) ---
 

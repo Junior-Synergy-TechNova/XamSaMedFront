@@ -1,0 +1,4 @@
+@reference "../../../styles.css";
+:host { @apply contents; }
+.pf-expiry-legend { @apply flex flex-wrap items-center gap-2.5 mb-5 text-[14px]; }
+.pf-expiry-legend-title { @apply text-gray-text mr-1; }

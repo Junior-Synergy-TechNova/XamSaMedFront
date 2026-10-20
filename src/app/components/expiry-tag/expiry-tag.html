@@ -1,0 +1,5 @@
+@if (level() === 'none' || !date()) {
+  <span class="muted">Non renseignée</span>
+} @else {
+  <pf-tag [s]="tone()">@if (level() === 'expired') { Périmé · }{{ date() | date:'d MMM y' }}@if (countdown(); as c) { · {{ c }} }</pf-tag>
+}
