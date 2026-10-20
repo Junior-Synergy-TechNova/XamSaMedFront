@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, catchError, map, of } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
-  ApiCriticalMedicine, ApiDispensation, ApiDispensationByService, ApiHospitalAlert, ApiHospitalDashboard, ApiHospitalStockRow,
+  ApiAlertLevelUpdate, ApiCriticalMedicine, ApiDispensation, ApiDispensationByService, ApiHospitalAlert, ApiHospitalDashboard, ApiHospitalStockRow,
   ApiInstitutionalOrder, ApiRestockRequest, HospitalSeverity,
 } from '../../interfaces/api';
 import { SendResult } from '../pharmacy/pharmacy';
@@ -49,6 +49,14 @@ export class HospitalService {
   /** POST /hospital/stock/{stock}/dispense — sortie vers un service / une unité (circuit fermé). */
   dispense(stockId: number, payload: { quantity: number; service: string; unit?: string; patient_ref?: string }): Observable<{ message: string }> {
     return this.http.post<{ message: string }>(`${this.base}/hospital/stock/${stockId}/dispense`, payload);
+  }
+
+  /**
+   * PATCH /hospital/stock/{stock}/alert-level — seuil de tension propre à la ligne
+   * (null = revenir à 2 × le seuil d'alerte) ; l'API recalcule le niveau tension / rupture.
+   */
+  setTensionThreshold(stockId: number, tensionThreshold: number | null): Observable<ApiAlertLevelUpdate> {
+    return this.http.patch<ApiAlertLevelUpdate>(`${this.base}/hospital/stock/${stockId}/alert-level`, { tension_threshold: tensionThreshold });
   }
 
   /** GET /hospital/dispensations — journal des sorties + agrégat par service. */
