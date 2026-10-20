@@ -15,7 +15,15 @@
             <pf-stat icon="bell" tone="amber" label="Tensions (stock critique)" [value]="tensions().length"/>
             <pf-stat icon="shield" tone="blue" label="Médicaments critiques suivis" [value]="critMeds().length"/>
             <pf-stat icon="link" tone="green" label="Partenaires connectés" [value]="partnerCount()"/>
+            <pf-stat icon="clock" [tone]="expiredCount() > 0 ? 'red' : 'amber'" label="Péremptions < 3 mois" [value]="expiring().length"/>
           </div>
+          @if (expiredCount() > 0) {
+            <div class="pf-banner red">
+              <span class="pf-bannic"><nv-icon name="alert" [size]="22"/></span>
+              <div class="pf-banner-body"><strong>{{ expiredCount() }} lot(s) périmé(s) en pharmacie interne</strong><p>Ne les sortez plus vers les services : vérifiez les lots et retirez-les du circuit.</p></div>
+              <button class="btn btn-sm btn-white" (click)="showExpired()">Voir les lots</button>
+            </div>
+          }
           <div class="pf-cols">
             <pf-card title="Alertes internes par service" sub="Rupture = stock à zéro · tension = stock critique non nul">
               <span right class="chip chip-red">{{ alertes().length }} actives</span>
@@ -40,6 +48,17 @@
               @if (critMeds().length === 0) { <div class="pf-note">Aucun médicament contrôlé suivi.</div> }
             </pf-card>
           </div>
+          <pf-card title="Péremptions" sub="Vert au-delà de 3 mois, orange sous 3 mois, rouge sous 1 mois">
+            <button right class="btn btn-ghost btn-sm" (click)="expiryFilter.set('soon'); section.set('stock')">Tout voir</button>
+            @for (s of expiring().slice(0, 6); track s.id) {
+              <div class="pf-li">
+                <span class="pf-liic {{ s.expiry_level === 'warn' ? 'amber' : 'red' }}"><nv-icon name="clock" [size]="18"/></span>
+                <div class="pf-libody"><strong>{{ s.medicine_name }} @if (s.is_controlled) { <span class="chip chip-red chip-inline">Contrôlé</span> }</strong><span>Lot {{ s.batch_number || '—' }} · {{ s.available }} u.</span></div>
+                <pf-expiry [level]="s.expiry_level ?? 'none'" [date]="s.expiry_date ?? null" [days]="s.days_to_expiry ?? null"/>
+              </div>
+            }
+            @if (expiring().length === 0) { <div class="pf-note">Aucun lot n'arrive à péremption dans les 3 mois.</div> }
+          </pf-card>
         </div>
       }
 
@@ -104,7 +123,11 @@
             <button class="btn btn-sm" [class.btn-primary]="stockFilter() === 'rupture'" [class.btn-outline]="stockFilter() !== 'rupture'" (click)="stockFilter.set('rupture')">Ruptures</button>
             <button class="btn btn-sm" [class.btn-primary]="stockFilter() === 'tension'" [class.btn-outline]="stockFilter() !== 'tension'" (click)="stockFilter.set('tension')">Tensions</button>
             <button class="btn btn-sm" [class.btn-primary]="stockFilter() === 'controlled'" [class.btn-outline]="stockFilter() !== 'controlled'" (click)="stockFilter.set('controlled')"><nv-icon name="shield" [size]="14"/> Contrôlés</button>
+            <span class="pf-filter-sep"></span>
+            <button class="btn btn-sm" [class.btn-primary]="expiryFilter() === 'soon'" [class.btn-outline]="expiryFilter() !== 'soon'" (click)="expiryFilter.set(expiryFilter() === 'soon' ? 'all' : 'soon')"><nv-icon name="clock" [size]="14"/> Péremption &lt; 3 mois</button>
+            <button class="btn btn-sm" [class.btn-primary]="expiryFilter() === 'expired'" [class.btn-outline]="expiryFilter() !== 'expired'" (click)="expiryFilter.set(expiryFilter() === 'expired' ? 'all' : 'expired')">Périmés</button>
           </div>
+          <pf-expiry-legend/>
           <pf-card>
             <table class="pf-table">
               <thead><tr><th>Médicament</th><th>Disponible</th><th>Seuil</th><th>Niveau</th><th>Péremption</th><th></th></tr></thead>
@@ -119,8 +142,8 @@
                     <td class="muted">{{ s.threshold_qty }}</td>
                     <td><pf-tag [s]="sevTag(s.severity)">{{ sevLabel(s.severity) }}</pf-tag></td>
                     <td>
-                      @if (s.expiry_date) { <pf-tag [s]="expiryTag(s.expiry_level)">{{ s.expiry_date | date:'d MMM y' }}</pf-tag> }
-                      @else { <span class="muted">—</span> }
+                      <pf-expiry [level]="s.expiry_level ?? 'none'" [date]="s.expiry_date ?? null" [days]="s.days_to_expiry ?? null"/>
+                      @if (s.batch_number) { <div class="pf-medsub">Lot {{ s.batch_number }}</div> }
                     </td>
                     <td class="pf-td-right">
                       <button class="btn btn-outline btn-sm" [disabled]="s.available <= 0" (click)="dispenseModal.set(s)"><nv-icon name="send" [size]="14"/> Sortie vers service</button>

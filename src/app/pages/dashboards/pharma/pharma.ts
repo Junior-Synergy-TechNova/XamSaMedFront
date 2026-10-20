@@ -10,12 +10,14 @@ import { Bar } from '../../../components/bar/bar';
 import { Tag } from '../../../components/tag/tag';
 import { PartnersPanel, PartnerTypeOption } from '../../../components/partners-panel/partners-panel';
 import { IncomingDeliveries } from '../../../components/incoming-deliveries/incoming-deliveries';
+import { ExpiryTag } from '../../../components/expiry-tag/expiry-tag';
+import { ExpiryLegend } from '../../../components/expiry-legend/expiry-legend';
 import { PlatformState, saveBlob } from '../../../services/platform/platform';
 import { PharmacyService } from '../../../services/pharmacy/pharmacy';
 import { MedicineService } from '../../../services/medicines/medicines';
 import { AuthService } from '../../../services/auth/auth';
 import { StructureService } from '../../../services/structures/structures';
-import { DemandeRow, ExpiryLevel, StockRow } from '../../../interfaces/models';
+import { DemandeRow, StockRow } from '../../../interfaces/models';
 import {
   ApiErrorBody, ApiGroupedAlert, ApiPrescription, ApiRestockRequest, ApiSale, ApiSalesStats, ApiStockMovement, ApiSupplier,
 } from '../../../interfaces/api';
@@ -38,7 +40,7 @@ const EMPTY_SET: ReadonlySet<number> = new Set<number>();
 @Component({
   selector: 'app-pharma-dash',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, Card, PageHead, Stat, Bar, Tag, PharmaDemandes, SimpleProfile, PartnersPanel, IncomingDeliveries, DatePipe],
+  imports: [Icon, Card, PageHead, Stat, Bar, Tag, PharmaDemandes, SimpleProfile, PartnersPanel, IncomingDeliveries, ExpiryTag, ExpiryLegend, DatePipe],
   templateUrl: './pharma.html',
   styleUrl: './pharma.css',
 })
@@ -201,8 +203,7 @@ export class PharmaDash {
   }
   alertLabel(s: string): string { return s === 'low' ? 'Stock faible' : s === 'out' ? 'Rupture' : 'Critique'; }
 
-  /** Code couleur péremption : vert > 3 mois, orange < 3 mois, rouge < 1 mois ou expiré. */
-  expiryTag(level: ExpiryLevel): string { return level === 'ok' ? 'ok' : level === 'warn' ? 'low' : level === 'none' ? 'vue' : 'crit'; }
+  /** Libellé texte de la péremption (listes) — le code couleur est rendu par <pf-expiry>. */
   expiryLabel(s: StockRow): string {
     if (s.expiryLevel === 'none' || !s.expiry) return 'Non renseignée';
     const date = new Date(s.expiry).toLocaleDateString('fr-FR');
