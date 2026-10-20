@@ -53,7 +53,7 @@ export interface StockRow {
   batch: string | null; expiry: string | null; expiryLevel: ExpiryLevel; daysToExpiry: number | null;
 }
 export interface DemandeRow { id: number; medId: number | null; medName: string; from: string; type: string; qty: number; urgency: string; status: string; quand: string; }
-export interface CritMedRow { medId: number; name: string; available: number; s: StockState; }
+export interface CritMedRow { medId: number; name: string; available: number; s: StockState; stocked: boolean; }
 
 export type DeliveryStatus = 'Planifiée' | 'En transit' | 'Livrée' | 'Annulée';
 export interface DeliveryRow { id: string; zone: string; destination: string; med: string; controlled: boolean; qty: number; date: string; status: DeliveryStatus; slip: string | null; }

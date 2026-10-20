@@ -213,8 +213,12 @@ export class HopitalDash {
   level(s: ApiHospitalStockRow): HospitalSeverity | null { return lineLevel(s); }
   /** Seuil de tension par défaut : 2 × le seuil d'alerte de la ligne. */
   defaultTension(s: ApiHospitalStockRow): number { return 2 * (s.threshold_qty ?? 0); }
-  critTag(s: string): string { return s === 'out' ? 'crit' : s === 'low' ? 'low' : 'ok'; }
-  critLabel(s: string): string { return s === 'out' ? 'Rupture' : s === 'low' ? 'Tension' : 'Suivi normal'; }
+  /** Médicament contrôlé : « Non stocké » (aucune ligne en pharmacie interne) se distingue d'une rupture. */
+  critTag(m: CritMedRow): string { return !m.stocked ? 'vue' : m.s === 'out' ? 'crit' : m.s === 'low' ? 'low' : 'ok'; }
+  critLabel(m: CritMedRow): string { return !m.stocked ? 'Non stocké' : m.s === 'out' ? 'Rupture' : m.s === 'low' ? 'Tension' : 'Suivi normal'; }
+  critTone(m: CritMedRow): string { return !m.stocked ? '' : m.s === 'out' ? 'red' : m.s === 'low' ? 'amber' : 'green'; }
+  /** Un lot périmé ne sort plus vers les services (refus 422 côté API). */
+  isExpired(s: ApiHospitalStockRow): boolean { return s.expiry_level === 'expired'; }
   when(iso: string | null): string { return iso ? new Date(iso).toLocaleString('fr-FR') : ''; }
 
   /** Ouvre le stock filtré sur les lots périmés (bandeau du tableau de bord). */
@@ -349,6 +353,7 @@ export class HopitalDash {
   submitDispense(qtyInput: string, service: string, unit: string, patientRef: string): void {
     const s = this.dispenseModal();
     if (!s) return;
+    if (this.isExpired(s)) { this.platform.notify('Lot périmé : sortie vers un service interdite', 'alert'); return; }
     const quantity = parseInt(qtyInput, 10);
     if (isNaN(quantity) || quantity <= 0 || quantity > s.available) { this.platform.notify(`Quantité invalide (disponible : ${s.available})`, 'alert'); return; }
     if (!service.trim()) { this.platform.notify('Service destinataire requis', 'alert'); return; }

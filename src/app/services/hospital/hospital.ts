@@ -141,5 +141,5 @@ function toAlerteHop(a: ApiHospitalAlert): AlerteHop {
 
 function toCritMed(m: ApiCriticalMedicine): CritMedRow {
   const s: StockState = m.status === 'out_of_stock' ? 'out' : m.status === 'low' ? 'low' : 'ok';
-  return { medId: m.medicine_id, name: m.medicine ?? '—', available: m.available, s };
+  return { medId: m.medicine_id, name: m.medicine ?? '—', available: m.available, s, stocked: m.stocked ?? true };
 }
