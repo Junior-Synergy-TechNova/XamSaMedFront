@@ -11,8 +11,8 @@
             </ng-container>
           </pf-page-head>
           <div class="pf-statgrid">
-            <pf-stat icon="alert" tone="red" label="Ruptures (stock à zéro)" [value]="ruptures().length"/>
-            <pf-stat icon="bell" tone="amber" label="Tensions (stock critique)" [value]="tensions().length"/>
+            <pf-stat icon="alert" tone="red" label="Ruptures en stock" [value]="stockLevels().rupture"/>
+            <pf-stat icon="bell" tone="amber" label="Tensions en stock" [value]="stockLevels().tension"/>
             <pf-stat icon="shield" tone="blue" label="Médicaments critiques suivis" [value]="critMeds().length"/>
             <pf-stat icon="link" tone="green" label="Partenaires connectés" [value]="partnerCount()"/>
             <pf-stat icon="clock" [tone]="expiredCount() > 0 ? 'red' : 'amber'" label="Péremptions < 3 mois" [value]="expiring().length"/>
@@ -40,9 +40,9 @@
               <button right class="btn btn-ghost btn-sm" (click)="section.set('recep')"><nv-icon name="truck" [size]="15"/> {{ incomingCount() }} livraison(s) attendue(s)</button>
               @for (m of critMeds().slice(0, 6); track m.medId) {
                 <div class="pf-li">
-                  <span class="pf-liic {{ m.s === 'out' ? 'red' : m.s === 'low' ? 'amber' : 'green' }}"><nv-icon name="shield" [size]="18"/></span>
-                  <div class="pf-libody"><strong>{{ m.name }}</strong><span>{{ m.available }} u. disponibles</span></div>
-                  <pf-tag [s]="critTag(m.s)">{{ critLabel(m.s) }}</pf-tag>
+                  <span class="pf-liic {{ critTone(m) }}"><nv-icon name="shield" [size]="18"/></span>
+                  <div class="pf-libody"><strong>{{ m.name }}</strong><span>{{ m.stocked ? m.available + ' u. disponibles' : 'Pas en stock interne' }}</span></div>
+                  <pf-tag [s]="critTag(m)">{{ critLabel(m) }}</pf-tag>
                 </div>
               }
               @if (critMeds().length === 0) { <div class="pf-note">Aucun médicament contrôlé suivi.</div> }
@@ -162,7 +162,7 @@
                     <td class="pf-td-right">
                       <div class="pf-li-act tight">
                         <button class="btn btn-ghost btn-sm" (click)="openTension(s)" title="Régler le seuil de tension de cette ligne">Seuil de tension</button>
-                        <button class="btn btn-outline btn-sm" [disabled]="s.available <= 0" (click)="dispenseModal.set(s)"><nv-icon name="send" [size]="14"/> Sortie vers service</button>
+                        <button class="btn btn-outline btn-sm" [disabled]="s.available <= 0 || isExpired(s)" [title]="isExpired(s) ? 'Lot périmé : sortie vers un service interdite' : ''" (click)="dispenseModal.set(s)"><nv-icon name="send" [size]="14"/> Sortie vers service</button>
                       </div>
                     </td>
                   </tr>
@@ -250,9 +250,12 @@
                 @for (m of critMeds(); track m.medId) {
                   <tr>
                     <td><div class="pf-medname">{{ m.name }}</div></td>
-                    <td><strong class="pf-num">{{ m.available }}</strong> <span class="muted">u.</span></td>
+                    <td>
+                      @if (m.stocked) { <strong class="pf-num">{{ m.available }}</strong><span class="muted"> u.</span> }
+                      @else { <span class="muted">Non stocké</span> }
+                    </td>
                     <td><span class="chip chip-blue"><nv-icon name="shield" [size]="13"/> Renforcé</span></td>
-                    <td><pf-tag [s]="critTag(m.s)">{{ critLabel(m.s) }}</pf-tag></td>
+                    <td><pf-tag [s]="critTag(m)">{{ critLabel(m) }}</pf-tag></td>
                   </tr>
                 }
                 @if (critMeds().length === 0) { <tr><td colspan="4" class="muted pf-td-empty">Aucun médicament critique suivi.</td></tr> }

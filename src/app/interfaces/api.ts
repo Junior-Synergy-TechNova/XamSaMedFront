@@ -328,6 +328,8 @@ export interface ApiCriticalMedicine {
   available: number;
   threshold?: number;
   status: string;
+  /** false = aucune ligne de stock dans la pharmacie interne (« non stocké », pas une rupture). */
+  stocked?: boolean;
   severity?: HospitalSeverity | null;
   last_issue?: { quantity: number; service: string | null; unit: string | null; at: string } | null;
 }
