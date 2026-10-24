@@ -2,8 +2,8 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, catchError, map, of } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { ApiGroupedSearch, ApiGroupedSearchStatus, ApiOrder } from '../../interfaces/api';
-import { DispoState, ResaRow } from '../../interfaces/models';
+import { ApiGroupedSearch, ApiGroupedSearchStatus, ApiOrder, ApiPrescriptionLine } from '../../interfaces/api';
+import { DispoState, ResaLine, ResaRow } from '../../interfaces/models';
 
 /** Réservations / commandes côté patient. */
 @Injectable({ providedIn: 'root' })
@@ -27,6 +27,11 @@ export class OrderService {
   /** DELETE /orders/{id} → annule une réservation. */
   cancel(orderId: number): Observable<unknown> {
     return this.http.delete(`${this.base}/orders/${orderId}`);
+  }
+
+  /** POST /orders/{id}/lines/{line}/accept-substitute | refuse-substitute → réponse du patient à un équivalent. */
+  answerSubstitute(orderId: number, lineId: number, accept: boolean): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.base}/orders/${orderId}/lines/${lineId}/${accept ? 'accept' : 'refuse'}-substitute`, {});
   }
 
   /** POST /orders/prescriptions → envoie une ordonnance numérique (multipart). */
@@ -68,14 +73,39 @@ const STATUS: Record<string, { statut: string; s: DispoState }> = {
 
 function toResa(o: ApiOrder): ResaRow {
   const m = STATUS[o.status] ?? { statut: o.status, s: 'low' as DispoState };
+  const lines = (o.lines ?? []).map(l => toResaLine(l, o.pharmacy));
   return {
     orderId: o.id,
-    medName: o.medicine ?? '—',
+    medName: lines.length > 1 ? `Ordonnance · ${lines.length} médicaments` : (lines[0]?.name ?? o.medicine ?? 'Ordonnance'),
     pharmacyName: o.pharmacy ?? '—',
     statut: m.statut,
     quand: formatWhen(o.created_at),
     s: m.s,
     status: o.status,
+    lines: lines.length ? lines : undefined,
+    expiresAt: o.expires_at ?? null,
+  };
+}
+
+/** Ce que le patient doit comprendre d'une ligne : où la retirer, ou quoi décider. */
+function toResaLine(l: ApiPrescriptionLine, pharmacy: string | null): ResaLine {
+  const here = pharmacy ?? 'votre officine';
+  const labels: Record<string, [string, DispoState]> = {
+    reserved: [`Prêt chez ${here}`, 'ok'],
+    legacy_debited: [`Prêt chez ${here}`, 'ok'],
+    oriented: [`À retirer chez ${l.target ?? 'une autre officine'}`, 'low'],
+    substitute_proposed: ['Équivalent proposé : votre accord est nécessaire', 'low'],
+    substitute_accepted: [`Équivalent accepté — prêt chez ${here}`, 'ok'],
+    substitute_refused: ['Équivalent refusé — demandez conseil à votre pharmacien', 'out'],
+    collected: ['Retiré', 'ok'],
+    expired: ['Délai de retrait dépassé', 'out'],
+    cancelled: ['Non délivré', 'out'],
+  };
+  const [label, s] = labels[l.status] ?? [l.status, 'low' as DispoState];
+  return {
+    id: l.id, name: l.medicine ?? 'Médicament', qty: l.qty, status: l.status, label, s,
+    prescribed: l.prescribed_medicine, target: l.target, targetAddress: l.target_address, targetPhone: l.target_phone,
+    originalRequired: l.original_required,
   };
 }
 

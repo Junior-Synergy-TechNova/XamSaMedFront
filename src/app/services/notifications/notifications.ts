@@ -11,6 +11,11 @@ import { DistributorService } from '../distributor/distributor';
 import { HospitalService } from '../hospital/hospital';
 import { PublicHealthService } from '../public-health/public-health';
 
+/** Libellés français des rapports (notifications « Rapport disponible »). */
+const REPORT_TYPES: Record<string, string> = { national: 'National', regional: 'Régional', medicine: 'Par médicament', tensions: 'Tensions critiques' };
+const REPORT_PERIODS: Record<string, string> = { week: 'semaine', month: 'mois', quarter: 'trimestre' };
+const plural = (n: number, one: string, many: string): string => `${n} ${n > 1 ? many : one}`;
+
 /**
  * Notifications du rôle connecté : fusionne les notifications persistées en base
  * (événements réels — POST côté backend) avec des notifications dérivées en
@@ -71,16 +76,16 @@ export class NotificationService {
           d: `${row.medName} · ${row.pharmacyName}`, target: 'resa',
         } as Notif))), catchError(() => of([])));
       case 'pharma':
-        return forkJoin({ alerts: this.pharmacy.alerts(), demandes: this.pharmacy.demandes() }).pipe(
+        return forkJoin({ alerts: this.pharmacy.alerts(), demandes: this.pharmacy.demandes().pipe(catchError(() => of([]))) }).pipe(
           map(({ alerts, demandes }) => [
-            ...alerts.slice(0, 5).map(alert => ({ icon: alert.status === 'out_of_stock' ? 'box' : 'alert', s: 'alert' as const, t: alert.status === 'out_of_stock' ? 'Rupture de stock' : 'Seuil critique atteint', d: `${alert.medicine ?? 'Médicament'} · ${alert.available ?? 0} unité(s)`, target: 'alert' })),
-            ...demandes.slice(0, 5).map(demande => ({ icon: 'mail', s: 'info' as const, t: 'Nouvelle demande ciblée', d: `${demande.medName} · ${demande.qty} unité(s)`, target: 'dem' })),
+            ...alerts.slice(0, 5).map(alert => ({ icon: alert.status === 'out_of_stock' ? 'box' : 'alert', s: 'alert' as const, t: alert.status === 'out_of_stock' ? 'Rupture de stock' : 'Seuil critique atteint', d: `${alert.medicine ?? 'Médicament'} · ${plural(alert.available ?? 0, 'unité', 'unités')}`, target: 'alert' })),
+            ...demandes.slice(0, 5).map(demande => ({ icon: 'mail', s: 'info' as const, t: 'Nouvelle demande ciblée', d: `${demande.medName} · ${plural(demande.qty, 'unité', 'unités')}`, target: 'dem' })),
           ]), catchError(() => of([])),
         );
       case 'distrib':
-        return forkJoin({ alerts: this.distributor.alerts(), demands: this.distributor.regionalDemands() }).pipe(
+        return forkJoin({ alerts: this.distributor.alerts(), demands: this.distributor.regionalDemands().pipe(catchError(() => of([]))) }).pipe(
           map(({ alerts, demands }) => [
-            ...alerts.slice(0, 5).map(alert => ({ icon: 'alert', s: 'alert' as const, t: 'Tension régionale détectée', d: `${alert.name} · ${alert.pharmacies.length} officine(s)`, target: 'zones' })),
+            ...alerts.slice(0, 5).map(alert => ({ icon: 'alert', s: 'alert' as const, t: 'Tension régionale détectée', d: `${alert.name} · ${plural(alert.pharmacies.length, 'officine', 'officines')}`, target: 'zones' })),
             ...demands.slice(0, 5).map(demande => ({ icon: 'layers', s: 'info' as const, t: 'Demande régionale', d: `${demande.zone} · ${demande.med}`, target: 'reg' })),
           ]), catchError(() => of([])),
         );
@@ -91,8 +96,8 @@ export class NotificationService {
       case 'sante':
         return forkJoin({ zones: this.publicHealth.zones(), reports: this.publicHealth.reports() }).pipe(
           map(({ zones, reports }) => [
-            ...zones.filter(zone => zone.niveau === 'crit').slice(0, 5).map(zone => ({ icon: 'pin', s: 'alert' as const, t: 'Zone critique détectée', d: `${zone.nom} · ${zone.ruptures} rupture(s)`, target: 'zones' })),
-            ...reports.filter(report => report.status === 'completed').slice(0, 5).map(report => ({ icon: 'chart', s: 'info' as const, t: 'Rapport disponible', d: `${report.type} · ${report.period}`, target: 'rapport' })),
+            ...zones.filter(zone => zone.niveau === 'crit').slice(0, 5).map(zone => ({ icon: 'pin', s: 'alert' as const, t: 'Zone critique détectée', d: `${zone.nom} · ${plural(zone.ruptures, 'rupture', 'ruptures')}`, target: 'zones' })),
+            ...reports.filter(report => report.status === 'completed').slice(0, 5).map(report => ({ icon: 'chart', s: 'info' as const, t: 'Rapport disponible', d: `${REPORT_TYPES[report.type] ?? report.type} · ${REPORT_PERIODS[report.period] ?? report.period}`, target: 'rapport' })),
           ]), catchError(() => of([])),
         );
     }

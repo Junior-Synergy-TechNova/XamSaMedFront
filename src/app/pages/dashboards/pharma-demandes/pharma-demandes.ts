@@ -11,6 +11,7 @@ import { AvailabilityRow, DemandeRow } from '../../../interfaces/models';
 import { AuthService } from '../../../services/auth/auth';
 import { rankByDistance, structurePoint } from '../../../services/structures/structures';
 import { ApiErrorBody } from '../../../interfaces/api';
+import { Observable, finalize } from 'rxjs';
 
 /* Demandes ciblées reçues par le pharmacien : accepter / orienter / retirer (API réelle). */
 @Component({
@@ -38,6 +39,18 @@ export class PharmaDemandes {
    */
   readonly orientOptions = signal<AvailabilityRow[]>([]);
   readonly orientLoading = signal(false);
+  /** Demandes dont une action est en cours d'envoi : boutons désactivés, pas de double envoi sur réseau lent. */
+  readonly busy = signal<ReadonlySet<number>>(new Set());
+
+  /** Exécute une action une seule fois par demande à la fois. */
+  private run(id: number, call: Observable<unknown>, onDone: () => void, failure: string): void {
+    if (this.busy().has(id)) return;
+    this.busy.update(set => new Set(set).add(id));
+    call.pipe(finalize(() => this.busy.update(set => { const next = new Set(set); next.delete(id); return next; }))).subscribe({
+      next: onDone,
+      error: (e: HttpErrorResponse) => this.platform.notify(this.apiError(e, failure), 'alert'),
+    });
+  }
   /** Précise l'origine des distances affichées (officine connectée ou position de référence). */
   readonly originLabel = computed(() => structurePoint(this.auth.user()?.structure) ? ' depuis votre officine' : '');
 
@@ -52,10 +65,7 @@ export class PharmaDemandes {
   }
 
   accept(id: number): void {
-    this.pharmacy.acceptDemande(id).subscribe({
-      next: () => { this.platform.notify('Demande acceptée et confirmée', 'ok'); this.changed.emit(); },
-      error: (e: HttpErrorResponse) => this.platform.notify(this.apiError(e, 'Échec de l’acceptation'), 'alert'),
-    });
+    this.run(id, this.pharmacy.acceptDemande(id), () => { this.platform.notify('Demande acceptée et confirmée', 'ok'); this.changed.emit(); }, 'Échec de l’acceptation');
   }
 
   startOrient(d: DemandeRow): void {
@@ -78,16 +88,10 @@ export class PharmaDemandes {
   }
 
   doOrient(d: DemandeRow, p: AvailabilityRow): void {
-    this.pharmacy.orientDemande(d.id, p.structureId).subscribe({
-      next: () => { this.orient.set(null); this.platform.notify('Patient orienté vers ' + p.pharmacy, 'info'); this.changed.emit(); },
-      error: (e: HttpErrorResponse) => this.platform.notify(this.apiError(e, 'Échec de l’orientation'), 'alert'),
-    });
+    this.run(d.id, this.pharmacy.orientDemande(d.id, p.structureId), () => { this.orient.set(null); this.platform.notify('Patient orienté vers ' + p.pharmacy, 'info'); this.changed.emit(); }, 'Échec de l’orientation');
   }
 
   collect(id: number): void {
-    this.pharmacy.collectDemande(id).subscribe({
-      next: () => { this.platform.notify('Retrait finalisé', 'ok'); this.changed.emit(); },
-      error: (e: HttpErrorResponse) => this.platform.notify(this.apiError(e, 'Échec de la finalisation'), 'alert'),
-    });
+    this.run(id, this.pharmacy.collectDemande(id), () => { this.platform.notify('Retrait finalisé', 'ok'); this.changed.emit(); }, 'Échec de la finalisation');
   }
 }

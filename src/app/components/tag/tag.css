@@ -2,3 +2,8 @@
 :host { @apply contents; }
 /* Pastille d'état : point coloré + texte (un seul langage d'état dans toute l'app) */
 .pf-tag::before { content: ""; @apply w-1.5 h-1.5 rounded-full bg-current flex-none; }
+/* Un libellé long (« À retirer chez Pharmacie … ») passe à la ligne sur téléphone au lieu de déborder */
+.pf-tag { @apply max-w-full; }
+@media (max-width: 640px) {
+  .pf-tag { @apply whitespace-normal leading-snug; }
+}

@@ -16,9 +16,8 @@
 
       <div class="pf-loginright">
         <div class="pf-loginbox">
-          <span class="chip chip-green">Connexion sécurisée</span>
           <h2>Connectez-vous</h2>
-          <p class="muted pf-loginintro">Choisissez un profil de démonstration ou saisissez vos identifiants. Le rôle de votre espace est déterminé par votre compte.</p>
+          <p class="muted pf-loginintro">Votre espace dépend de votre compte. Les profils ci-dessous préremplissent un compte de démonstration.</p>
 
           @if (mode() === 'login') {
             <div class="pf-roles">
@@ -64,7 +63,10 @@
                 <button type="button" class="btn btn-ghost btn-sm pf-loginlink" (click)="gotoForgot()">Mot de passe oublié ?</button>
               </div>
 
-              <p class="pf-loginhint">Comptes de test : <strong>pharma&#64;xamsamed.test</strong> · <strong>pharma2&#64;xamsamed.test</strong> · <strong>pra&#64;xamsamed.test</strong> · <strong>distrib&#64;xamsamed.test</strong> · <strong>hopital&#64;xamsamed.test</strong> · <strong>clinique&#64;xamsamed.test</strong> · <strong>admin&#64;xamsamed.test</strong> · mot de passe <strong>password123</strong></p>
+              <details class="pf-loginhint">
+                <summary>Tous les comptes de démonstration</summary>
+                <p><strong>pharma&#64;xamsamed.test</strong> · <strong>pharma2&#64;xamsamed.test</strong> · <strong>pra&#64;xamsamed.test</strong> · <strong>distrib&#64;xamsamed.test</strong> · <strong>hopital&#64;xamsamed.test</strong> · <strong>clinique&#64;xamsamed.test</strong> · <strong>admin&#64;xamsamed.test</strong> · mot de passe <strong>password123</strong></p>
+              </details>
             } @else if (mode() === 'otp') {
               <p class="muted pf-resetintro">Connexion sans mot de passe : un code à 6 chiffres, valable 10 minutes, vous est envoyé.</p>
               <div class="pf-fieldrow">

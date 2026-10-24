@@ -25,6 +25,11 @@
 .pf-navitem.on { @apply bg-white/[.12] text-white shadow-[inset_3px_0_0_var(--color-green)]; }
 .pf-navitem.on .pf-navic { @apply text-green-light; }
 .pf-navic { @apply grid place-items-center flex-none; }
+/* Intitulé de groupe : petit, discret, plus d'air au-dessus qu'en dessous (il annonce ce qui suit) */
+.pf-navgroup { @apply px-3.5 pt-5 pb-1.5 text-[12.5px] font-medium text-white/65 leading-none; }
+.pf-navgroup:first-child { @apply pt-1; }
+/* Sidebar repliée : l'intitulé devient un simple filet */
+.pf-app.col .pf-navgroup { @apply mx-auto my-2.5 p-0 w-8 h-px bg-white/15; }
 .pf-navbadge { @apply ml-auto bg-red text-white text-[11px] font-semibold min-w-[20px] h-5 rounded-[10px] grid place-items-center px-1.5; }
 .pf-collapsible { @apply block min-w-0 max-w-[180px] opacity-100 overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-200; }
 .pf-collapsible.is-hidden { @apply max-w-0 opacity-0; }
@@ -51,7 +56,7 @@
 .pf-topright { @apply ml-auto flex items-center gap-3; }
 .pf-iconbtn { @apply relative w-11 h-11 rounded-[10px] grid place-items-center text-gray-text bg-white border border-gray-line transition-colors duration-150; }
 .pf-iconbtn:hover, .pf-iconbtn.on { @apply bg-gray-bg text-black; }
-.pf-notifdot { @apply absolute -top-[6px] -right-[6px] bg-red text-white text-[10.5px] font-semibold min-w-[18px] h-[18px] rounded-[9px] grid place-items-center border-2 border-white px-1; }
+.pf-notifdot { @apply absolute -top-[6px] -right-[6px] bg-red text-white text-[11px] font-semibold min-w-[20px] h-5 rounded-[10px] grid place-items-center border-2 border-white px-1; }
 .pf-notifwrap, .pf-rolesw { @apply relative; }
 .pf-notifpanel { @apply absolute top-[54px] right-0 w-[400px] max-h-[70vh] overflow-y-auto p-1.5 z-40 shadow-lg; }
 .pf-notifhead { @apply flex justify-between items-center px-3 py-2.5; }
@@ -87,7 +92,31 @@
   .pf-app.col .pf-navitem { @apply w-11 h-10; }
   .pf-rolesname { @apply hidden; }
 }
+/* Bouton menu : n'existe que sur téléphone */
+.pf-burger { @apply hidden; }
+.pf-scrim { @apply hidden; }
+
+/* ---- Téléphone : la sidebar devient un tiroir (libellés complets), le contenu prend toute la largeur ---- */
 @media (max-width: 760px) {
-  .pf-content { @apply p-[18px]; }
-  .pf-top { @apply px-4 py-3; }
+  .pf-app, .pf-app.col { @apply grid-cols-1; }
+  .pf-side {
+    @apply fixed inset-y-0 left-0 z-[120] h-dvh w-[min(300px,86vw)] px-4 -translate-x-full invisible;
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+    /* Fermeture : `visibility` bascule après le glissement (le tiroir reste visible pendant l'animation) */
+    transition: transform .2s ease-out, visibility 0s .2s;
+  }
+  /* Ouverture : visible immédiatement, sinon le focus ne peut pas y entrer à la première frame */
+  .pf-app.drawer .pf-side { @apply translate-x-0 visible shadow-lg; transition: transform .2s ease-out, visibility 0s; }
+  .pf-scrim { @apply block fixed inset-0 z-[110] bg-blue-700/35 animate-fadein; }
+  /* « Réduire » n'a pas de sens dans un tiroir : le pied de la barre est vide */
+  .pf-sidefoot { @apply hidden; }
+  .pf-burger { @apply grid place-items-center w-11 h-11 -ml-1.5 flex-none rounded-[10px] text-blue transition-colors duration-150; }
+  .pf-burger:hover { @apply bg-gray-bg; }
+  .pf-top { @apply px-3 gap-2 h-16; }
+  .pf-topsearch { @apply px-3 min-w-0; }
+  .pf-topright { @apply gap-2; }
+  .pf-roleswbtn { @apply px-1.5; }
+  .pf-content { @apply px-4 pt-6 pb-10; }
+  /* Panneaux déroulants : pleine largeur sous la barre haute au lieu de déborder à droite */
+  .pf-notifpanel, .pf-rolemenu { @apply fixed top-[68px] left-3 right-3 w-auto; }
 }

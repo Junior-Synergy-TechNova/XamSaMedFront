@@ -14,13 +14,16 @@ import { PatientResults } from '../patient-results/patient-results';
 import { PatientPharmacies } from '../patient-pharmacies/patient-pharmacies';
 import { SimpleProfile } from '../profile/profile';
 
+import { ModalA11y } from '../../../directives/modal-a11y/modal-a11y';
+import { FieldLabel } from '../../../directives/field-label/field-label';
+import { DatePipe } from '@angular/common';
 /* ============================================================
    PATIENT — recherche, réservations, pharmacies, profil (API réelle)
    ============================================================ */
 @Component({
   selector: 'app-patient-dash',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, Card, PageHead, Tag, PatientResults, PatientPharmacies, SimpleProfile],
+  imports: [ModalA11y, FieldLabel, Icon, Card, PageHead, Tag, PatientResults, PatientPharmacies, SimpleProfile, DatePipe],
   templateUrl: './patient.html',
   styleUrl: './patient.css',
 })
@@ -68,6 +71,7 @@ export class PatientDash {
 
   onSearch(e: Event): void { this.runSearch((e.target as HTMLInputElement).value); }
   setQuery(s: string): void { this.runSearch(s); }
+  plural(n: number, one: string, many: string): string { return `${n} ${n > 1 ? many : one}`; }
   clear(): void { this.q.set(''); this.results.set([]); this.active.set(null); }
 
   private runSearch(term: string): void {
@@ -91,6 +95,19 @@ export class PatientDash {
         this.section.set('resa');
       },
       error: () => this.platform.notify('Échec de la réservation', 'alert'),
+    });
+  }
+
+  /** Réponses aux équivalents proposés en cours d'envoi (boutons désactivés). */
+  readonly answering = signal<number | null>(null);
+
+  /** Le patient accepte ou refuse l'équivalent proposé par son officine pour une ligne d'ordonnance. */
+  answerSubstitute(orderId: number, lineId: number, accept: boolean): void {
+    if (this.answering() !== null) return;
+    this.answering.set(lineId);
+    this.orders.answerSubstitute(orderId, lineId, accept).subscribe({
+      next: res => { this.answering.set(null); this.platform.notify(res.message, accept ? 'ok' : 'info'); this.loadResas(); },
+      error: () => { this.answering.set(null); this.platform.notify('Réponse non envoyée — vérifiez la connexion et réessayez', 'alert'); },
     });
   }
 
@@ -136,7 +153,7 @@ export class PatientDash {
         this.groupedSearchId.set(res.search_id);
         this.groupedStatus.set(null);
         this.groupedModal.set(true);
-        this.platform.notify(`${res.target_count} pharmacie(s) alertée(s)`, 'ok');
+        this.platform.notify(this.plural(res.target_count, 'pharmacie alertée', 'pharmacies alertées'), 'ok');
         this.refreshGroupedStatus();
       },
       error: () => this.platform.notify('Échec de la recherche groupée', 'alert'),

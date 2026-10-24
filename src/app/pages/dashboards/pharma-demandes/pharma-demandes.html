@@ -16,13 +16,13 @@
       @for (d of demandes(); track d.id) {
         <div class="pf-rowline">
           <div class="pf-row pf-row-top">
-            <span class="pf-liic {{ d.urgency === 'Critique' ? 'red' : d.urgency === 'Élevé' ? 'amber' : 'green' }}">
+            <span class="pf-liic {{ d.status === 'pending' ? (d.urgency === 'Critique' ? 'red' : d.urgency === 'Élevé' ? 'amber' : 'blue') : d.status === 'confirmed' ? 'green' : '' }}">
               <nv-icon [name]="typeIcon(d.type)" [size]="18"/>
             </span>
             <div class="pf-row-body">
               <div class="pf-row-head">
                 <span class="pf-medname">{{ d.medName }}</span>
-                <pf-tag [s]="urg(d.urgency)">{{ d.urgency }}</pf-tag>
+                <pf-tag [s]="d.status === 'pending' ? urg(d.urgency) : 'vue'">{{ d.urgency }}</pf-tag>
               </div>
               <p class="muted pf-row-sub">Demandé par <strong class="pf-accent">{{ d.from }}</strong> ({{ d.type }}) · {{ d.qty }} u. · {{ d.quand }}</p>
             </div>
@@ -31,10 +31,10 @@
                 @switch (d.status) {
                   @case ('pending') {
                     <button class="btn btn-outline btn-sm" (click)="startOrient(d)">Rupture — orienter</button>
-                    <button class="btn btn-green btn-sm" (click)="accept(d.id)">Accepter</button>
+                    <button class="btn btn-green btn-sm" (click)="accept(d.id)" [disabled]="busy().has(d.id)">Accepter</button>
                   }
                   @case ('confirmed') {
-                    <button class="btn btn-green btn-sm" (click)="collect(d.id)"><nv-icon name="checkC" [size]="15"/> Marquer retiré</button>
+                    <button class="btn btn-green btn-sm" (click)="collect(d.id)" [disabled]="busy().has(d.id)"><nv-icon name="checkC" [size]="15"/> Marquer retiré</button>
                   }
                   @default {
                     <span class="chip">{{ statusLabel(d.status) }}</span>
@@ -63,7 +63,7 @@
                     <span class="chip chip-green pf-orient-near"><nv-icon name="pin" [size]="13"/> La plus proche</span>
                   }
                   <pf-tag [s]="p.s">{{ p.available }} u. dispo</pf-tag>
-                  <button class="btn btn-green btn-sm" (click)="doOrient(d, p)">Orienter ici</button>
+                  <button class="btn btn-green btn-sm" (click)="doOrient(d, p)" [disabled]="busy().has(d.id)">Orienter ici</button>
                 </div>
               }
               @if (!orientLoading() && orientOptions().length === 0) {

@@ -108,9 +108,9 @@ export class StructureService {
   suppliers(medicineId?: number | null): Observable<ApiSupplier[]> {
     let params = new HttpParams();
     if (medicineId) params = params.set('medicine_id', String(medicineId));
+    // L'erreur remonte : la vue affiche « Réessayer » au lieu d'une liste vide trompeuse.
     return this.http.get<{ data: ApiSupplier[] }>(`${this.base}/distributors`, { params }).pipe(
       map(r => r.data ?? []),
-      catchError(() => of([])),
     );
   }
 }

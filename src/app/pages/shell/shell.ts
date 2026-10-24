@@ -1,7 +1,7 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, Injector, afterNextRender, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Subject, debounceTime, distinctUntilChanged, of, switchMap } from 'rxjs';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { Icon } from '../../components/icon/icon';
 import { Logo } from '../../components/logo/logo';
 import { PlatformState } from '../../services/platform/platform';
@@ -28,20 +28,26 @@ import { SanteDash } from '../dashboards/sante/sante';
 })
 export class AppShell {
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly platform = inject(PlatformState);
   private readonly auth = inject(AuthService);
   private readonly medicines = inject(MedicineService);
   private readonly notificationService = inject(NotificationService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly injector = inject(Injector);
   private readonly searchInput$ = new Subject<string>();
   /** Point de rupture où la sidebar est toujours repliée (cf. shell.css). */
   private readonly narrowQuery = window.matchMedia('(max-width: 860px)');
+  /** Téléphone : la sidebar devient un tiroir ouvert par le bouton menu (cf. shell.css). */
+  private readonly phoneQuery = window.matchMedia('(max-width: 760px)');
 
   readonly role = this.platform.role;
   readonly collapsed = signal(false);
   readonly narrow = signal(this.narrowQuery.matches);
-  /** Sidebar réduite : choix de l'utilisateur ou écran étroit. */
-  readonly compact = computed(() => this.collapsed() || this.narrow());
+  readonly phone = signal(this.phoneQuery.matches);
+  readonly drawerOpen = signal(false);
+  /** Sidebar réduite : choix de l'utilisateur ou écran étroit. Sur téléphone le tiroir garde ses libellés. */
+  readonly compact = computed(() => !this.phone() && (this.collapsed() || this.narrow()));
   readonly notifOpen = signal(false);
   readonly profileOpen = signal(false);
   readonly sec = signal<string>('search');
@@ -69,11 +75,17 @@ export class AppShell {
   readonly nav = computed(() => {
     const r = this.role();
     if (!r) return [];
-    const counts = this.notifs().reduce<Record<string, number>>((result, item) => {
+    const work = this.platform.navCounts();
+    const counts = work ?? this.notifs().reduce<Record<string, number>>((result, item) => {
       if (item.target) result[item.target] = (result[item.target] ?? 0) + 1;
       return result;
     }, {});
-    return this.navFor(r).map(item => ({ ...item, badge: counts[item.id] ?? 0 }));
+    return this.navFor(r).map((item, i, all) => ({
+      ...item,
+      badge: counts[item.id] ?? 0,
+      /** Première entrée d'un groupe : la sidebar affiche l'intitulé juste avant. */
+      groupStart: !!item.group && item.group !== all[i - 1]?.group,
+    }));
   });
   readonly notifs = computed(() => {
     const role = this.role();
@@ -85,16 +97,31 @@ export class AppShell {
     const r = this.platform.role();
     if (!r) { this.router.navigateByUrl('/login'); }
     else {
-      // Reprend la section active avant le rechargement si elle existe encore dans la nav du rôle.
-      const saved = this.platform.restoreSection(r);
+      // Section de départ : celle de l'URL (lien direct, rechargement), sinon la dernière mémorisée, sinon la première.
       const items = this.navFor(r);
-      this.sec.set(saved && items.some(n => n.id === saved) ? saved : items[0].id);
+      const known = (id: string | null): id is string => !!id && items.some(n => n.id === id);
+      const fromUrl = this.route.snapshot.queryParamMap.get('s');
+      const saved = this.platform.restoreSection(r);
+      this.sec.set(known(fromUrl) ? fromUrl : known(saved) ? saved : items[0].id);
+      // Chaque section a son URL (`/app?s=stock`) : le bouton Retour du navigateur revient à la section précédente.
+      effect(() => {
+        const s = this.sec();
+        const current = this.route.snapshot.queryParamMap.get('s');
+        if (current !== s) this.router.navigate([], { relativeTo: this.route, queryParams: { s }, replaceUrl: current === null });
+      });
+      this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(q => {
+        const s = q.get('s');
+        if (known(s) && s !== this.sec()) this.sec.set(s);
+      });
       // Persiste chaque changement, qu'il vienne de la sidebar ou d'un bouton du dashboard.
       effect(() => { const role = this.role(); if (role) this.platform.saveSection(role, this.sec()); });
     }
     const onNarrow = (e: MediaQueryListEvent) => this.narrow.set(e.matches);
     this.narrowQuery.addEventListener('change', onNarrow);
     this.destroyRef.onDestroy(() => this.narrowQuery.removeEventListener('change', onNarrow));
+    const onPhone = (e: MediaQueryListEvent) => { this.phone.set(e.matches); if (!e.matches) this.drawerOpen.set(false); };
+    this.phoneQuery.addEventListener('change', onPhone);
+    this.destroyRef.onDestroy(() => this.phoneQuery.removeEventListener('change', onPhone));
     this.searchInput$.pipe(
       debounceTime(250),
       distinctUntilChanged(),
@@ -128,7 +155,21 @@ export class AppShell {
   }
 
   shortLabel(label: string): string { return label.split(' / ')[0]; }
-  select(id: string): void { this.sec.set(id); this.notifOpen.set(false); }
+  select(id: string): void {
+    this.sec.set(id);
+    this.notifOpen.set(false);
+    if (this.drawerOpen()) this.closeDrawer(false);
+  }
+  /** Tiroir de navigation (téléphone) : le focus entre sur l'entrée active, et revient au bouton menu à la fermeture. */
+  openDrawer(): void {
+    this.closeMenus();
+    this.drawerOpen.set(true);
+    afterNextRender({ read: () => document.querySelector<HTMLElement>('.pf-side .pf-navitem.on, .pf-side .pf-navitem')?.focus() }, { injector: this.injector });
+  }
+  closeDrawer(restoreFocus = true): void {
+    this.drawerOpen.set(false);
+    if (restoreFocus) afterNextRender({ read: () => document.querySelector<HTMLElement>('.pf-burger')?.focus() }, { injector: this.injector });
+  }
   openNotification(index: number): void {
     const role = this.role();
     const notification = this.notifs()[index];
@@ -160,6 +201,8 @@ export class AppShell {
   focusGlobalSearch(): void { this.searchFocused.set(true); }
   closeGlobalSearch(): void { window.setTimeout(() => this.searchFocused.set(false), 120); }
   toggleCollapse(): void { this.collapsed.update(c => !c); }
+  /** Le logo ramène à la première section de l'espace (la déconnexion est dans le menu du compte). */
+  goHome(): void { const first = this.nav()[0]; if (first) this.select(first.id); }
   toggleNotif(e: Event): void { e.stopPropagation(); this.profileOpen.set(false); this.notifOpen.update(o => !o); }
   toggleProfile(e: Event): void { e.stopPropagation(); this.notifOpen.set(false); this.profileOpen.update(o => !o); }
   closeMenus(): void {

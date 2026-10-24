@@ -2,7 +2,7 @@
 /* ===================== PROFIL (patient / officine) ===================== */
 :host { @apply contents; }
 .pf-profhead { @apply flex gap-4 items-center mb-5; }
-.pf-profhead h3 { @apply text-[20px]; }
+.pf-profhead h2 { @apply text-[20px]; }
 .pf-roleic.lg { @apply w-[60px] h-[60px] rounded-2xl; }
 .pf-proffield { @apply flex justify-between py-[13px] border-b border-gray-line; }
 .pf-proffield .muted { @apply text-[14px]; }

@@ -4,25 +4,23 @@
     @switch (section()) {
       @case ('home') {
         <div>
-          <pf-page-head title="Tableau de bord national" sub="Ministère de la Santé — Vue d'ensemble des approvisionnements">
+          <pf-page-head title="Tableau de bord national">
             <button actions class="btn btn-outline btn-sm" (click)="exportReport()"><nv-icon name="doc" [size]="16"/> Exporter le rapport</button>
           </pf-page-head>
           <div class="pf-statgrid">
             <pf-stat icon="alert" tone="red" label="Ruptures totales" [value]="overview().ruptures"/>
             <pf-stat icon="pin" tone="red" label="Zones critiques" [value]="critZones()"/>
-            <pf-stat icon="pill" tone="amber" label="Médicaments en crise" [value]="overview().medicines_in_tension"/>
-            <pf-stat icon="bell" tone="blue" label="Alertes du jour" [value]="overview().alerts_today ?? 0"/>
+            <pf-stat icon="pill" tone="amber" label="Médicaments en tension" [value]="overview().medicines_in_tension"/>
             <pf-stat icon="shield" tone="red" label="Contrôlés en rupture" [value]="controlledInRupture()"/>
-            <pf-stat icon="users" tone="green" label="Zones suivies" [value]="overview().zones_tracked"/>
           </div>
-          <pf-card title="Tendance des ruptures" [sub]="'Ruptures (rouge) et tensions (orange) par jour — ' + signed(trendDelta().ruptures) + ' rupture(s) sur la période'">
+          <pf-card title="Tendance des ruptures" [sub]="'Ruptures (rouge) et tensions (orange) par jour · ruptures ' + signed(trendDelta().ruptures) + ' sur la période'">
             <div right class="pf-filters pf-filters-flat">
               <button class="btn btn-sm" [class.btn-primary]="trendRange() === 7" [class.btn-outline]="trendRange() !== 7" (click)="trendRange.set(7)">7 jours</button>
               <button class="btn btn-sm" [class.btn-primary]="trendRange() === 30" [class.btn-outline]="trendRange() !== 30" (click)="trendRange.set(30)">30 jours</button>
             </div>
             <div class="pf-spark pf-trend" role="img" [attr.aria-label]="'Ruptures et tensions quotidiennes sur ' + trendRange() + ' jours'">
               @for (p of trendPoints(); track p.date) {
-                <div class="pf-trend-col" [title]="day(p.date) + ' : ' + p.ruptures + ' rupture(s), ' + p.low + ' tension(s)'">
+                <div class="pf-trend-col" [title]="day(p.date) + ' : ' + plural(p.ruptures, 'rupture', 'ruptures') + ', ' + plural(p.low, 'tension', 'tensions')">
                   <span class="pf-spark-bar amber" [style.height.%]="barPct(p.low)"></span>
                   <span class="pf-spark-bar red" [style.height.%]="barPct(p.ruptures)"></span>
                 </div>
@@ -44,10 +42,10 @@
               @for (t of topTension(); track t.nom) {
                 <div class="pf-progress">
                   <div class="pf-progress-head">
-                    <span class="pf-medname">{{ t.nom }} @if (t.controlled) { <span class="chip chip-red chip-inline">Contrôlé</span> }</span>
+                    <span class="pf-medname">{{ t.nom }} @if (t.controlled) { <span class="chip chip-ctrl chip-inline">Contrôlé</span> }</span>
                     <strong class="pf-progress-pct pf-num-sm" [class.hot]="t.pct > 50">{{ t.pct }}%</strong>
                   </div>
-                  <pf-bar [pct]="t.pct" [tone]="tone(t.pct)"/>
+                  <pf-bar [pct]="t.pct" [tone]="tone(t.pct)" label="Niveau de tension"/>
                 </div>
               }
               @if (topTension().length === 0) { <div class="pf-note">Aucune tension nationale détectée.</div> }
@@ -58,7 +56,7 @@
 
       @case ('zones') {
         <div>
-          <pf-page-head title="Zones en tension" sub="Identifiez les territoires prioritaires pour l'action publique."/>
+          <pf-page-head title="Zones en tension" sub="Territoires prioritaires, par nombre de ruptures."/>
           <div class="pf-cols">
             <pf-card title="Carte nationale">
               @defer (on viewport) {
@@ -67,12 +65,12 @@
                 <div class="pf-map-placeholder">Chargement de la carte…</div>
               }
             </pf-card>
-            <pf-card title="Classement des zones" sub="Par nombre de ruptures">
+            <pf-card title="Classement des zones">
               @for (z of sortedZones(); track z.nom; let i = $index) {
                 <div class="pf-li">
                   <span class="pf-liic pf-rank">{{ i + 1 }}</span>
-                  <div class="pf-libody"><strong>{{ z.nom }}</strong><span>{{ z.ruptures }} ruptures signalées</span></div>
-                  <pf-tag [s]="ztag(z.niveau)">{{ z.niveau }}</pf-tag>
+                  <div class="pf-libody"><strong>{{ z.nom }}</strong><span>{{ plural(z.ruptures, 'rupture signalée', 'ruptures signalées') }}</span></div>
+                  <pf-tag [s]="ztag(z.niveau)">{{ zoneLabel(z.niveau) }}</pf-tag>
                 </div>
               }
               @if (sortedZones().length === 0) { <div class="pf-note">Aucune zone en tension.</div> }
@@ -83,26 +81,25 @@
 
       @case ('tension') {
         <div>
-          <pf-page-head title="Médicaments en tension" sub="Score de tension nationale et évolution sur 7 jours (historique réel des stocks)."/>
-          <pf-card title="Indicateurs par médicament" sub="Tension = part des structures sous le seuil · score = tension + ruptures + priorité contrôlés">
+          <pf-page-head title="Médicaments en tension" sub="Part des structures sous le seuil et évolution sur 7 jours."/>
+          <pf-card title="Indicateurs par médicament" sub="Le niveau combine la tension, les ruptures et la priorité aux médicaments contrôlés">
             <table class="pf-table">
-              <thead><tr><th>Médicament</th><th>Tension nationale</th><th>Variation 7 j</th><th>Score</th><th>Niveau</th></tr></thead>
+              <thead><tr><th>Médicament</th><th>Tension nationale</th><th>Variation 7 j</th><th>Niveau</th></tr></thead>
               <tbody>
                 @for (t of tension(); track t.nom) {
                   <tr>
-                    <td><div class="pf-medname">{{ t.nom }}</div>@if (t.controlled) { <span class="chip chip-red">Contrôlé</span> }</td>
+                    <td><div class="pf-medname">{{ t.nom }}</div>@if (t.controlled) { <span class="chip chip-ctrl">Contrôlé</span> }</td>
                     <td class="pf-td-bar lg">
                       <div class="pf-progress-meta">
-                        <pf-bar [pct]="t.pct" [tone]="tone(t.pct)"/>
+                        <pf-bar [pct]="t.pct" [tone]="tone(t.pct)" label="Niveau de tension"/>
                         <strong class="pf-num pf-num-sm">{{ t.pct }}%</strong>
                       </div>
                     </td>
                     <td><pf-tag [s]="varTag(t.variation)">{{ signed(t.variation) }} pts</pf-tag></td>
-                    <td><strong class="pf-num pf-num-sm">{{ t.score }}</strong></td>
-                    <td><pf-tag [s]="ttag(t.score)">{{ tlabel(t.score) }}</pf-tag></td>
+                    <td><pf-tag [s]="ttag(t.score)">{{ tlabel(t.score) }}</pf-tag><div class="pf-medsub">score {{ t.score }}</div></td>
                   </tr>
                 }
-                @if (tension().length === 0) { <tr><td colspan="5" class="muted pf-td-empty">Aucune tension nationale détectée.</td></tr> }
+                @if (tension().length === 0) { <tr><td colspan="4" class="muted pf-td-empty">Aucune tension nationale détectée.</td></tr> }
               </tbody>
             </table>
           </pf-card>
@@ -111,14 +108,14 @@
 
       @case ('ctrl') {
         <div>
-          <pf-page-head title="Médicaments contrôlés" sub="Suivi spécial national : morphine, insulines, stupéfiants."/>
+          <pf-page-head title="Médicaments contrôlés" sub="Morphine, insulines, stupéfiants : suivi national renforcé."/>
           <pf-card>
             <table class="pf-table">
-              <thead><tr><th>Médicament</th><th>Disponible (national)</th><th>Ruptures</th><th>Tensions</th><th>Villes touchées</th><th>Sorties hôpitaux 30 j</th><th>Niveau</th></tr></thead>
+              <thead><tr><th>Médicament</th><th>Disponible</th><th>Ruptures</th><th>Tensions</th><th>Villes touchées</th><th>Sorties hôpitaux 30 j</th><th>Niveau</th></tr></thead>
               <tbody>
                 @for (c of controlled(); track c.medicine_id) {
                   <tr>
-                    <td><div class="pf-medname">{{ c.medicine }}</div><div class="pf-medsub">{{ c.form }} {{ c.dosage }} · {{ c.structures }} structure(s)</div></td>
+                    <td><div class="pf-medname">{{ c.medicine }}</div><div class="pf-medsub">{{ c.form }} {{ c.dosage }} · {{ plural(c.structures, 'structure', 'structures') }}</div></td>
                     <td><strong class="pf-num">{{ c.available_units }}</strong><span class="muted"> u.</span></td>
                     <td><strong [class.pf-out]="c.ruptures > 0">{{ c.ruptures }}</strong>@if (c.hospitals_in_rupture.length) { <div class="pf-medsub">{{ c.hospitals_in_rupture.join(', ') }}</div> }</td>
                     <td>{{ c.tensions }}</td>
@@ -139,7 +136,7 @@
 
       @case ('catalogue') {
         <div>
-          <pf-page-head title="Catalogue national" sub="Décidez quels médicaments exigent une ordonnance avant la vente en officine. Les autres restent en vente libre."/>
+          <pf-page-head title="Catalogue national" sub="Choisissez les médicaments délivrés sur ordonnance en officine."/>
           <div class="pf-filters">
             <button class="btn btn-sm" [class.btn-primary]="catalogFilter() === 'all'" [class.btn-outline]="catalogFilter() !== 'all'" (click)="catalogFilter.set('all')">Tous ({{ catalogMeds().length }})</button>
             <button class="btn btn-sm" [class.btn-primary]="catalogFilter() === 'rx'" [class.btn-outline]="catalogFilter() !== 'rx'" (click)="catalogFilter.set('rx')">Sur ordonnance ({{ rxCount() }})</button>
@@ -154,7 +151,7 @@
                     <td><div class="pf-medname">{{ m.name }}</div><div class="pf-medsub">{{ m.form }} · {{ m.dosage }}</div></td>
                     <td class="muted">{{ m.dci || '—' }}</td>
                     <td class="muted">{{ categoryLabel(m.category) }}</td>
-                    <td>@if (m.is_controlled) { <span class="chip chip-red">Contrôlé</span> } @else { <span class="muted">—</span> }</td>
+                    <td>@if (m.is_controlled) { <span class="chip chip-ctrl">Contrôlé</span> } @else { <span class="muted">—</span> }</td>
                     <td>
                       @if (m.requires_prescription) { <pf-tag s="new">Sur ordonnance</pf-tag> }
                       @else { <pf-tag s="ok">Vente libre</pf-tag> }
@@ -173,39 +170,28 @@
 
       @case ('rapport') {
         <div>
-          <pf-page-head title="Rapports et analyses" sub="Données consolidées sur les approvisionnements.">
+          <pf-page-head title="Rapports et analyses" sub="Rapports PDF générés à partir des stocks réels.">
             <button actions class="btn btn-green btn-sm" (click)="generateReport()"><nv-icon name="doc" [size]="16"/> Générer un rapport</button>
           </pf-page-head>
-          <div class="pf-cols3 pf-reports">
+          <pf-card>
             @for (r of reports(); track r.id) {
-              <pf-card>
-                <span class="pf-staticon blue"><nv-icon name="doc" [size]="20"/></span>
-                <h3>{{ reportTitle(r) }}</h3>
-                <p class="muted">{{ periodLabel(r.period) }} · {{ r.generated_at ? r.generated_at.slice(0, 10) : '' }}</p>
-                <div class="pf-reportfoot">
+              <div class="pf-li">
+                <span class="pf-liic"><nv-icon name="doc" [size]="18"/></span>
+                <div class="pf-libody"><strong>{{ reportTitle(r) }}</strong><span>{{ periodLabel(r.period) }}{{ r.generated_at ? ' · ' + longDate(r.generated_at) : '' }}</span></div>
+                <div class="pf-li-act">
                   <pf-tag [s]="r.s">{{ r.statusLabel }}</pf-tag>
-                  <button class="btn btn-ghost btn-sm" [disabled]="r.status !== 'completed'" (click)="exportReport(r.id)">Consulter <nv-icon name="arrow" [size]="14"/></button>
+                  <button class="btn btn-outline btn-sm" [disabled]="r.status !== 'completed'" (click)="exportReport(r.id)"><nv-icon name="doc" [size]="15"/> Consulter</button>
                 </div>
-              </pf-card>
+              </div>
             }
-          </div>
-          <pf-card title="Statistiques clés" sub="Indicateurs nationaux de suivi">
-            <div class="pf-cols3 pf-keystats">
-              @for (k of keyStats(); track k[0]) {
-                <div class="pf-keystat">
-                  <span class="pf-staticon green"><nv-icon [name]="k[2]" [size]="18"/></span>
-                  <strong>{{ k[1] }}</strong>
-                  <span class="muted">{{ k[0] }}</span>
-                </div>
-              }
-            </div>
+            @if (reports().length === 0) { <div class="pf-note">Aucun rapport généré. « Générer un rapport » produit un PDF national, régional, par médicament ou sur les tensions.</div> }
           </pf-card>
         </div>
       }
 
       @case ('users') {
         <div>
-          <pf-page-head title="Gestion des utilisateurs" sub="Comptes de la plateforme nationale.">
+          <pf-page-head title="Gestion des utilisateurs">
             <button actions class="btn btn-green btn-sm" (click)="userModal.set(true)"><nv-icon name="user" [size]="16"/> Nouvel utilisateur</button>
           </pf-page-head>
           <pf-card>
@@ -216,7 +202,7 @@
                   <tr>
                     <td><div class="pf-medname">{{ u.name }}</div></td>
                     <td class="muted">{{ u.email }}</td>
-                    <td><span class="chip chip-blue">{{ u.role }}</span></td>
+                    <td>{{ roleLabel(u.role) }}</td>
                     <td class="muted">{{ u.structure?.name || '—' }}</td>
                     <td class="pf-td-right"><button class="btn btn-ghost btn-sm btn-danger" (click)="deleteUser(u.id)">Désactiver</button></td>
                   </tr>
@@ -230,7 +216,7 @@
 
       @case ('structures') {
         <div>
-          <pf-page-head title="Gestion des structures" sub="Officines, hôpitaux et distributeurs enregistrés.">
+          <pf-page-head title="Gestion des structures" sub="Officines, hôpitaux, distributeurs, PNA et PRA.">
             <button actions class="btn btn-green btn-sm" (click)="structureModal.set(true)"><nv-icon name="hospital" [size]="16"/> Nouvelle structure</button>
           </pf-page-head>
           <pf-card>
@@ -266,7 +252,7 @@
       <div class="pf-modal-overlay" (click)="generateModal.set(false)">
         <form class="pf-modal" (click)="$event.stopPropagation()" (submit)="submitGenerate(gPeriod.value, gType.value, gRegion.value, gMed.value); $event.preventDefault()">
           <div class="pf-modal-head">
-            <h3>Générer un rapport</h3>
+            <h2>Générer un rapport</h2>
             <button type="button" class="pf-modal-close" (click)="generateModal.set(false)"><nv-icon name="x" [size]="20"/></button>
           </div>
           <div class="pf-modal-body">
@@ -312,7 +298,7 @@
       <div class="pf-modal-overlay" (click)="userModal.set(false)">
         <form class="pf-modal" (click)="$event.stopPropagation()" (submit)="submitUser(uName.value, uEmail.value, uRole.value, uPhone.value, uStruct.value); $event.preventDefault()">
           <div class="pf-modal-head">
-            <h3>Nouvel utilisateur</h3>
+            <h2>Nouvel utilisateur</h2>
             <button type="button" class="pf-modal-close" (click)="userModal.set(false)"><nv-icon name="x" [size]="20"/></button>
           </div>
           <div class="pf-modal-body">
@@ -330,10 +316,10 @@
               </div>
               <div class="s-field"><label>Téléphone</label><input #uPhone placeholder="+221…"/></div>
             </div>
-            <div class="s-field"><label>Structure liée (ID, optionnel)</label>
+            <div class="s-field"><label>Structure liée</label>
               <select #uStruct>
                 <option value="">Aucune</option>
-                @for (s of structures(); track s.id) { <option [value]="s.id">{{ s.name }} ({{ s.type }})</option> }
+                @for (s of structures(); track s.id) { <option [value]="s.id">{{ s.name }} ({{ typeLabel(s.type) }})</option> }
               </select>
             </div>
           </div>
@@ -349,7 +335,7 @@
       <div class="pf-modal-overlay" (click)="structureModal.set(false)">
         <form class="pf-modal" (click)="$event.stopPropagation()" (submit)="submitStructure(stName.value, stType.value, stSector.value, stPlan.value, stCity.value, stRegion.value, stPhone.value); $event.preventDefault()">
           <div class="pf-modal-head">
-            <h3>Nouvelle structure</h3>
+            <h2>Nouvelle structure</h2>
             <button type="button" class="pf-modal-close" (click)="structureModal.set(false)"><nv-icon name="x" [size]="20"/></button>
           </div>
           <div class="pf-modal-body">

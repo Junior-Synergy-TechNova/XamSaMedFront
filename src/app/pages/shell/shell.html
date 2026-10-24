@@ -1,11 +1,12 @@
     @if (current(); as r) {
-      <div class="pf-app" [class.col]="compact()">
+      <div class="pf-app" [class.col]="compact()" [class.drawer]="drawerOpen()" (keydown.escape)="drawerOpen() && closeDrawer()">
         <pf-toast-host/>
 
-        <!-- Sidebar -->
-        <aside class="pf-side">
+        <!-- Sidebar (tiroir sur téléphone) -->
+        @if (drawerOpen()) { <div class="pf-scrim" (click)="closeDrawer()"></div> }
+        <aside class="pf-side" id="pf-side" aria-label="Navigation">
           <div class="pf-sidetop">
-            <nv-logo [light]="true" [compact]="compact()" (clicked)="exit()"/>
+            <nv-logo [light]="true" [compact]="compact()" (clicked)="goHome()"/>
           </div>
           <div class="pf-rolepill" [title]="identity().name + ' — ' + identity().kind">
             <span class="pf-rolepillic"><nv-icon [name]="r.icon" [size]="18"/></span>
@@ -13,10 +14,11 @@
           </div>
           <nav class="pf-nav">
             @for (n of nav(); track n.id) {
+              @if (n.groupStart) { <div class="pf-navgroup"><span class="pf-collapsible" [class.is-hidden]="compact()">{{ n.group }}</span></div> }
               <button class="pf-navitem" [class.on]="sec() === n.id" (click)="select(n.id)" [title]="n.label">
                 <span class="pf-navic"><nv-icon [name]="n.icon" [size]="20"/></span>
                 <span class="pf-collapsible" [class.is-hidden]="compact()">{{ n.label }}</span>
-                @if (n.badge && n.badge > 0) { <span class="pf-navbadge">{{ n.badge }}</span> }
+                @if (n.badge && n.badge > 0) { <span class="pf-navbadge" [title]="n.badge + ' à traiter'">{{ n.badge }}<span class="sr-only"> à traiter</span></span> }
               </button>
             }
           </nav>
@@ -25,19 +27,18 @@
               <span class="pf-navic"><nv-icon name="chevron" [size]="20" [rotate]="collapsed() ? 0 : 180"/></span>
               <span class="pf-collapsible" [class.is-hidden]="compact()">Réduire</span>
             </button>
-            <button class="pf-navitem" (click)="exit()" title="Quitter">
-              <span class="pf-navic"><nv-icon name="logout" [size]="20"/></span>
-              <span class="pf-collapsible" [class.is-hidden]="compact()">Quitter la plateforme</span>
-            </button>
           </div>
         </aside>
 
         <!-- Main -->
         <div class="pf-main">
           <header class="pf-top">
+            <button type="button" class="pf-burger" (click)="openDrawer()" [attr.aria-expanded]="drawerOpen()" aria-controls="pf-side" aria-label="Ouvrir le menu">
+              <nv-icon name="menu" [size]="22"/>
+            </button>
             <div class="pf-topsearch">
               <nv-icon name="search" [size]="18" color="var(--color-gray-text)"/>
-              <input placeholder="Rechercher un médicament, une officine…" [value]="globalQuery()" (focus)="focusGlobalSearch()" (input)="searchGlobal($event)" (blur)="closeGlobalSearch()"/>
+              <input type="search" aria-label="Rechercher un médicament ou une officine" placeholder="Rechercher un médicament, une officine…" [value]="globalQuery()" (focus)="focusGlobalSearch()" (input)="searchGlobal($event)" (blur)="closeGlobalSearch()"/>
               @if (searchFocused() && (searchLoading() || globalResults().length > 0 || globalQuery().trim().length >= 2)) {
                 <div class="pf-global-results" (mousedown)="$event.preventDefault()">
                   @if (searchLoading()) { <div class="pf-global-state">Recherche en cours…</div> }
@@ -53,13 +54,13 @@
             </div>
             <div class="pf-topright">
               <div class="pf-notifwrap">
-                <button class="pf-iconbtn" [class.on]="notifOpen()" (click)="toggleNotif($event)">
+                <button type="button" class="pf-iconbtn" [class.on]="notifOpen()" (click)="toggleNotif($event)" [attr.aria-expanded]="notifOpen()" [attr.aria-label]="notifs().length ? 'Notifications, ' + notifs().length + ' non lues' : 'Notifications'">
                   <nv-icon name="bell" [size]="20"/>
                   @if (notifs().length > 0) { <span class="pf-notifdot">{{ notifs().length }}</span> }
                 </button>
                 @if (notifOpen()) {
                   <div class="pf-notifpanel card">
-                    <div class="pf-notifhead"><strong>Notifications</strong><span class="chip chip-green">{{ notifs().length }} nouvelles</span></div>
+                    <div class="pf-notifhead"><strong>Notifications</strong></div>
                     @for (n of notifs(); track n.t; let i = $index) {
                       <button type="button" class="pf-notifitem" (click)="openNotification(i)">
                         <span class="pf-notificon {{ n.s }}"><nv-icon [name]="n.icon" [size]="16"/></span>

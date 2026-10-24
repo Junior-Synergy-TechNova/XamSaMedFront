@@ -3,7 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, catchError, map, of } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
-  ApiDemande, ApiGroupedAlert, ApiPrescription, ApiRestockRequest, ApiSale, ApiSalesStats, ApiStockMovement, ApiStockRow, NewSaleLine,
+  ApiDemande, ApiGroupedAlert, ApiPrescription, ApiProcessLine, ApiRestockRequest, ApiSale, ApiSalesStats, ApiStockMovement, ApiStockRow, NewSaleLine,
 } from '../../interfaces/api';
 import { DemandeRow, StockRow, StockState } from '../../interfaces/models';
 import { formatWhen } from '../orders/orders';
@@ -14,12 +14,12 @@ export class PharmacyService {
   private readonly http = inject(HttpClient);
   private readonly base = environment.apiUrl;
 
+  // Les lectures du tableau de bord laissent remonter l'erreur : la vue distingue « rien à faire » de « non chargé ».
   /** GET /pharmacy/stock — toutes les références (filtrage statut / contrôlé / péremption côté vue). */
   stock(): Observable<StockRow[]> {
     const params = new HttpParams().set('per_page', '500');
     return this.http.get<{ data: ApiStockRow[] }>(`${this.base}/pharmacy/stock`, { params }).pipe(
       map(r => r.data.map(toStockRow)),
-      catchError(() => of([])),
     );
   }
 
@@ -32,7 +32,6 @@ export class PharmacyService {
   demandes(): Observable<DemandeRow[]> {
     return this.http.get<{ data: ApiDemande[] }>(`${this.base}/pharmacy/demandes`).pipe(
       map(r => r.data.map(toDemandeRow)),
-      catchError(() => of([])),
     );
   }
 
@@ -55,13 +54,13 @@ export class PharmacyService {
   prescriptions(): Observable<ApiPrescription[]> {
     return this.http.get<{ data: ApiPrescription[] }>(`${this.base}/pharmacy/prescriptions`).pipe(
       map(r => r.data ?? []),
-      catchError(() => of([])),
     );
   }
 
   /** POST /pharmacy/prescriptions/{order}/process — convertit l'ordonnance en commande réelle. */
-  processPrescription(id: number, medicineId: number, qty: number, price?: number, note?: string): Observable<unknown> {
-    return this.http.post(`${this.base}/pharmacy/prescriptions/${id}/process`, { medicine_id: medicineId, qty, price, note });
+  /** POST /pharmacy/prescriptions/{order}/process — traitement ligne par ligne (réserver / orienter / équivalent). */
+  processPrescription(id: number, lines: ApiProcessLine[]): Observable<{ message: string; status: string }> {
+    return this.http.post<{ message: string; status: string }>(`${this.base}/pharmacy/prescriptions/${id}/process`, { lines });
   }
 
   /** POST /pharmacy/prescriptions/{order}/reject */
@@ -78,7 +77,6 @@ export class PharmacyService {
   groupedAlerts(): Observable<ApiGroupedAlert[]> {
     return this.http.get<{ data: ApiGroupedAlert[] }>(`${this.base}/pharmacy/grouped-alerts`).pipe(
       map(r => r.data ?? []),
-      catchError(() => of([])),
     );
   }
 
@@ -95,7 +93,6 @@ export class PharmacyService {
     const params = new HttpParams().set('per_page', '200');
     return this.http.get<{ data: ApiStockMovement[] }>(`${this.base}/pharmacy/movements`, { params }).pipe(
       map(r => r.data ?? []),
-      catchError(() => of([])),
     );
   }
 
@@ -168,8 +165,17 @@ export class PharmacyService {
   restockRequests(): Observable<ApiRestockRequest[]> {
     return this.http.get<{ data: ApiRestockRequest[] }>(`${this.base}/pharmacy/restock-requests`).pipe(
       map(r => r.data ?? []),
-      catchError(() => of([])),
     );
+  }
+
+  /** POST /pharmacy/restock-requests/{id}/remind — relance le fournisseur (au plus 1 fois / 24 h). */
+  remindRestockRequest(id: number): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.base}/pharmacy/restock-requests/${id}/remind`, {});
+  }
+
+  /** POST /pharmacy/restock-requests/{id}/cancel — annule une demande en attente (le fournisseur est prévenu). */
+  cancelRestockRequest(id: number): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.base}/pharmacy/restock-requests/${id}/cancel`, {});
   }
 
   /** GET /pharmacy/dashboard — indicateurs tableau de bord. */
@@ -181,8 +187,9 @@ export class PharmacyService {
   }
 
   /** POST /pharmacy/stock/{stock}/external-sale — vente externe (PHA-010). */
-  externalSale(stockId: number, qty: number, note: string): Observable<unknown> {
-    return this.http.post(`${this.base}/pharmacy/stock/${stockId}/external-sale`, { quantity_sold: qty, reason: note });
+  /** Vente rapide ; la référence d'ordonnance est exigée par le serveur pour un médicament contrôlé ou sur ordonnance. */
+  externalSale(stockId: number, qty: number, note: string, prescriptionRef?: string): Observable<unknown> {
+    return this.http.post(`${this.base}/pharmacy/stock/${stockId}/external-sale`, { quantity_sold: qty, reason: note, prescription_ref: prescriptionRef || undefined });
   }
 
   /** POST /pharmacy/stock/{stock}/inventory — ajustement d'inventaire (PHA-011). */
@@ -199,7 +206,7 @@ export class PharmacyService {
   }
 
   /** PUT /pharmacy/stock/{stock} — modifier seuil, lot ou péremption. */
-  updateStock(stockId: number, data: { threshold_qty?: number; batch_number?: string | null; expiry_date?: string | null }): Observable<unknown> {
+  updateStock(stockId: number, data: { threshold_qty?: number; critical_threshold?: number | null; batch_number?: string | null; expiry_date?: string | null }): Observable<unknown> {
     return this.http.put(`${this.base}/pharmacy/stock/${stockId}`, data);
   }
 
@@ -212,8 +219,9 @@ export class PharmacyService {
 /** Réponse des envois de demandes ciblées (une entrée par fournisseur). */
 export interface SendResult { status: string; message: string; data: { id: number; distributor: string }[]; }
 
-function toStockState(status: string): StockState {
-  return status === 'out_of_stock' ? 'out' : status === 'low' ? 'low' : 'ok';
+/** « Critique » (sous le seuil critique de la ligne) prime sur « stock faible ». */
+function toStockState(status: string, critical = false): StockState {
+  return status === 'out_of_stock' ? 'out' : critical ? 'crit' : status === 'low' ? 'low' : 'ok';
 }
 
 export function toStockRow(s: ApiStockRow): StockRow {
@@ -226,7 +234,8 @@ export function toStockRow(s: ApiStockRow): StockRow {
     q: s.available,
     reserved: s.reserved,
     seuil: s.threshold_qty ?? s.threshold ?? 0,
-    s: toStockState(s.status),
+    s: toStockState(s.status, !!s.is_critical),
+    critical: s.critical_threshold ?? null,
     controlled: s.is_controlled,
     requiresRx: s.requires_prescription ?? s.is_controlled,
     batch: s.batch_number ?? null,
@@ -240,7 +249,7 @@ function toDemandeRow(d: ApiDemande): DemandeRow {
   return {
     id: d.id,
     medId: d.medicine_id ?? null,
-    medName: d.medicine ?? '—',
+    medName: d.medicine ?? 'Médicament non précisé',
     from: d.patient ?? d.from ?? '—',
     type: d.type,
     qty: d.qty,

@@ -23,10 +23,10 @@
 /* ---------- Visuels de remplacement (photos à venir) ---------- */
 .ph {
   @apply relative rounded-lg overflow-hidden border border-gray-line flex items-center justify-center text-gray-text text-[13px] text-center p-4;
-  background-image: repeating-linear-gradient(135deg, #eef1f4 0 12px, #f6f8fa 12px 24px);
+  background-image: repeating-linear-gradient(135deg, var(--color-gray-line) 0 12px, var(--color-gray-bg) 12px 24px);
 }
-.ph-blue { background-image: repeating-linear-gradient(135deg, #e7edf4 0 12px, #eff4f9 12px 24px); }
-.ph-green { background-image: repeating-linear-gradient(135deg, #e4efe9 0 12px, #eef6f1 12px 24px); }
+.ph-blue { background-image: repeating-linear-gradient(135deg, var(--color-blue-soft) 0 12px, var(--color-blue-soft-2) 12px 24px); }
+.ph-green { background-image: repeating-linear-gradient(135deg, var(--color-green-soft) 0 12px, var(--color-green-soft-2) 12px 24px); }
 .ph-sec { @apply h-[220px]; }
 .ph-about { @apply h-[420px]; }
 .ph-contact { @apply h-[190px] mt-8; }
@@ -75,7 +75,7 @@
 .s-hcbtn { @apply w-full mt-6; }
 /* Encarts posés à côté de la carte : statiques, sans flottement décoratif */
 .s-herobadge, .s-herobadge2 { @apply absolute flex items-center gap-3 px-5 py-4 shadow-md z-[3] rounded-[12px]; }
-.s-herobadge { @apply -top-8 -right-5; }
+.s-herobadge { @apply -top-16 -right-5; }
 .s-herobadge2 { @apply -bottom-[72px] left-8; }
 .s-herobadge strong, .s-herobadge2 strong { @apply block text-[14.5px] text-black font-semibold; }
 .s-herobadge span, .s-herobadge2 span { @apply text-[13px] text-gray-text; }
@@ -126,12 +126,6 @@
 .s-howstep p { @apply text-white/75 text-[15.5px] leading-relaxed; }
 
 /* ---------- Technologies ---------- */
-.s-tech { @apply bg-gray-bg; }
-.s-techgrid { @apply grid grid-cols-4 gap-6; }
-.s-techcard { @apply px-7 py-8 text-left; }
-.s-techicon { @apply grid place-items-center w-11 h-11 rounded-[10px] bg-blue-soft text-blue mb-6; }
-.s-techcard strong { @apply block font-semibold text-black text-[17px] mb-2.5; }
-.s-techcard p { @apply text-[15px] text-gray-text leading-relaxed; }
 
 /* ---------- Sécurité ---------- */
 .s-sec { @apply bg-white; }
@@ -226,8 +220,7 @@
   .s-burger { @apply block; }
   .s-mobnav { @apply flex; }
   .s-herogrid, .s-prob-grid, .s-secgrid, .s-aboutgrid, .s-contactgrid { @apply grid-cols-1 gap-14; }
-  .s-featgrid, .s-techgrid, .s-howgrid { @apply grid-cols-2; }
-  .s-testgrid { @apply grid-cols-1; }
+  .s-featgrid,   .s-testgrid { @apply grid-cols-1; }
   .s-footgrid { @apply grid-cols-2 gap-10; }
   .s-newsletter { @apply flex-col items-start text-left; }
   .s-aboutart { @apply order-2; }
@@ -236,10 +229,13 @@
   .container { @apply px-5; }
   .section { @apply py-20; }
   .s-hero { @apply pt-[130px] pb-20; }
-  .s-featgrid, .s-techgrid, .s-howgrid, .s-seclist, .s-field2, .s-footgrid { @apply grid-cols-1; }
-  .s-herostats { @apply gap-8 flex-wrap; }
+  .s-featgrid,   .s-herostats { @apply gap-8 flex-wrap; }
   .s-herobadge, .s-herobadge2 { @apply hidden; }
   .s-newsform { @apply flex-col w-full; }
   .s-newsform input { @apply min-w-0 w-full; }
   .s-footbottom { @apply flex-col text-center; }
 }
+
+/* Contenu illustratif (chiffres, partenaires, témoignages) : signalé comme tel */
+.s-example { @apply mt-4 text-[13.5px] text-gray-text; }
+.s-example-inline { @apply text-[13.5px]; }

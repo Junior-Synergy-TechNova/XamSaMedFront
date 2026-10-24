@@ -2,6 +2,7 @@
 /* ===================== Réseau de partenaires (commun) ===================== */
 :host { @apply contents; }
 .pf-partners-head { @apply flex items-center justify-between gap-3 flex-wrap mb-4; }
-.pf-partners-rule { @apply flex items-center gap-1.5 text-[13px] m-0; }
+.pf-partners-rule { @apply flex items-start gap-2 text-[13.5px] m-0; }
+.pf-partners-ruleic { @apply flex flex-none mt-[3px]; }
 .pf-partners-inline { @apply flex gap-2 items-center; }
 .pf-partners-inline input { @apply flex-1; }

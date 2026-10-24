@@ -1,1 +1,4 @@
-    <div class="pf-bar"><span class="pf-barfill {{ tone() }}" [style.width.%]="pct()"></span></div>
+    <div class="pf-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" [attr.aria-valuenow]="valueNow()" [attr.aria-valuetext]="valueText()" [attr.aria-label]="label()">
+      <span class="pf-barfill {{ tone() }}" [style.width.%]="pct()"></span>
+      @if (marker() !== null) { <span class="pf-barmark" [style.left.%]="marker()" aria-hidden="true"></span> }
+    </div>

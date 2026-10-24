@@ -7,6 +7,7 @@ import { Icon } from '../../components/icon/icon';
 import { Logo } from '../../components/logo/logo';
 import { FEATURES } from '../../data/mock-data';
 
+import { FieldLabel } from '../../directives/field-label/field-label';
 interface ContactForm { nom: string; email: string; tel: string; profil: string; message: string; }
 const EMPTY_FORM: ContactForm = { nom: '', email: '', tel: '', profil: 'Patient / Accompagnant', message: '' };
 
@@ -18,7 +19,7 @@ const EMPTY_FORM: ContactForm = { nom: '', email: '', tel: '', profil: 'Patient 
 @Component({
   selector: 'app-site',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, Logo],
+  imports: [FieldLabel, Icon, Logo],
   templateUrl: './site.html',
   styleUrl: './site.css',
   host: { '(window:scroll)': 'onScroll()' },
@@ -44,7 +45,7 @@ export class SiteVitrine {
   readonly newsMail = signal('');
 
   readonly navLinks: [string, string][] = [
-    ['Fonctionnalités', '#features'], ['Comment ça marche ?', '#how'], //['Technologie', '#tech'],
+    ['Fonctionnalités', '#features'], ['Comment ça marche ?', '#how'],
     ['À propos', '#about'], ['FAQ', '#faq'], ['Contact', '#contact'],
   ];
   readonly heroStats: [string, string][] = [['1 200+', 'Officines connectées'], ['48 s', "Délai moyen d'alerte"], ['32', 'Zones suivies en temps réel']];
@@ -60,16 +61,10 @@ export class SiteVitrine {
     ['truck', 'Logistique non anticipée', 'Les distributeurs réagissent au lieu de prévoir les tensions.'],
   ];
   readonly howSteps: [string, string, string][] = [
-    ['search', 'Recherchez', 'Saisissez le nom du médicament ou scannez son QR code pour un accès instantané.'],
+    ['search', 'Recherchez', 'Saisissez le nom du médicament (le scan de QR code arrive bientôt).'],
     ['pin', 'Localisez', 'La plateforme affiche en temps réel les officines qui l\'ont réellement en stock.'],
     ['cart', 'Réservez', 'Réservez ou commandez ; en cas de rupture, vous êtes orienté vers une autre pharmacie.'],
     ['bell', 'Soyez alerté', 'Pharmaciens et distributeurs reçoivent les alertes pour réapprovisionner à temps.'],
-  ];
-  readonly techItems: [string, string, string][] = [
-    ['phone', 'Web & mobile', "Une application accessible sur smartphone et ordinateur, optimisée pour toutes tailles d'écran."],
-    ['cloud', 'Cloud temps réel', 'Une base de données cloud synchronisée en continu pour une information toujours à jour.'],
-    ['qr', 'Accès QR code', "Scannez un QR code pour accéder instantanément à la disponibilité d'un produit."],
-    ['api', 'API ouverte', 'Connexion à d\'autres systèmes — PNA, hôpitaux, structures publiques — via API.'],
   ];
   readonly secPts: [string, string, string][] = [
     ['lock', 'Chiffrement des données de santé', 'Les données sensibles sont chiffrées de bout en bout.'],

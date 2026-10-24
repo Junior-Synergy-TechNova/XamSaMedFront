@@ -147,6 +147,38 @@ export interface ApiOrder {
   qty: number;
   status: string;
   created_at: string | null;
+  expires_at?: string | null;
+  /** Ordonnance traitée ligne par ligne (vide pour une réservation simple). */
+  lines?: ApiPrescriptionLine[];
+}
+
+/** Ligne d'une ordonnance (cf. App\Services\PrescriptionFulfillment::presentLine). */
+export interface ApiPrescriptionLine {
+  id: number;
+  medicine_id: number | null;
+  medicine: string | null;
+  medicine_detail: string | null;
+  /** Médicament prescrit quand un équivalent est proposé / accepté. */
+  prescribed_medicine: string | null;
+  qty: number;
+  /** reserved | oriented | substitute_proposed | substitute_accepted | substitute_refused | collected | expired | cancelled | legacy_debited */
+  status: string;
+  target: string | null;
+  target_address: string | null;
+  target_phone: string | null;
+  /** Médicament contrôlé orienté : l'officine cible exige l'original papier. */
+  original_required: boolean;
+  price: number | null;
+}
+
+/** Ligne envoyée par le pharmacien pour traiter une ordonnance. */
+export interface ApiProcessLine {
+  medicine_id: number;
+  qty: number;
+  action: 'reserve' | 'orient' | 'substitute';
+  target_structure_id?: number;
+  substitute_medicine_id?: number;
+  price?: number;
 }
 export interface ApiStockRow {
   id: number;
@@ -169,6 +201,10 @@ export interface ApiStockRow {
   /** Code couleur péremption : ok (> 3 mois) | warn (< 3 mois) | crit (< 1 mois) | expired | none. */
   expiry_level?: ExpiryLevel;
   days_to_expiry?: number | null;
+  /** Seuil critique propre à la ligne (null = non défini). */
+  critical_threshold?: number | null;
+  /** Disponible > 0 et ≤ seuil critique : plus urgent qu'un stock faible. */
+  is_critical?: boolean;
 }
 export type ExpiryLevel = 'none' | 'ok' | 'warn' | 'crit' | 'expired';
 export interface ApiDemande {
@@ -235,7 +271,26 @@ export interface ApiRestockRequest {
   delivery_id: number | null;
   delivery_date: string | null;
   rejection_reason: string | null;
+  /** Date du refus (ou de l'annulation de la livraison) ; null si la demande n'est pas refusée. */
+  rejected_at?: string | null;
+  /** Refus de moins de 7 jours : reste dans le suivi en cours. */
+  recently_rejected?: boolean;
   created_at: string | null;
+  /** État réel de la livraison liée : planned | in_transit | delivered | cancelled (null si aucune). */
+  delivery_status?: string | null;
+  delivered_at?: string | null;
+  /** Circuit interdit depuis les règles v3 (ex. PRA → officine) : demande antérieure aux règles. */
+  outside_rules?: boolean;
+  /** Cycle de vie (calculé par le serveur, cf. App\Support\RestockRequests). */
+  age_days?: number | null;
+  /** En attente depuis 3 jours ou plus : relance conseillée. */
+  stale?: boolean;
+  /** Livraison planifiée dont la date est dépassée sans réception. */
+  delivery_late?: boolean;
+  reminded_at?: string | null;
+  reminders?: number;
+  can_remind?: boolean;
+  closed_reason?: string | null;
 }
 
 /** GET /distributor/requests — demande reçue par un fournisseur. */
@@ -258,6 +313,10 @@ export interface ApiIncomingRequest {
   delivery_date: string | null;
   rejection_reason: string | null;
   created_at: string | null;
+  /** Relances envoyées par le demandeur. */
+  reminded_at?: string | null;
+  reminders?: number;
+  closed_reason?: string | null;
 }
 
 /** GET /distributor/destinations?medicine_id= — structure livrable + état de son stock. */
@@ -428,6 +487,9 @@ export interface ApiPrescription {
   status: string;
   submitted_at: string | null;
   download_url?: string;
+  expires_at?: string | null;
+  rejection_reason?: string | null;
+  lines?: ApiPrescriptionLine[];
 }
 
 /** GET /pharmacy/stock/{stock}/movements — ligne de traçabilité. */

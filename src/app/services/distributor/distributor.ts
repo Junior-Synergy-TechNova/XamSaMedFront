@@ -47,6 +47,8 @@ export interface DistributorDashboard {
  * Endpoints distributeur / PNA / PRA — données réelles.
  * Le périmètre (national pour la PNA, régional pour une PRA) est appliqué par
  * le backend d'après structures.type / region : rien n'est filtré ici.
+ * Les lectures qui alimentent la file « À traiter » laissent passer leurs
+ * erreurs : une liste vide trompeuse vaut moins qu'un « Réessayer ».
  */
 @Injectable({ providedIn: 'root' })
 export class DistributorService {
@@ -71,16 +73,14 @@ export class DistributorService {
   /** GET /distributor/regional-demands — agrégation par zone + médicament (avec les officines concernées). */
   regionalDemands(): Observable<DemandeReg[]> {
     return this.http.get<{ data: ApiRegionalDemand[] }>(`${this.base}/distributor/regional-demands`).pipe(
-      map(r => (r.data ?? []).map(toDemandeReg)),
-      catchError(() => of([])),
+      map(r => (r.data ?? []).map(toDemandeReg))
     );
   }
 
   /** GET /distributor/zones — villes avec ruptures + niveau de tension. */
   zones(): Observable<ZoneInfo[]> {
     return this.http.get<{ data: ApiZone[] }>(`${this.base}/distributor/zones`).pipe(
-      map(r => (r.data ?? []).map(z => toZoneInfo(z.name, z.level, z.ruptures))),
-      catchError(() => of([])),
+      map(r => (r.data ?? []).map(z => toZoneInfo(z.name, z.level, z.ruptures)))
     );
   }
 
@@ -97,8 +97,7 @@ export class DistributorService {
   /** GET /distributor/requests — demandes adressées à ce fournisseur. */
   requests(): Observable<ApiIncomingRequest[]> {
     return this.http.get<{ data: ApiIncomingRequest[] }>(`${this.base}/distributor/requests`).pipe(
-      map(r => r.data ?? []),
-      catchError(() => of([])),
+      map(r => r.data ?? [])
     );
   }
 
@@ -117,8 +116,7 @@ export class DistributorService {
   /** GET /distributor/shortage-reports */
   shortageReports(): Observable<ApiShortageReport[]> {
     return this.http.get<{ data: ApiShortageReport[] }>(`${this.base}/distributor/shortage-reports`).pipe(
-      map(r => r.data ?? []),
-      catchError(() => of([])),
+      map(r => r.data ?? [])
     );
   }
 
@@ -145,8 +143,7 @@ export class DistributorService {
     if (filters.city) params = params.set('city', filters.city);
     if (filters.medicine) params = params.set('medicine', filters.medicine);
     return this.http.get<{ data: ApiDelivery[] }>(`${this.base}/distributor/deliveries`, { params }).pipe(
-      map(r => (r.data ?? []).map(toDeliveryRow)),
-      catchError(() => of([])),
+      map(r => (r.data ?? []).map(toDeliveryRow))
     );
   }
 
@@ -178,8 +175,7 @@ export class DistributorService {
   /** GET /pra/orders — commandes des hôpitaux reçues par cette PRA. */
   praOrders(): Observable<ApiInstitutionalOrder[]> {
     return this.http.get<{ data: ApiInstitutionalOrder[] }>(`${this.base}/pra/orders`).pipe(
-      map(r => r.data ?? []),
-      catchError(() => of([])),
+      map(r => r.data ?? [])
     );
   }
 
@@ -225,8 +221,7 @@ export class DistributorService {
   /** GET /pna/requests — commandes des PRA adressées à la PNA. */
   pnaRequests(): Observable<ApiInstitutionalOrder[]> {
     return this.http.get<{ data: ApiInstitutionalOrder[] }>(`${this.base}/pna/requests`).pipe(
-      map(r => r.data ?? []),
-      catchError(() => of([])),
+      map(r => r.data ?? [])
     );
   }
 

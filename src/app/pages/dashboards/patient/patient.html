@@ -5,10 +5,10 @@
           <div class="pf-searchbar">
             <div class="pf-sbinput">
               <nv-icon name="search" [size]="20" color="var(--color-gray-text)"/>
-              <input autofocus placeholder="Nom du médicament ou substance (ex. Morphine, Insuline…)" [value]="q()" (input)="onSearch($event)"/>
+              <input type="search" aria-label="Rechercher un médicament" autofocus placeholder="Nom du médicament ou substance (ex. Morphine, Insuline…)" [value]="q()" (input)="onSearch($event)"/>
               @if (q()) { <button type="button" class="pf-sbclear" (click)="clear()" aria-label="Effacer"><nv-icon name="x" [size]="18"/></button> }
             </div>
-            <button class="btn btn-primary"><nv-icon name="qr" [size]="18"/> Scanner</button>
+            <button type="button" class="btn btn-outline" disabled title="Le scan de QR code arrive bientôt"><nv-icon name="qr" [size]="18"/> Scanner (bientôt)</button>
             <button class="btn btn-outline" (click)="prescriptionModal.set(true)"><nv-icon name="doc" [size]="18"/> Ordonnance</button>
           </div>
 
@@ -39,7 +39,7 @@
               <button type="button" class="pf-result" (click)="active.set(m)">
                 <span class="pf-liic green"><nv-icon name="pill" [size]="20"/></span>
                 <div class="pf-result-body">
-                  <div class="pf-medname">{{ m.nom }} @if (m.crit) { <span class="chip chip-red chip-inline">Critique</span> }</div>
+                  <div class="pf-medname">{{ m.nom }} @if (m.crit) { <span class="chip chip-ctrl chip-inline">Contrôlé</span> }</div>
                   <div class="pf-medsub">{{ m.dci }} · {{ m.forme }}</div>
                 </div>
                 <nv-icon name="chevron" [size]="18" color="var(--color-gray)"/>
@@ -71,7 +71,31 @@
                   <span class="pf-liic {{ r.s === 'ok' ? 'green' : r.s === 'out' ? 'red' : 'amber' }}"><nv-icon name="pill" [size]="20"/></span>
                   <div class="pf-libody">
                     <strong>{{ r.medName }}</strong>
-                    <span>{{ r.pharmacyName }}</span>
+                    <span>{{ r.pharmacyName }}@if (r.status === 'confirmed' && r.expiresAt) { · à retirer avant le {{ r.expiresAt | date:'d MMMM, HH:mm' }} }</span>
+                    <!-- Ordonnance : où retirer chaque médicament, et ce qu'il reste à décider -->
+                    @if (r.lines?.length) {
+                      <ul class="pf-resalines">
+                        @for (l of r.lines; track l.id) {
+                          <li class="pf-resaline">
+                            <div class="pf-resaline-head">
+                              <strong>{{ l.name }} × {{ l.qty }}</strong>
+                              <pf-tag [s]="l.s">{{ l.label }}</pf-tag>
+                            </div>
+                            @if (l.prescribed) { <p class="pf-resaline-sub">À la place de {{ l.prescribed }} (même substance, même dosage).</p> }
+                            @if (l.status === 'oriented' && l.target) {
+                              <p class="pf-resaline-sub">{{ l.target }}{{ l.targetAddress ? ' · ' + l.targetAddress : '' }}{{ l.targetPhone ? ' · ' + l.targetPhone : '' }}</p>
+                              @if (l.originalRequired) { <p class="pf-resaline-sub pf-resaline-warn">Médicament contrôlé : présentez l'original papier de l'ordonnance.</p> }
+                            }
+                            @if (l.status === 'substitute_proposed') {
+                              <div class="pf-resaline-act">
+                                <button type="button" class="btn btn-green btn-sm" (click)="answerSubstitute(r.orderId, l.id, true)" [disabled]="answering() === l.id">Accepter l'équivalent</button>
+                                <button type="button" class="btn btn-outline btn-sm" (click)="answerSubstitute(r.orderId, l.id, false)" [disabled]="answering() === l.id">Refuser</button>
+                              </div>
+                            }
+                          </li>
+                        }
+                      </ul>
+                    }
                   </div>
                   <div class="pf-resa-side">
                     <pf-tag [s]="r.s">{{ r.statut }}</pf-tag>
@@ -98,7 +122,7 @@
       <div class="pf-modal-overlay" (click)="prescriptionModal.set(false)">
         <form class="pf-modal" (click)="$event.stopPropagation()" (submit)="submitPrescription(oPharm.value, oNotes.value); $event.preventDefault()">
           <div class="pf-modal-head">
-            <h3>Envoyer une ordonnance</h3>
+            <h2>Envoyer une ordonnance</h2>
             <button type="button" class="pf-modal-close" (click)="prescriptionModal.set(false)"><nv-icon name="x" [size]="20"/></button>
           </div>
           <div class="pf-modal-body">
@@ -127,11 +151,11 @@
       <div class="pf-modal-overlay" (click)="groupedModal.set(false)">
         <div class="pf-modal" (click)="$event.stopPropagation()">
           <div class="pf-modal-head">
-            <h3>Recherche groupée</h3>
+            <h2>Recherche groupée</h2>
             <button type="button" class="pf-modal-close" (click)="groupedModal.set(false)"><nv-icon name="x" [size]="20"/></button>
           </div>
           <div class="pf-modal-body">
-            <p class="muted pf-intro">{{ groupedInfo()?.target_count || 0 }} pharmacie(s) de votre zone ont été alertées pour <strong>{{ groupedInfo()?.medicine }}</strong>. Les réponses arrivent au fil de l'eau.</p>
+            <p class="muted pf-intro">{{ plural(groupedInfo()?.target_count || 0, 'pharmacie de votre zone a été alertée', 'pharmacies de votre zone ont été alertées') }} pour <strong>{{ groupedInfo()?.medicine }}</strong>. Les réponses arrivent au fil de l'eau.</p>
             @if (groupedStatus(); as st) {
               <div class="pf-li pf-li-flat">
                 <div class="pf-libody"><strong>{{ st.response_count }} / {{ st.target_count }} réponses</strong><span>{{ st.pending_count }} en attente</span></div>
@@ -153,7 +177,7 @@
                 @for (e of st.equivalents; track e.id) {
                   <div class="pf-li">
                     <span class="pf-liic amber"><nv-icon name="pill" [size]="16"/></span>
-                    <div class="pf-libody"><strong>{{ e.name }} {{ e.dosage }}</strong><span>{{ e.note || e.form }} · {{ e.available_pharmacies ?? 0 }} pharmacie(s) disponible(s)</span></div>
+                    <div class="pf-libody"><strong>{{ e.name }} {{ e.dosage }}</strong><span>{{ e.note || e.form }} · {{ plural(e.available_pharmacies ?? 0, 'pharmacie disponible', 'pharmacies disponibles') }}</span></div>
                     @if (e.score) { <span class="chip chip-blue">{{ e.score }}/100</span> }
                   </div>
                 }

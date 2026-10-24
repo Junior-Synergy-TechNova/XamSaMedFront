@@ -6,3 +6,13 @@
 .pf-maplegend .dot.haute { @apply bg-amber; }
 .pf-maplegend .dot.moyenne { @apply bg-green; }
 .pf-maplegend .dot.basse { @apply bg-blue; }
+/* Niveau de la zone : halo (taille + couleur) et épingle, mêmes couleurs que la légende */
+.pf-mapzone.crit { @apply w-16 h-16 bg-red; }
+.pf-mapzone.haute { @apply w-[52px] h-[52px] bg-amber; }
+.pf-mapzone.moyenne { @apply w-10 h-10 bg-green; }
+.pf-mapzone.basse { @apply w-[30px] h-[30px] bg-blue; }
+.pf-mapdot.crit { @apply bg-red; }
+.pf-mapdot.haute { @apply bg-amber; }
+.pf-mapdot.moyenne { @apply bg-green; }
+.pf-mapdot.basse { @apply bg-blue; }
+.pf-mapdot.on { @apply outline-3 outline-blue/30; }

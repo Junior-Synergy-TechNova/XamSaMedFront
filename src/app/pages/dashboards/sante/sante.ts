@@ -13,6 +13,9 @@ import { MedicineService } from '../../../services/medicines/medicines';
 import { ApiAdminUser, ApiControlledMedicine, ApiMedicine, ApiOverview, ApiReport, ApiStructure, ApiTrendPoint, ApiTrends } from '../../../interfaces/api';
 import { Tension, ZoneInfo } from '../../../interfaces/models';
 
+import { ModalA11y } from '../../../directives/modal-a11y/modal-a11y';
+import { FieldLabel } from '../../../directives/field-label/field-label';
+import { TableLabels } from '../../../directives/table-labels/table-labels';
 type BarTone = 'green' | 'amber' | 'red' | 'blue';
 
 /** Rapport enrichi de son libellé d'état et de la couleur du tag. */
@@ -24,7 +27,7 @@ interface ReportRow extends ApiReport { statusLabel: string; s: string; }
 @Component({
   selector: 'app-sante-dash',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, Card, PageHead, Stat, Bar, Tag, ZoneMap],
+  imports: [ModalA11y, FieldLabel, TableLabels, Icon, Card, PageHead, Stat, Bar, Tag, ZoneMap],
   templateUrl: './sante.html',
   styleUrl: './sante.css',
 })
@@ -86,14 +89,6 @@ export class SanteDash {
   readonly sortedZones = computed(() => [...this.zones()].sort((a, b) => b.ruptures - a.ruptures));
 
   readonly reports = signal<ReportRow[]>([]);
-  readonly keyStats = computed<readonly [string, string, string][]>(() => [
-    ['Médicaments en tension', String(this.overview().medicines_in_tension), 'pill'],
-    ['Zones critiques actives', String(this.critZones()), 'pin'],
-    ['Ruptures signalées', String(this.overview().ruptures), 'alert'],
-    ['Alertes du jour', String(this.overview().alerts_today ?? 0), 'bell'],
-    ['Ruptures de médicaments contrôlés', String(this.overview().controlled_ruptures ?? 0), 'shield'],
-    ['Évolution des ruptures (30 j)', this.signed(this.trends()?.delta_30.ruptures ?? 0), 'trend'],
-  ]);
 
   constructor() {
     this.ph.overview().subscribe({
@@ -189,6 +184,14 @@ export class SanteDash {
 
   tone(pct: number): BarTone { return pct > 70 ? 'red' : pct > 40 ? 'amber' : 'green'; }
   signed(n: number): string { return n > 0 ? '+' + n : String(n); }
+  plural(n: number, one: string, many: string): string { return `${n} ${n > 1 ? many : one}`; }
+  longDate(iso: string): string { return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }); }
+  /** Mêmes libellés que la légende de la carte. */
+  zoneLabel(n: string): string { return n === 'crit' ? 'Critique' : n === 'haute' ? 'Tension haute' : n === 'moyenne' ? 'Modérée' : 'Faible'; }
+  roleLabel(role: string): string {
+    const labels: Record<string, string> = { patient: 'Patient', pharmacy_user: 'Pharmacien', hospital_user: 'Hôpital', distributor_user: 'Distributeur', admin: 'Administrateur' };
+    return labels[role] ?? role;
+  }
   /** Variation (points de %) vs il y a 7 jours : hausse = dégradation. */
   varTag(v: number): string { return v > 0 ? 'crit' : v < 0 ? 'ok' : 'vue'; }
   barPct(v: number): number { return Math.round((v / this.trendMax()) * 100); }
@@ -231,8 +234,9 @@ export class SanteDash {
 
   reportTitle(r: ApiReport): string {
     const types: Record<string, string> = { national: 'Rapport national', regional: 'Rapport régional', medicine: 'Rapport par médicament', tensions: 'Tensions critiques' };
-    const scope = r.type === 'regional' ? ' — ' + (r.payload?.region ?? '') : r.type === 'medicine' ? ' — ' + (this.catalog().find(m => m.id === r.payload?.medicine_id)?.name ?? '') : '';
-    return (types[r.type] ?? r.type) + scope;
+    const scope = r.type === 'regional' ? r.payload?.region
+      : r.type === 'medicine' ? this.catalog().find(m => m.id === r.payload?.medicine_id)?.name : null;
+    return (types[r.type] ?? r.type) + (scope ? ' — ' + scope : '');
   }
   periodLabel(p: string): string { return p === 'week' ? 'Semaine' : p === 'quarter' ? 'Trimestre' : 'Mois'; }
 

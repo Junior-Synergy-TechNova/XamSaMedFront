@@ -1,8 +1,6 @@
 @reference "../../../../styles.css";
 /* ===================== DISTRIBUTEUR / PNA / PRA ===================== */
 :host { @apply contents; }
-.pf-handled { @apply mt-2.5; }
-.pf-handled summary { @apply cursor-pointer text-[13px]; }
 /* Tensions par zone : besoin estimé en colonne chiffrée, avant le bouton */
 .pf-zone { @apply font-semibold text-blue; }
 .pf-need { @apply flex flex-col items-end flex-none min-w-[92px] mr-1 leading-tight; }
@@ -10,7 +8,11 @@
 .pf-need-val.pf-need-zero { @apply text-gray; }
 .pf-need-lbl { @apply text-[11.5px] text-gray-text whitespace-nowrap; }
 /* Prévisions : détail chiffré sous la barre de probabilité */
-.pf-forecast-facts { @apply flex flex-wrap gap-x-3.5 gap-y-1 mt-2 text-[12.5px] text-gray-text; }
-.pf-forecast-facts strong { @apply text-blue-700; }
+.pf-forecast-facts { @apply flex flex-wrap gap-x-5 gap-y-1.5 mt-3 text-[13.5px] text-gray-text; }
+.pf-forecast-facts strong { @apply text-black font-semibold; }
+.pf-late { @apply text-[13px] font-medium text-red-text; }
 .pf-forecast-out, .pf-forecast-out strong { @apply text-red-text; }
 .pf-forecast-need strong { @apply text-blue; }
+/* Accueil : file repliée au-delà de 12 éléments, date des prochains départs */
+.pf-todo-more { @apply mt-3.5; }
+.pf-upcoming-date { @apply flex-none text-[14px] font-medium text-black whitespace-nowrap; }

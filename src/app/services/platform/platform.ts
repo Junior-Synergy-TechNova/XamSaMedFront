@@ -24,6 +24,10 @@ const SECTION_KEY = 'nova-section';
 export class PlatformState {
   readonly role = signal<RoleId | null>(this.restore());
   readonly toasts = signal<Toast[]>([]);
+  /** Nombre d'éléments à traiter par entrée de navigation, publié par l'espace actif (mêmes chiffres que ses pages).
+      Absent → la sidebar retombe sur le nombre de notifications non lues. */
+  readonly navCounts = signal<Record<string, number> | null>(null);
+  private readonly toastTimers = new Map<number, { handle: ReturnType<typeof setTimeout> | undefined; remaining: number; startedAt: number }>();
 
   setRole(role: RoleId): void {
     this.role.set(role);
@@ -52,11 +56,35 @@ export class PlatformState {
     }
   }
 
-  /** Affiche un toast (auto-disparition après 3,4 s). */
+  /** Affiche un toast. Une erreur reste 9 s (le temps de la lire), le reste 4,5 s ;
+      le compte à rebours est suspendu tant que la souris ou le focus est dessus. */
   notify(msg: string, kind: NotifKind = 'ok'): void {
     const toast: Toast = { id: Date.now() + Math.random(), msg, kind };
     this.toasts.update(list => [...list, toast]);
-    setTimeout(() => this.toasts.update(list => list.filter(t => t.id !== toast.id)), 3400);
+    this.toastTimers.set(toast.id, { handle: undefined, remaining: kind === 'alert' ? 9000 : 4500, startedAt: 0 });
+    this.resumeToast(toast.id);
+  }
+
+  dismissToast(id: number): void {
+    const timer = this.toastTimers.get(id);
+    if (timer) clearTimeout(timer.handle);
+    this.toastTimers.delete(id);
+    this.toasts.update(list => list.filter(t => t.id !== id));
+  }
+
+  pauseToast(id: number): void {
+    const timer = this.toastTimers.get(id);
+    if (!timer || timer.handle === undefined) return;
+    clearTimeout(timer.handle);
+    timer.handle = undefined;
+    timer.remaining -= Date.now() - timer.startedAt;
+  }
+
+  resumeToast(id: number): void {
+    const timer = this.toastTimers.get(id);
+    if (!timer || timer.handle !== undefined) return;
+    timer.startedAt = Date.now();
+    timer.handle = setTimeout(() => this.dismissToast(id), Math.max(timer.remaining, 1500));
   }
 
   private restore(): RoleId | null {

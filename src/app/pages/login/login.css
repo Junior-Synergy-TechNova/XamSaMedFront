@@ -46,3 +46,7 @@
   .pf-loginleft { @apply hidden; }
   .pf-loginright { @apply px-6 py-12; }
 }
+
+/* Comptes de démonstration repliés : la connexion reste le geste principal */
+.pf-loginhint summary { @apply cursor-pointer font-medium text-blue; }
+.pf-loginhint p { @apply mt-3; }

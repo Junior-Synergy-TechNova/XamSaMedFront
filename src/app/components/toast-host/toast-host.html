@@ -1,12 +1,20 @@
-    <div class="pf-toasts">
+    <!-- Région annoncée en permanence : un lecteur d'écran lit chaque toast ajouté ; une erreur est annoncée tout de suite (role="alert"). -->
+    <div class="pf-toasts" aria-live="polite" aria-relevant="additions">
       @for (t of platform.toasts(); track t.id) {
-        <div class="pf-toast {{ t.kind }}">
-          @switch (t.kind) {
-            @case ('ok') { <nv-icon name="checkC" [size]="19"/> }
-            @case ('alert') { <nv-icon name="alert" [size]="19"/> }
-            @default { <nv-icon name="bell" [size]="19"/> }
-          }
-          <span>{{ t.msg }}</span>
+        <div class="pf-toast {{ t.kind }}" [attr.role]="t.kind === 'alert' ? 'alert' : 'status'"
+             (mouseenter)="platform.pauseToast(t.id)" (mouseleave)="platform.resumeToast(t.id)"
+             (focusin)="platform.pauseToast(t.id)" (focusout)="platform.resumeToast(t.id)">
+          <span class="pf-toastic">
+            @switch (t.kind) {
+              @case ('ok') { <nv-icon name="checkC" [size]="18"/> }
+              @case ('alert') { <nv-icon name="alert" [size]="18"/> }
+              @default { <nv-icon name="bell" [size]="18"/> }
+            }
+          </span>
+          <span class="pf-toastmsg">{{ t.msg }}</span>
+          <button type="button" class="pf-toastclose" aria-label="Fermer la notification" (click)="platform.dismissToast(t.id)">
+            <nv-icon name="x" [size]="16"/>
+          </button>
         </div>
       }
     </div>

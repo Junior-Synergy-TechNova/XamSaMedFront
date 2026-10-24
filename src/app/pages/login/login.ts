@@ -10,11 +10,12 @@ import { OtpChannel } from '../../interfaces/api';
 
 
 
+import { FieldLabel } from '../../directives/field-label/field-label';
 /* ---------------- Login / authentification (Sanctum) ---------------- */
 @Component({
   selector: 'app-login',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, Logo],
+  imports: [FieldLabel, Icon, Logo],
   templateUrl: './login.html',
   styleUrl: './login.css',
 })
@@ -28,7 +29,7 @@ export class LoginScreen {
   readonly points: readonly [string, string][] = [
     ['shield', 'Données de santé chiffrées'],
     ['refresh', 'Disponibilité en temps réel'],
-    ['qr', 'Accès rapide par QR code'],
+    ['qr', 'Accès rapide par QR code (bientôt)'],
   ];
 
   // Emails de démonstration par profil (le rôle réel vient du backend).
