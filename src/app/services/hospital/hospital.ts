@@ -84,6 +84,16 @@ export class HospitalService {
     );
   }
 
+  /** POST /hospital/restock-requests/{id}/remind — relance le fournisseur (au plus 1 fois / 24 h). */
+  remindRestockRequest(id: number): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.base}/hospital/restock-requests/${id}/remind`, {});
+  }
+
+  /** POST /hospital/restock-requests/{id}/cancel — annule une demande en attente (le fournisseur est prévenu). */
+  cancelRestockRequest(id: number): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.base}/hospital/restock-requests/${id}/cancel`, {});
+  }
+
   /** GET /hospital/critical-medicines */
   criticalMedicines(): Observable<CritMedRow[]> {
     return this.http.get<{ data: ApiCriticalMedicine[] }>(`${this.base}/hospital/critical-medicines`).pipe(

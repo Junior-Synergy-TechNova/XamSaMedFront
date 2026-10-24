@@ -7,8 +7,7 @@
         @for (l of navLinks; track l[1]) { <a [href]="l[1]">{{ l[0] }}</a> }
       </nav>
       <div class="s-headcta">
-        <button class="btn btn-ghost btn-sm" (click)="launch()">Se connecter</button>
-        <button class="btn btn-green btn-sm" (click)="launch()">Accéder à la plateforme <nv-icon name="arrow" [size]="16"/></button>
+        <button class="btn btn-green btn-sm" (click)="launch()">Se connecter <nv-icon name="arrow" [size]="16"/></button>
       </div>
       <button class="s-burger" (click)="menuOpen.set(!menuOpen())" aria-label="Menu">
         @if (menuOpen()) { <nv-icon name="x"/> } @else { <nv-icon name="menu"/> }
@@ -17,7 +16,7 @@
     @if (menuOpen()) {
       <div class="s-mobnav">
         @for (l of navLinks; track l[1]) { <a [href]="l[1]" (click)="menuOpen.set(false)">{{ l[0] }}</a> }
-        <button class="btn btn-green" (click)="launch()">Accéder à la plateforme</button>
+        <button class="btn btn-green" (click)="launch()">Se connecter</button>
       </div>
     }
   </header>
@@ -26,7 +25,6 @@
   <section class="s-hero" id="top">
     <div class="container s-herogrid">
       <div class="s-herocopy">
-        <span class="chip chip-green"><span class="dot"></span> Plateforme web &amp; mobile · temps réel</span>
         <h1>Trouvez le bon médicament, au bon endroit, au bon moment.</h1>
         <p class="s-herosub">XamSaMed connecte patients, pharmaciens, distributeurs et hôpitaux pour anticiper les ruptures de stock et orienter chaque demande vers l'officine qui dispose du traitement — partout, y compris en zones rurales.</p>
         <div class="s-herobtns">
@@ -36,6 +34,7 @@
         <div class="s-herostats">
           @for (s of heroStats; track s[1]) { <div><strong>{{ s[0] }}</strong><span>{{ s[1] }}</span></div> }
         </div>
+        <p class="s-example">Chiffres illustratifs, en attendant les premiers déploiements.</p>
       </div>
       <div class="s-heroart">
         <div class="s-herocard card">
@@ -55,7 +54,7 @@
         </div>
         <div class="s-herobadge card">
           <span class="s-badgeic g"><nv-icon name="qr" [size]="19"/></span>
-          <div><strong>Accès QR</strong><span>Scannez pour accéder en 1 s</span></div>
+          <div><strong>Accès QR · bientôt</strong><span>Scannez pour accéder en 1 s</span></div>
         </div>
         <div class="s-herobadge2 card">
           <span class="s-badgeic r"><nv-icon name="bell" [size]="18"/></span>
@@ -64,7 +63,7 @@
       </div>
     </div>
     <div class="s-logos container">
-      <span>Conçu pour s'intégrer avec</span>
+      <span>Conçu pour s'intégrer avec <span class="s-example-inline">(exemples de partenaires visés)</span></span>
       <div class="s-logorow">
         @for (l of heroLogos; track l) { <span class="s-logoitem">{{ l }}</span> }
       </div>
@@ -140,25 +139,6 @@
     </div>
   </section>
 
-  <!-- Technologies -->
-  <section class="section s-tech" id="tech">
-    <div class="container">
-      <div class="section-head fade-up">
-        <h2>Une architecture moderne et connectée</h2>
-        <p>Pensée pour la fiabilité, la rapidité et l'interopérabilité avec l'écosystème de santé.</p>
-      </div>
-      <div class="s-techgrid">
-        @for (it of techItems; track it[1]; let i = $index) {
-          <div class="card s-techcard fade-up" [style.transition-delay.ms]="i * 70">
-            <span class="s-techicon"><nv-icon [name]="it[0]" [size]="24"/></span>
-            <strong>{{ it[1] }}</strong>
-            <p class="muted">{{ it[2] }}</p>
-          </div>
-        }
-      </div>
-    </div>
-  </section>
-
   <!-- Sécurité -->
   <section class="section s-sec">
     <div class="container s-secgrid">
@@ -183,6 +163,7 @@
     <div class="container">
       <div class="section-head fade-up">
         <h2>Ils gagnent du temps, chaque jour</h2>
+        <p>Témoignages illustratifs : les retours des premiers utilisateurs les remplaceront.</p>
       </div>
       <div class="s-testgrid">
         @for (t of testimonials; track t[1]; let i = $index) {
@@ -311,11 +292,7 @@
         </div>
         <div class="s-footcol">
           <h5>Plateforme</h5>
-          <a href="#features">Fonctionnalités</a><a href="#how">Comment ça marche</a><a href="#tech">Technologie</a><a href="#" (click)="launchLink($event)">Se connecter</a>
-        </div>
-        <div class="s-footcol">
-          <h5>Profils</h5>
-          <a href="#" (click)="launchLink($event)">Patients</a><a href="#" (click)="launchLink($event)">Pharmaciens</a><a href="#" (click)="launchLink($event)">Distributeurs</a><a href="#" (click)="launchLink($event)">Hôpitaux</a>
+          <a href="#features">Fonctionnalités</a><a href="#how">Comment ça marche</a><a href="#" (click)="launchLink($event)">Se connecter</a>
         </div>
         <div class="s-footcol">
           <h5>Société</h5>

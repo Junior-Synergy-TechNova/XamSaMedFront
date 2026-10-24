@@ -1,6 +1,8 @@
 @reference "../../../styles.css";
 :host { @apply contents; }
-.pf-bar { @apply h-2 rounded-[6px] bg-gray-bg overflow-hidden flex-1; }
+.pf-bar { @apply relative h-2 rounded-[6px] bg-gray-bg overflow-hidden flex-1; }
+/* Repère du seuil : un trait fin, le niveau se lit « au-dessus / en dessous » du trait */
+.pf-barmark { @apply absolute top-0 bottom-0 w-0.5 -ml-px bg-black/45; }
 .pf-barfill { @apply block h-full rounded-[6px]; }
 .pf-barfill.green { @apply bg-green; }
 .pf-barfill.amber { @apply bg-amber; }

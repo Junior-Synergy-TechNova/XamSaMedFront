@@ -2,7 +2,7 @@
       @if (title() || sub()) {
         <div class="pf-blockhead">
           <div>
-            @if (title()) { <h3>{{ title() }}</h3> }
+            @if (title()) { <h2>{{ title() }}</h2> }
             @if (sub()) { <span class="muted">{{ sub() }}</span> }
           </div>
           <ng-content select="[right]"/>

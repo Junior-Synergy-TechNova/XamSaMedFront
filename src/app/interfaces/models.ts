@@ -29,6 +29,8 @@ export interface AlerteHop {
 export interface Role { id: RoleId; label: string; icon: string; desc: string; }
 export interface NavItem {
   id: string; label: string; icon: string; badge?: number;
+  /** Groupe de la sidebar (« Comptoir », « Stock »…) : un intitulé est affiché au début de chaque groupe. */
+  group?: string;
   /** Restreint l'entrée à certains types de structure (ex. « pra » pour les réceptions PNA). */
   types?: readonly string[];
   /** Restreint l'entrée à un secteur (ex. « Commandes PRA » : hôpitaux publics). */
@@ -45,10 +47,25 @@ export interface Feature { role: string; icon: string; color: 'green' | 'blue'; 
  * null si coordonnées inconnues) et `dist` son libellé affiché.
  */
 export interface AvailabilityRow { structureId: number; pharmacy: string; city: string; phone: string; lat: number | null; lng: number | null; distKm: number | null; dist: string; s: DispoState; label: string; available: number; }
-export interface ResaRow { orderId: number; medName: string; pharmacyName: string; statut: string; quand: string; s: DispoState; status: string; }
+export interface ResaRow {
+  orderId: number; medName: string; pharmacyName: string; statut: string; quand: string; s: DispoState; status: string;
+  /** Ordonnance multi-lignes : ce qui est prêt ici, orienté ailleurs, ou à accepter. */
+  lines?: ResaLine[];
+  /** Fin du délai de retrait (48 h après préparation). */
+  expiresAt?: string | null;
+}
+export interface ResaLine {
+  id: number; name: string; qty: number; status: string;
+  /** Texte de l'état pour le patient (« Prêt ici », « À retirer à Pharmacie du Port »…). */
+  label: string; s: DispoState;
+  prescribed: string | null; target: string | null; targetAddress: string | null; targetPhone: string | null;
+  originalRequired: boolean;
+}
 export type ExpiryLevel = 'none' | 'ok' | 'warn' | 'crit' | 'expired';
 export interface StockRow {
   stockId: number; medId: number; name: string; sub: string; q: number; reserved: number; seuil: number; s: StockState;
+  /** Seuil critique de la ligne (null = non défini). */
+  critical: number | null;
   controlled: boolean; requiresRx: boolean;
   batch: string | null; expiry: string | null; expiryLevel: ExpiryLevel; daysToExpiry: number | null;
 }

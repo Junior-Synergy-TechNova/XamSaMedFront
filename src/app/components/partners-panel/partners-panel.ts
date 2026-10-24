@@ -1,3 +1,4 @@
+import { Tag } from '../tag/tag';
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Icon } from '../icon/icon';
@@ -6,6 +7,8 @@ import { PlatformState } from '../../services/platform/platform';
 import { PartnerService } from '../../services/partners/partners';
 import { ApiErrorBody, ApiPartner, ApiPartnerCandidate } from '../../interfaces/api';
 
+import { ModalA11y } from '../../directives/modal-a11y/modal-a11y';
+import { FieldLabel } from '../../directives/field-label/field-label';
 /** Type de structure proposé dans la recherche d'un partenaire. */
 export interface PartnerTypeOption { value: string; label: string; }
 
@@ -17,7 +20,7 @@ export interface PartnerTypeOption { value: string; label: string; }
 @Component({
   selector: 'pf-partners-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, Card],
+  imports: [ModalA11y, FieldLabel, Icon, Card, Tag],
   templateUrl: './partners-panel.html',
   styleUrl: './partners-panel.css',
 })

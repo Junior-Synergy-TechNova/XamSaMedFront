@@ -2,3 +2,5 @@
 /* ===================== Réceptions entrantes (commun) ===================== */
 :host { @apply contents; }
 /* Le composant n'utilise que les primitives communes (src/styles.css). */
+
+.pf-late { @apply font-medium text-red-text; }

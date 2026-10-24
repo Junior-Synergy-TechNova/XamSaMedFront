@@ -1,14 +1,10 @@
     <div class="pf-map">
       @for (z of zones(); track z.nom) {
-        <span class="pf-mapzone"
-              [style.left.%]="z.x" [style.top.%]="z.y"
-              [style.width.px]="size(z.niveau)" [style.height.px]="size(z.niveau)"
-              [style.background]="col(z.niveau)"></span>
+        <span class="pf-mapzone {{ z.niveau }}" [style.left.%]="z.x" [style.top.%]="z.y"></span>
       }
       @for (z of zones(); track z.nom) {
-        <button class="pf-mappin" [style.left.%]="z.x" [style.top.%]="z.y" (click)="sel.emit(z.nom)">
-          <span class="pf-mapdot" [style.background]="col(z.niveau)"
-                [style.outline]="selected() === z.nom ? '3px solid rgba(0,51,102,.3)' : 'none'"></span>
+        <button class="pf-mappin" [style.left.%]="z.x" [style.top.%]="z.y" [attr.aria-label]="z.nom" [attr.aria-pressed]="selected() === z.nom" (click)="sel.emit(z.nom)">
+          <span class="pf-mapdot {{ z.niveau }}" [class.on]="selected() === z.nom"></span>
         </button>
       }
       @for (z of zones(); track z.nom) {

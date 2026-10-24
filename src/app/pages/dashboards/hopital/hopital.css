@@ -1,4 +1,6 @@
 @reference "../../../../styles.css";
 /* ===================== HÔPITAL ===================== */
 :host { @apply contents; }
-/* La page n'utilise que les primitives communes (src/styles.css). */
+/* Règle ou mention de traçabilité : l'icône reste sur la ligne du texte */
+.pf-rule { @apply flex items-start gap-2; }
+.pf-rule-ic { @apply flex flex-none mt-[3px]; }

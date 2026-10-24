@@ -8,7 +8,8 @@
    Principes (outil de travail quotidien, pas une vitrine) :
    - calme et dense : blanc, filets gris, pas d'ombres ni de dégradés décoratifs ;
    - la couleur ne sert qu'à signaler un état (rupture, tension, sain, action) ;
-   - un seul langage d'état : liseré coloré à gauche d'une ligne + pastille « point + texte ».
+   - un seul langage d'état : case d'icône teintée (rouge / orange / vert) + pastille « point + texte » ;
+     pas de liseré latéral sur les lignes ; « Contrôlé » est un statut réglementaire (marine), pas une alerte.
 
    Règle : ce fichier ne contient que les tokens (@theme), le reset et les
    éléments PARTAGÉS par plusieurs pages. Le style propre à une page vit dans
@@ -59,6 +60,7 @@
   --animate-fadein: fadein .15s ease;
   --animate-modalin: modalin .2s cubic-bezier(.16, 1, .3, 1);
   @keyframes pf-spin { to { transform: rotate(360deg) } }
+  @keyframes pf-breathe { 50% { opacity: .35 } }
   @keyframes fadein { from { opacity: 0 } to { opacity: 1 } }
   @keyframes modalin { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: none } }
 }
@@ -72,6 +74,7 @@
   button { @apply cursor-pointer border-0 bg-transparent; font-family: inherit; }
   img { @apply max-w-full block; }
   ::selection { @apply bg-green text-white; }
+  ::placeholder { @apply text-gray-text opacity-80; }
   :focus-visible { @apply outline-2 outline-offset-2 outline-green; }
   /* Barres de défilement fines et discrètes (Firefox + Chromium) */
   * { scrollbar-width: thin; scrollbar-color: #c9d0d8 transparent; }
@@ -82,6 +85,8 @@
   *::-webkit-scrollbar-corner { @apply bg-transparent; }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+    /* Exception : un chargement doit rester visible. Pas de rotation, une respiration lente de l'opacité. */
+    .pf-spin { animation: pf-breathe 1.6s ease-in-out infinite !important; }
   }
 }
 
@@ -93,8 +98,9 @@
 .btn svg { @apply w-4 h-4; }
 .btn-primary { @apply bg-blue text-white; }
 .btn-primary:hover { @apply bg-blue-700; }
-.btn-green { @apply bg-green text-white; }
-.btn-green:hover { @apply bg-green-700; }
+/* Fond vert foncé : blanc sur green-700 = 5,7:1 (AA). `--color-green` reste la teinte des icônes, liens et focus. */
+.btn-green { @apply bg-green-700 text-white; }
+.btn-green:hover { @apply bg-green-text; }
 .btn-outline { @apply bg-white text-black border-gray-line; }
 .btn-outline:hover { @apply bg-gray-bg border-gray; }
 .btn-ghost { @apply bg-transparent text-blue; }
@@ -115,6 +121,8 @@
 .chip-gray { @apply bg-gray-bg text-gray-text; }
 .chip-red { @apply bg-red-soft text-red-text; }
 .chip-amber { @apply bg-amber-soft text-amber-text; }
+/* Médicament contrôlé (stupéfiant…) : statut réglementaire, pas un état de stock → marine, jamais rouge */
+.chip-ctrl { @apply bg-white text-blue border border-blue/25 py-[6px]; }
 .chip-inline { @apply ml-2; }
 .dot { @apply w-2 h-2 rounded-full inline-block flex-none; }
 
@@ -130,6 +138,13 @@ pf-card + .pf-cols, pf-card + .pf-half, pf-card + .pf-cols3, pf-card + .pf-statg
 
 /* Chargement */
 .pf-loader { @apply flex flex-col items-center justify-center gap-3 py-[70px] text-gray-text text-[14px]; }
+/* Fraîcheur des données : discrète, alignée à droite au-dessus de la page (pharmacien, distributeur) */
+.pf-sync { @apply flex justify-end items-center gap-2.5 -mt-4 mb-3 min-h-9 text-[13.5px] text-gray-text; }
+.pf-sync .pf-spin-sm { @apply mr-0; }
+@media (max-width: 760px) {
+  .pf-sync { @apply -mt-2; }
+}
+
 .pf-spin { @apply w-7 h-7 rounded-full border-[3px] border-gray-line border-t-green animate-spin-fast; }
 .pf-spin-sm { @apply inline-block w-3.5 h-3.5 border-2 align-[-2px] mr-1.5; }
 
@@ -164,17 +179,21 @@ pf-card + .pf-cols, pf-card + .pf-half, pf-card + .pf-cols3, pf-card + .pf-statg
 .pf-modal-overlay { @apply fixed inset-0 bg-blue-700/35 z-[150] flex items-center justify-center p-5 animate-fadein; }
 .pf-modal { @apply bg-white rounded-lg w-full max-w-[560px] shadow-lg flex flex-col max-h-[90vh] animate-modalin; }
 .pf-modal-head { @apply px-8 pt-7 pb-5 border-b border-gray-line flex justify-between items-center; }
-.pf-modal-head h3 { @apply text-[21px] font-semibold text-blue; }
+.pf-modal-head h2 { @apply text-[21px] font-semibold text-blue; }
 .pf-modal-close { @apply w-8 h-8 grid place-items-center rounded-[6px] text-gray-text transition-colors duration-150; }
 .pf-modal-close:hover { @apply text-black bg-gray-bg; }
 .pf-modal-body { @apply px-8 py-7 overflow-y-auto flex flex-col gap-5; }
 .pf-modal-body .s-field, .pf-modal-body .pf-fieldrow { @apply m-0; }
 .pf-modal-body .pf-intro { @apply text-[14.5px]; }
+/* Bandeau à l'intérieur d'une fenêtre : même langage, moins d'espace */
+.pf-modal-body .pf-banner { @apply m-0 mt-3 px-5 py-4 gap-3 flex-col items-start; }
+.pf-modal-body .pf-banner .btn { @apply ml-0; }
+.pf-modal-body .pf-banner p { @apply text-[14px]; }
 .pf-modal-foot { @apply px-8 py-5 border-t border-gray-line flex justify-end gap-3 bg-white rounded-b-lg; }
 
 /* ===================== PRIMITIVES DASHBOARD ===================== */
 /* Indicateurs : une seule bande découpée en cellules (pas une grille de cartes). */
-.pf-statgrid { @apply grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))] gap-px bg-gray-line border border-gray-line rounded-md overflow-hidden mb-8; }
+.pf-statgrid { @apply grid grid-cols-4 max-[1100px]:grid-cols-2 gap-px bg-gray-line border border-gray-line rounded-md overflow-hidden mb-8; }
 .pf-statgrid > pf-stat > .card { @apply border-0 rounded-none h-full; }
 .pf-staticon { @apply w-9 h-9 rounded-[8px] grid place-items-center; }
 .pf-staticon.blue { @apply bg-blue-soft text-blue; }
@@ -274,10 +293,19 @@ pf-card + .pf-cols, pf-card + .pf-half, pf-card + .pf-cols3, pf-card + .pf-statg
 /* États vides / messages secondaires : dire quoi faire, sans décor */
 .pf-empty { @apply text-center px-8 py-12 text-gray-text text-[15px] leading-relaxed; }
 .pf-empty nv-icon { @apply block mx-auto mb-3 opacity-70; }
+/* le preflight met les svg en `display: block` : on les centre explicitement */
+.pf-empty nv-icon svg { @apply mx-auto; }
 .pf-empty.ok { @apply text-green; }
 .pf-empty.ok p { @apply text-gray-text; }
 .pf-empty p { @apply mt-1 max-w-[520px] mx-auto; }
 .pf-empty .btn { @apply mt-4; }
+/* Historique replié sous une liste (demandes terminées) : <details> natif, clavier et lecteurs d'écran sans code */
+.pf-handled { @apply mt-5 pt-4 border-t border-gray-line; }
+.pf-handled > summary { @apply flex items-center gap-2 w-fit py-1 cursor-pointer list-none text-[14px] font-medium text-gray-text rounded-md transition-colors duration-150 hover:text-black; }
+.pf-handled > summary::-webkit-details-marker { @apply hidden; }
+.pf-handled > summary svg { @apply transition-transform duration-150; }
+.pf-handled[open] > summary { @apply mb-3.5; }
+.pf-handled[open] > summary svg { @apply rotate-180; }
 .pf-note { @apply py-5 px-1 text-gray-text text-[15px]; }
 .pf-note-sm { @apply py-3 text-gray-text text-[14px]; }
 .pf-hint { @apply py-2 text-[13.5px] text-gray-text; }
@@ -337,6 +365,47 @@ pf-card + .pf-cols, pf-card + .pf-half, pf-card + .pf-cols3, pf-card + .pf-statg
 @media (max-width: 640px) {
   .pf-statgrid { @apply grid-cols-2; }
   .pf-fieldrow { @apply grid-cols-1; }
-  .pf-li { @apply flex-wrap; }
+  .pf-li { @apply flex-wrap px-4 py-4 gap-4; }
   .pf-li-act { @apply w-full justify-start; }
+  .pf-li-act.tight { @apply flex-wrap; }
+  .pf-rowline { @apply px-4 py-5; }
+  .pf-banner { @apply flex-wrap px-5 py-5 gap-4; }
+  .pf-banner .btn { @apply ml-0 w-full; }
+
+  /* Tableaux → fiches : chaque ligne devient un bloc « libellé : valeur » (libellés posés par TableLabels).
+     Plus de défilement horizontal, les actions restent visibles en bas de la fiche. */
+  .card:has(> .pf-table) { @apply overflow-x-visible; }
+  .pf-table, .pf-table tbody, .pf-table tr, .pf-table td { @apply block; }
+  .pf-table thead { @apply sr-only; }
+  .pf-table tbody tr { @apply border border-gray-line rounded-[12px] px-4 py-2 bg-white; }
+  .pf-table tbody tr + tr { @apply mt-3; }
+  .pf-table tbody tr:hover td { @apply bg-transparent; }
+  /* Libellé flottant à gauche, valeur (éventuellement sur plusieurs lignes : nom + forme, quantité + seuil) alignée à droite */
+  .pf-table td, .pf-table td:first-child, .pf-table td:last-child {
+    @apply flow-root px-0 py-3 border-b border-gray-line whitespace-normal text-right min-w-0 max-w-none;
+  }
+  .pf-table tr td:last-child { @apply border-b-0; }
+  .pf-table td[data-label]:not([data-label=""])::before { content: attr(data-label); @apply float-left mr-4 max-w-[45%] text-[13px] font-medium text-gray-text text-left leading-[1.6]; }
+  /* Colonne sans intitulé (actions) : boutons à la suite, alignés à gauche */
+  .pf-table td[data-label=""] { @apply flex flex-wrap justify-start gap-2 text-left pt-3.5; }
+  .pf-table .pf-td-wrap, .pf-table .pf-td-bar, .pf-table .pf-td-bar.lg { @apply min-w-0 max-w-none; }
+  .pf-table .pf-td-bar .pf-bar { @apply ml-auto w-[55%] mt-2; }
+  .pf-table .pf-td-empty { @apply text-center; }
+
+  /* Modales : quasi plein écran, marges réduites */
+  .pf-modal-overlay { @apply p-3 items-end; }
+  .pf-modal { @apply max-h-[92dvh]; }
+  .pf-modal-head { @apply px-5 pt-5 pb-4; }
+  .pf-modal-body { @apply px-5 py-5; }
+  .pf-modal-foot { @apply px-5 py-4 flex-wrap; }
+  .pf-modal-foot .btn { @apply flex-1; }
+}
+
+/* Écrans tactiles : cibles d'au moins 44 px, champs à 16 px (iOS ne zoome plus au focus) */
+@media (pointer: coarse) {
+  .btn-sm, .pf-filters input, .pf-filters select, .pf-filters .btn { @apply h-11; }
+  .pf-modal-close, .pf-pwdeye { @apply w-11 h-11; }
+  .s-field input:not([type="checkbox"]):not([type="radio"]), .s-field select, .s-field textarea,
+  .pf-fieldrow input:not([type="checkbox"]):not([type="radio"]), .pf-filters input, .pf-filters select { @apply text-[16px]; }
+  .pf-check { @apply w-6 h-6; }
 }

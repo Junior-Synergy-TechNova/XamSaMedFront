@@ -3,5 +3,10 @@
 .pf-block { @apply p-7; }
 /* En-tête du panneau : titre + contexte, séparé du contenu par un filet */
 .pf-blockhead { @apply flex justify-between items-center gap-4 -mx-7 -mt-7 mb-4 px-7 py-6 border-b border-gray-line flex-wrap; }
-.pf-blockhead h3 { @apply text-[18px] font-semibold text-black; }
+.pf-blockhead h2 { @apply text-[18px] font-semibold text-black; }
 .pf-blockhead .muted { @apply block text-[14.5px] mt-1.5; }
+/* Téléphone : panneau moins rembourré pour laisser la place au contenu */
+@media (max-width: 640px) {
+  .pf-block { @apply p-5; }
+  .pf-blockhead { @apply -mx-5 -mt-5 px-5 py-5; }
+}

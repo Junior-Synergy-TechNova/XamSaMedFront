@@ -1,3 +1,4 @@
+import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, output, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Icon } from '../icon/icon';
@@ -15,7 +16,7 @@ import { ApiErrorBody, ApiIncomingDelivery } from '../../interfaces/api';
 @Component({
   selector: 'pf-incoming-deliveries',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, Card, Tag],
+  imports: [Icon, Card, Tag, DatePipe],
   templateUrl: './incoming-deliveries.html',
   styleUrl: './incoming-deliveries.css',
 })
@@ -59,6 +60,11 @@ export class IncomingDeliveries {
   }
 
   statusLabel(s: string): string { return s === 'in_transit' ? 'En transit' : s === 'planned' ? 'Planifiée' : 'Reçue'; }
+  /** Planifiée et date dépassée : le fournisseur n'est pas parti (même règle que côté distributeur). */
+  isLate(d: { status: string; delivery_date?: string | null }): boolean {
+    const t = new Date(); const today = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+    return d.status === 'planned' && !!d.delivery_date && d.delivery_date.slice(0, 10) < today;
+  }
   statusTag(s: string): string { return s === 'in_transit' ? 'new' : s === 'planned' ? 'vue' : 'ok'; }
   supplierKind(t: string | null): string { return t === 'pna' ? 'PNA' : t === 'pra' ? 'PRA' : 'Distributeur'; }
 }

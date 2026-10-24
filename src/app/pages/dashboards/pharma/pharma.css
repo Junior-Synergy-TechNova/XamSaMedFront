@@ -13,5 +13,107 @@
 .pf-sale-totals strong { @apply text-blue ml-1; }
 .pf-sale-ttc { @apply text-[15px]; }
 .pf-sale-ttc strong { @apply text-green-text text-[17px]; }
-.pf-sale-export { @apply flex gap-2 items-center; }
-.pf-sale-export input { @apply h-[32px] px-2 border border-gray-line rounded-lg text-[13px]; }
+.pf-sale-export { @apply flex flex-wrap gap-2 items-center; }
+.pf-sale-export input { @apply h-9 px-2.5 border border-gray-line rounded-[8px] text-[13.5px] bg-white; }
+@media (max-width: 640px) {
+  /* Période d'export : les deux dates partagent la ligne, le bouton passe dessous */
+  .pf-sale-export { @apply w-full; }
+  .pf-sale-export input { @apply flex-1 min-w-0 text-[16px]; }
+  .pf-sale-export .btn { @apply w-full; }
+}
+
+/* Menu « Plus » d'une ligne de stock (élément <details> natif : clavier et lecteurs d'écran sans code) */
+.pf-more { @apply relative; }
+.pf-more > summary { @apply list-none; }
+.pf-more > summary::-webkit-details-marker { @apply hidden; }
+.pf-more[open] > summary { @apply bg-gray-bg border-gray; }
+.pf-moremenu { @apply absolute right-0 top-[calc(100%+6px)] z-20 w-[260px] p-1.5 shadow-md text-left; }
+/* Le panneau du tableau défile en largeur (overflow) : sur les deux dernières lignes, le menu s'ouvre vers le haut pour ne pas être coupé */
+tr:nth-last-child(-n+2):not(:nth-child(-n+2)) .pf-moremenu { @apply top-auto bottom-[calc(100%+6px)]; }
+.pf-moremenu button { @apply flex flex-col gap-0.5 w-full px-3 py-2.5 rounded-[8px] text-left whitespace-normal transition-colors duration-150; }
+.pf-moremenu button:hover, .pf-moremenu button:focus-visible { @apply bg-gray-bg; }
+.pf-moremenu strong { @apply font-semibold text-[14px] text-black; }
+.pf-moremenu span { @apply text-[13px] text-gray-text; }
+@media (max-width: 640px) {
+  .pf-moremenu { @apply left-0 right-auto; }
+}
+
+/* Recherche dans le stock : même gabarit que les champs (48 px), pleine largeur sur téléphone */
+.pf-stocksearch { @apply relative flex items-center gap-2.5 max-w-[460px] h-12 px-4 mb-4 bg-white border border-gray-line rounded-[10px] transition-[border-color,box-shadow] duration-150 focus-within:border-green focus-within:shadow-focus; }
+.pf-stocksearch input { @apply flex-1 min-w-0 h-full border-0 bg-transparent outline-none text-[15px] text-black; }
+.pf-stocksearch-clear { @apply -mr-2 w-9 h-9 grid place-items-center rounded-[8px] text-gray-text transition-colors duration-150; }
+.pf-stocksearch-clear:hover { @apply bg-gray-bg text-black; }
+.pf-morefilters { @apply mb-5 -mt-2; }
+.pf-morefilters > summary { @apply list-none; }
+.pf-morefilters > summary::-webkit-details-marker { @apply hidden; }
+.pf-morefilters[open] > summary { @apply bg-gray-bg border-gray mb-3; }
+.pf-resultcount { @apply mb-3 text-[13.5px] text-gray-text; }
+.pf-td-empty .btn { @apply ml-2; }
+@media (max-width: 640px) {
+  .pf-stocksearch { @apply max-w-none; }
+  /* États du stock sur une seule ligne qui défile (geste natif), au lieu de deux lignes de boutons */
+  .pf-statusfilters { @apply flex-nowrap overflow-x-auto -mx-4 px-4 pb-1; scrollbar-width: none; }
+  .pf-statusfilters::-webkit-scrollbar { @apply hidden; }
+  .pf-statusfilters .btn { @apply flex-none; }
+}
+
+/* Traiter une ordonnance : l'original à gauche, la saisie à droite (empilés sur téléphone) */
+.pf-modal.pf-modal-wide { @apply max-w-[1040px]; }
+.pf-ordo-split { @apply grid grid-cols-1 gap-6; }
+@media (min-width: 900px) {
+  .pf-ordo-split { @apply grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] items-start; }
+}
+.pf-ordo-preview { @apply m-0 min-h-[260px] max-h-[62vh] overflow-auto grid place-items-center bg-gray-bg border border-gray-line rounded-[12px]; }
+.pf-ordo-preview img { @apply max-w-full h-auto; }
+.pf-ordo-preview iframe { @apply w-full h-[62vh] border-0 bg-white; }
+.pf-ordo-state { @apply flex flex-col items-center gap-3 p-8 text-center text-[14.5px] text-gray-text; }
+.pf-ordo-form { @apply flex flex-col gap-5; }
+.pf-ordo-form .s-field, .pf-ordo-form .pf-fieldrow { @apply m-0; }
+/* Parole du patient : citée, en ardoise, distincte des métadonnées grises */
+.pf-patientnote { @apply text-[14.5px] text-black leading-relaxed; }
+@media (max-width: 640px) {
+  .pf-ordo-preview { @apply min-h-[200px] max-h-[40vh]; }
+  .pf-ordo-preview iframe { @apply h-[40vh]; }
+}
+
+/* Lignes d'ordonnance : un bloc par médicament, numéroté, l'état et le choix sous la saisie */
+.pf-ordo-lines { @apply flex flex-col gap-3 m-0 p-0 list-none; }
+.pf-ordo-line { @apply flex flex-col gap-2.5 p-4 bg-white border border-gray-line rounded-[12px]; }
+.pf-ordo-line.is-error { @apply border-red; }
+.pf-ordo-line-head { @apply grid grid-cols-[28px_minmax(0,1fr)_84px_auto] gap-3 items-end; }
+.pf-ordo-num { @apply w-7 h-7 mb-2.5 rounded-full grid place-items-center bg-blue-soft text-blue text-[13px] font-semibold; }
+.pf-ordo-line .s-field { @apply m-0; }
+.pf-ordo-remove { @apply w-11 h-11 mb-0.5 grid place-items-center rounded-[10px] text-gray-text transition-colors duration-150; }
+.pf-ordo-remove:hover { @apply bg-red-soft text-red-text; }
+.pf-ordo-status { @apply flex items-center gap-1.5 text-[14px] leading-snug text-gray-text; }
+.pf-ordo-status.ok { @apply text-green-text; }
+.pf-ordo-status.warn { @apply text-amber-text font-medium; }
+.pf-ordo-status.err { @apply text-red-text; }
+.pf-ordo-choices { @apply flex flex-col gap-2; }
+.pf-ordo-choice { @apply flex gap-3 items-start p-3 rounded-[10px] border border-gray-line cursor-pointer transition-colors duration-150; }
+.pf-ordo-choice:hover { @apply bg-gray-bg; }
+.pf-ordo-choice.on { @apply border-green bg-green-soft-2; }
+.pf-ordo-choice.off { @apply cursor-default opacity-70; }
+.pf-ordo-choice > input { @apply mt-1 w-[18px] h-[18px] flex-none accent-green; }
+.pf-ordo-choice-body { @apply flex flex-col gap-1.5 flex-1 min-w-0; }
+.pf-ordo-choice-body strong { @apply text-[14.5px] font-semibold text-black; }
+.pf-ordo-choice-body select { @apply h-10 px-3 border border-gray-line rounded-[8px] bg-white text-[14px] max-w-full; }
+.pf-ordo-note { @apply text-[13px] text-gray-text leading-snug; }
+.pf-ordo-add { @apply self-start; }
+.pf-ordo-summary { @apply mr-auto text-[14px] text-gray-text; }
+.pf-ordo-done { @apply flex flex-col gap-1.5 mt-2.5 m-0 p-0 list-none; }
+.pf-ordo-done li { @apply flex flex-wrap items-center gap-2 text-[14px]; }
+@media (max-width: 640px) {
+  .pf-ordo-line-head { @apply grid-cols-[minmax(0,1fr)_76px_auto]; }
+  .pf-ordo-num { @apply hidden; }
+  .pf-ordo-summary { @apply w-full mr-0; }
+}
+@media (pointer: coarse) {
+  .pf-ordo-choice-body select { @apply h-11 text-[16px]; }
+}
+
+/* Stock : état (pastille) au-dessus de la barre de niveau, une seule colonne */
+.pf-level { @apply grid gap-2; }
+@media (max-width: 640px) {
+  .pf-level { @apply gap-0; }
+}

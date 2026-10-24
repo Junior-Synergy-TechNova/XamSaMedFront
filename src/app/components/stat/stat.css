@@ -13,3 +13,9 @@
 .pf-statdelta { @apply font-medium text-[12px]; }
 .pf-statdelta.up { @apply text-green-text; }
 .pf-statdelta.down { @apply text-red-text; }
+/* Téléphone : cellules plus basses, la liste de travail remonte dans l'écran */
+@media (max-width: 640px) {
+  .pf-stat { @apply px-4 py-4 gap-2 min-h-[88px]; }
+  .pf-statval { @apply text-[26px]; }
+  .pf-statlabel { @apply text-[13px]; }
+}

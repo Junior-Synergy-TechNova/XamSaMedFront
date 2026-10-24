@@ -26,3 +26,24 @@
 
 /* recherche groupée */
 .pf-warn { @apply text-[12.5px] mt-2; }
+
+/* Ordonnance : une ligne par médicament, avec l'endroit où le retirer */
+.pf-resalines { @apply flex flex-col gap-2.5 mt-3 m-0 p-0 list-none; }
+.pf-resaline { @apply flex flex-col gap-1.5 px-4 py-3 bg-gray-bg rounded-[10px]; }
+.pf-resaline-head { @apply flex flex-wrap items-center justify-between gap-2; }
+.pf-resaline-head strong { @apply text-[15px] font-semibold text-black mb-0; }
+.pf-resaline-sub { @apply text-[14px] text-gray-text leading-snug; }
+.pf-resaline-warn { @apply text-amber-text font-medium; }
+.pf-resaline-act { @apply flex flex-wrap gap-2 mt-1; }
+
+@media (max-width: 640px) {
+  /* Recherche : le champ prend toute la ligne, les deux boutons se partagent la suivante */
+  .pf-searchbar { @apply flex-wrap; }
+  .pf-sbinput { @apply basis-full; }
+  .pf-searchbar > .btn { @apply flex-1; }
+  /* Réservation : état, date et « Annuler » passent sous le contenu, qui garde toute la largeur */
+  .pf-resa { @apply items-start; }
+  .pf-resa .pf-libody { @apply flex-1 min-w-0; }
+  .pf-resa-side { @apply basis-full flex flex-wrap items-center gap-x-3 gap-y-2 text-left; }
+  .pf-resa-when, .pf-resa-cancel { @apply mt-0; }
+}

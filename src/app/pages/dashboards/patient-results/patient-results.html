@@ -2,8 +2,8 @@
       <button type="button" class="btn btn-ghost btn-sm pf-backbtn" (click)="back.emit()"><nv-icon name="arrow" [size]="16" [rotate]="180"/> Retour aux résultats</button>
       <pf-card [title]="med().nom" [sub]="med().dci + ' · ' + med().forme">
         <span right>
-          @if (med().crit) { <span class="chip chip-red">Médicament critique</span> }
-          @else { <span class="chip chip-green">{{ availableCount() }} disponible(s)</span> }
+          @if (med().crit) { <span class="chip chip-ctrl">Médicament contrôlé</span> }
+          @else { <span class="chip chip-green">{{ plural(availableCount(), 'disponible', 'disponibles') }}</span> }
         </span>
 
         @if (loading()) {
@@ -36,7 +36,7 @@
               <span class="pf-liic {{ (e.available_pharmacies ?? 0) > 0 ? 'green' : 'amber' }}"><nv-icon name="pill" [size]="18"/></span>
               <div class="pf-libody">
                 <strong>{{ e.name }} {{ e.dosage }}</strong>
-                <span>{{ e.note }} · {{ e.available_pharmacies ?? 0 }} pharmacie(s){{ e.nearest_km !== null && e.nearest_km !== undefined ? ' · à ' + e.nearest_km + ' km' : '' }}</span>
+                <span>{{ e.note }} · {{ plural(e.available_pharmacies ?? 0, 'pharmacie', 'pharmacies') }}{{ e.nearest_km !== null && e.nearest_km !== undefined ? ' · à ' + e.nearest_km + ' km' : '' }}</span>
               </div>
               <div class="pf-li-act">
                 <span class="chip chip-blue" title="Score de pertinence">{{ e.score }}/100</span>

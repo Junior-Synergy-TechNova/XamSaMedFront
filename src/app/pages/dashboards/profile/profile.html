@@ -4,7 +4,7 @@
         <pf-card>
           <div class="pf-profhead">
             <span class="pf-roleic lg"><nv-icon [name]="roleIcon()" [size]="28"/></span>
-            <div><h3>{{ name() }}</h3><span class="muted">{{ sub() }}</span></div>
+            <div><h2>{{ name() }}</h2><span class="muted">{{ sub() }}</span></div>
           </div>
           @for (f of fields(); track f[0]) {
             <div class="pf-proffield">
@@ -32,7 +32,7 @@
         <div class="pf-modal-overlay" (click)="editModal.set(false)">
           <form class="pf-modal" (click)="$event.stopPropagation()" (submit)="submitProfile(eName.value, ePhone.value, eEmail.value); $event.preventDefault()">
             <div class="pf-modal-head">
-              <h3>Modifier mon profil</h3>
+              <h2>Modifier mon profil</h2>
               <button type="button" class="pf-modal-close" (click)="editModal.set(false)"><nv-icon name="x" [size]="20"/></button>
             </div>
             <div class="pf-modal-body">
@@ -52,7 +52,7 @@
         <div class="pf-modal-overlay" (click)="pwdModal.set(false)">
           <form class="pf-modal" (click)="$event.stopPropagation()" (submit)="submitPassword(pCur.value, pNew.value, pConf.value); $event.preventDefault()">
             <div class="pf-modal-head">
-              <h3>Changer le mot de passe</h3>
+              <h2>Changer le mot de passe</h2>
               <button type="button" class="pf-modal-close" (click)="pwdModal.set(false)"><nv-icon name="x" [size]="20"/></button>
             </div>
             <div class="pf-modal-body">

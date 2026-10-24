@@ -8,11 +8,13 @@ import { RoleId } from '../../../interfaces/models';
 import { AuthService } from '../../../services/auth/auth';
 import { PlatformState } from '../../../services/platform/platform';
 
+import { ModalA11y } from '../../../directives/modal-a11y/modal-a11y';
+import { FieldLabel } from '../../../directives/field-label/field-label';
 /* Profil générique (patient / officine) — fiche + QR d'accès + édition */
 @Component({
   selector: 'app-simple-profile',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, Card, PageHead, Qr],
+  imports: [ModalA11y, FieldLabel, Icon, Card, PageHead, Qr],
   templateUrl: './profile.html',
   styleUrl: './profile.css',
 })

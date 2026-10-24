@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, model, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
-import { map, switchMap, throwError } from 'rxjs';
+import { Observable, map, switchMap, throwError } from 'rxjs';
 import { Icon } from '../../../components/icon/icon';
 import { Card } from '../../../components/card/card';
 import { PageHead } from '../../../components/page-head/page-head';
@@ -9,13 +9,15 @@ import { Tag } from '../../../components/tag/tag';
 import { PartnersPanel, PartnerTypeOption } from '../../../components/partners-panel/partners-panel';
 import { IncomingDeliveries } from '../../../components/incoming-deliveries/incoming-deliveries';
 import { ExpiryTag } from '../../../components/expiry-tag/expiry-tag';
-import { ExpiryLegend } from '../../../components/expiry-legend/expiry-legend';
 import { PlatformState } from '../../../services/platform/platform';
 import { HospitalService } from '../../../services/hospital/hospital';
 import { MedicineService } from '../../../services/medicines/medicines';
 import { StructureService } from '../../../services/structures/structures';
 import { AuthService } from '../../../services/auth/auth';
 import { AlerteHop, CritMedRow } from '../../../interfaces/models';
+import { ModalA11y } from '../../../directives/modal-a11y/modal-a11y';
+import { FieldLabel } from '../../../directives/field-label/field-label';
+import { TableLabels } from '../../../directives/table-labels/table-labels';
 import {
   ApiDispensation, ApiDispensationByService, ApiErrorBody, ApiHospitalDashboard, ApiHospitalStockRow, ApiInstitutionalOrder,
   ApiRestockRequest, ApiSupplier, HospitalSeverity,
@@ -45,7 +47,7 @@ const SERVICES = ['Urgences', 'Réanimation', 'Bloc opératoire', 'Cardiologie',
 @Component({
   selector: 'app-hopital-dash',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, Card, PageHead, Stat, Tag, PartnersPanel, IncomingDeliveries, ExpiryTag, ExpiryLegend],
+  imports: [ModalA11y, FieldLabel, TableLabels, Icon, Card, PageHead, Stat, Tag, PartnersPanel, IncomingDeliveries, ExpiryTag],
   templateUrl: './hopital.html',
   styleUrl: './hopital.css',
 })
@@ -134,6 +136,15 @@ export class HopitalDash {
   readonly sending = signal(false);
   readonly restockRequests = signal<ApiRestockRequest[]>([]);
   readonly pendingRequests = computed(() => this.restockRequests().filter(r => r.status === 'pending'));
+  /** Suivi en cours : en attente (les plus anciennes en tête), livraisons en retard, refus récents, livraisons prévues. */
+  readonly activeRequests = computed(() => {
+    const rank = (r: ApiRestockRequest) => r.status === 'pending' ? 0 : r.delivery_late ? 1 : r.status === 'rejected' ? 2 : 3;
+    return this.restockRequests().filter(r => !this.isPastRequest(r))
+      .sort((a, b) => rank(a) - rank(b) || (b.age_days ?? 0) - (a.age_days ?? 0));
+  });
+  /** Historique replié : livrées, refus anciens, annulées, closes — les plus récentes d'abord. */
+  readonly pastRequests = computed(() => this.restockRequests().filter(r => this.isPastRequest(r))
+    .sort((a, b) => (a.age_days ?? 0) - (b.age_days ?? 0)));
   /** Fournisseurs déjà sollicités, indexés par alerte source — calculé une fois par changement. */
   readonly askedByAlert = computed(() => {
     const index = new Map<string, Set<number>>();
@@ -151,8 +162,6 @@ export class HopitalDash {
   readonly activeIds = computed(() => new Set(this.alertes().map(a => a.id)));
   readonly tensions = computed(() => this.alertes().filter(a => a.severity === 'tension'));
   readonly dashboardData = signal<ApiHospitalDashboard>({});
-  readonly partnerCount = computed(() => Number(this.dashboardData()['partners'] ?? 0));
-  readonly incomingCount = computed(() => Number(this.dashboardData()['incoming_deliveries'] ?? 0));
 
   constructor() { this.reload(); }
 
@@ -203,6 +212,7 @@ export class HopitalDash {
   }
 
   praUrgencyTag(u: string): string { return u === 'critical' ? 'crit' : u === 'urgent' ? 'low' : 'new'; }
+  praUrgencyLabel(u: string): string { return u === 'critical' ? 'Critique' : u === 'urgent' ? 'Urgente' : 'Normale'; }
   praStatusLabel(s: string): string {
     return s === 'resolved' ? 'Traitée' : s === 'rejected' ? 'Rejetée' : s === 'received' ? 'Reçue' : 'En attente';
   }
@@ -249,6 +259,11 @@ export class HopitalDash {
   alreadyAsked(alert: AlerteHop): ReadonlySet<number> {
     return this.askedByAlert().get(alert.id) ?? EMPTY_SET;
   }
+  /** Tous les fournisseurs possibles ont déjà une demande en cours : la suite est la relance. */
+  allAsked(alert: AlerteHop): boolean {
+    const asked = this.alreadyAsked(alert);
+    return !this.suppliersLoading() && this.suppliers().length > 0 && this.suppliers().every(d => asked.has(d.id));
+  }
 
   toggleSupplier(id: number): void {
     const next = new Set(this.selectedSuppliers());
@@ -278,11 +293,67 @@ export class HopitalDash {
   }
 
   requestStatusLabel(r: ApiRestockRequest): string {
-    return r.status === 'resolved' ? 'Livraison planifiée' + (r.delivery_date ? ' · ' + r.delivery_date : '')
-      : r.status === 'rejected' ? 'Refusée'
-      : 'En attente';
+    const day = (iso: string) => this.dayMonth(iso);
+    if (r.status === 'cancelled') return 'Annulée';
+    if (r.status === 'closed') return 'Close';
+    if (r.status === 'pending' && r.stale) return `Sans réponse depuis ${this.plural(r.age_days ?? 0, 'jour', 'jours')}`;
+    if (r.delivery_late) return 'Livraison en retard' + (r.delivery_date ? ' (prévue le ' + day(r.delivery_date) + ')' : '');
+    if (r.status === 'resolved' && r.delivery_status === 'delivered') return 'Livrée' + (r.delivered_at ? ' le ' + day(r.delivered_at) : '');
+    return r.status === 'resolved' ? 'Livraison prévue' + (r.delivery_date ? ' le ' + day(r.delivery_date) : '')
+      : r.status === 'rejected' ? 'Refusée' + (r.rejected_at ? ' le ' + day(r.rejected_at) : '')
+      : 'En attente de réponse';
   }
-  requestTag(status: string): string { return status === 'resolved' ? 'ok' : status === 'rejected' ? 'crit' : 'low'; }
+  /** État d'une demande en cours : bleu en attente, orange si sans réponse ou livraison en retard (même code que l'officine). */
+  requestTag(r: ApiRestockRequest): string {
+    if (r.delivery_late || (r.status === 'pending' && r.stale)) return 'low';
+    return r.status === 'resolved' ? 'ok' : r.status === 'rejected' ? 'crit' : 'new';
+  }
+  requestTile(r: ApiRestockRequest): string {
+    if (r.delivery_late || (r.status === 'pending' && r.stale)) return 'amber';
+    return r.status === 'resolved' ? 'green' : r.status === 'rejected' ? 'red' : 'blue';
+  }
+  /** Destinataire : les anciennes demandes non ciblées étaient adressées à tout le réseau. */
+  requestTarget(r: ApiRestockRequest): string {
+    return !r.distributor_id || r.distributor === 'Réseau' ? 'Tous les fournisseurs du réseau' : r.distributor;
+  }
+  /** « il y a 5 jours » / « aujourd'hui ». */
+  ageLabel(r: ApiRestockRequest): string {
+    const d = r.age_days ?? null;
+    return d === null ? '' : d === 0 ? 'aujourd\'hui' : 'il y a ' + this.plural(d, 'jour', 'jours');
+  }
+  dayMonth(iso: string): string { return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }); }
+  /** Demande terminée, plus rien à suivre : elle passe dans l'historique (un refus récent reste visible). */
+  isPastRequest(r: ApiRestockRequest): boolean {
+    if (r.status === 'pending' || r.delivery_late || r.recently_rejected) return false;
+    return r.status !== 'resolved' || r.delivery_status === 'delivered';
+  }
+  plural(n: number, one: string, many: string): string { return `${n} ${n > 1 ? many : one}`; }
+
+  /** Demandes en cours d'envoi (relance / annulation) : boutons désactivés, pas de double envoi. */
+  readonly busyRequests = signal<ReadonlySet<number>>(new Set());
+  /** Pourquoi « Relancer » est indisponible (infobulle). */
+  remindHint(r: ApiRestockRequest): string {
+    if (!r.distributor_id) return 'Ancienne demande adressée à tout le réseau : annulez-la puis envoyez une demande ciblée';
+    return r.can_remind ? 'Prévenir à nouveau ' + r.distributor : 'Déjà relancée il y a moins de 24 h';
+  }
+  remindRequest(r: ApiRestockRequest): void { this.requestAction(r, this.hospital.remindRestockRequest(r.id), 'ok'); }
+  cancelRequest(r: ApiRestockRequest): void { this.requestAction(r, this.hospital.cancelRestockRequest(r.id), 'info'); }
+
+  private requestAction(r: ApiRestockRequest, call: Observable<{ message: string }>, kind: 'ok' | 'info'): void {
+    if (this.busyRequests().has(r.id)) return;
+    this.busyRequests.update(set => new Set(set).add(r.id));
+    const done = () => this.busyRequests.update(set => { const next = new Set(set); next.delete(r.id); return next; });
+    call.subscribe({
+      next: res => {
+        done();
+        this.platform.notify(res.message, kind);
+        // Une annulation libère aussi le fournisseur sur l'alerte d'origine (« Demander réappro. » redevient possible).
+        this.hospital.restockRequests().subscribe(list => this.restockRequests.set(list));
+        this.hospital.alerts().subscribe({ next: a => this.alertes.set(a), error: () => { /* ignore */ } });
+      },
+      error: (e: HttpErrorResponse) => { done(); this.platform.notify(this.apiError(e, 'Action impossible — réessayez'), 'alert'); },
+    });
+  }
 
   resolve(id: string): void {
     this.hospital.resolveAlert(Number(id)).subscribe({
@@ -315,7 +386,7 @@ export class HopitalDash {
       }),
     ).subscribe({
       next: ({ medicine, notified }) => {
-        this.platform.notify(`${sev === 'rupture' ? 'Rupture' : 'Tension'} signalée pour ${medicine.nom} — ${notified} partenaire(s) notifié(s)`, 'ok');
+        this.platform.notify(`${sev === 'rupture' ? 'Rupture' : 'Tension'} signalée pour ${medicine.nom} — ${this.plural(notified, 'partenaire notifié', 'partenaires notifiés')}`, 'ok');
         this.signalModal.set(false);
         this.reload();
       },

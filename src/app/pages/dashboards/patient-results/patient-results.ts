@@ -72,4 +72,5 @@ export class PatientResults {
       cat: 'Équivalent thérapeutique',
     });
   }
+  plural(n: number, one: string, many: string): string { return `${n} ${n > 1 ? many : one}`; }
 }
