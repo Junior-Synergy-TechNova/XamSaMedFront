@@ -131,9 +131,6 @@
             }
           </div>
           <div class="pf-li-act tight">
-            @if (r.heat || r.item.expiring_soon) {
-              <button type="button" class="btn btn-ghost btn-sm" (click)="listen(r)" [disabled]="isBusy(r.item.id)" [attr.aria-label]="'Écouter l\'alerte pour ' + r.item.medicine.name"><nv-icon name="sound" [size]="16"/> Écouter</button>
-            }
             @if (!r.item.opened && r.item.expiry_level !== 'expired') {
               <button type="button" class="btn btn-outline btn-sm" (click)="markOpened(r.item)" [disabled]="isBusy(r.item.id)">Ouvert aujourd'hui</button>
             }

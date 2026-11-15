@@ -11,12 +11,11 @@ export type ThermalState =
   | { kind: 'ready'; status: ApiThermalStatus }
   | { kind: 'no-location'; message: string };
 
-/** Message vocal d'alerte : un fichier audio, ou rien tant que les enregistrements ne sont pas prêts. */
-export type VoiceAlert = { kind: 'audio'; blob: Blob } | { kind: 'unavailable' };
-
 /**
  * Armoire familiale du patient (`/cabinet/*`) : médicaments gardés à la maison,
  * proches, statut thermique (météo du domicile) et localisation du domicile.
+ * Les alertes vocales (`/cabinet/{id}/voice-alert`) ne renvoient que des segments
+ * joués par l'application mobile, qui embarque les fichiers audio : rien à lire ici.
  * Les erreurs de lecture remontent à la page (écran « Réessayer »), jamais une liste vide trompeuse.
  */
 @Injectable({ providedIn: 'root' })
@@ -83,13 +82,5 @@ export class CabinetService {
   /** PATCH /profile/location — position du domicile pour la météo. */
   saveHomeLocation(lat: number, lng: number): Observable<unknown> {
     return this.http.patch(`${this.base}/profile/location`, { home_lat: lat, home_lng: lng });
-  }
-
-  /** GET /cabinet/{id}/voice-alert[/thermal] — audio WAV, ou JSON tant que les enregistrements manquent. */
-  voiceAlert(id: number, kind: 'expiry' | 'thermal'): Observable<VoiceAlert> {
-    const url = `${this.base}/cabinet/${id}/voice-alert${kind === 'thermal' ? '/thermal' : ''}`;
-    return this.http.get(url, { responseType: 'blob' }).pipe(
-      map(blob => blob.type.startsWith('audio/') ? { kind: 'audio' as const, blob } : { kind: 'unavailable' as const }),
-    );
   }
 }

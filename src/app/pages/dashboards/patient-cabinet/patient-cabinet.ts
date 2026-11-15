@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Icon } from '../../../components/icon/icon';
@@ -131,12 +131,8 @@ export class PatientCabinet {
   readonly memberError = signal<string | null>(null);
   readonly locationOpen = signal(false);
 
-  private audio: HTMLAudioElement | null = null;
-  private audioUrl: string | null = null;
-
   constructor() {
     this.reload();
-    inject(DestroyRef).onDestroy(() => this.stopAudio());
   }
 
   // ── Dérivés ───────────────────────────────────────────────────
@@ -325,30 +321,6 @@ export class PatientCabinet {
       },
       error: (e: HttpErrorResponse) => { this.lock(i.id, false); this.platform.notify(this.apiError(e, 'Suppression impossible'), 'alert'); },
     });
-  }
-
-  /** Écoute l'alerte vocale (péremption ou chaleur) — utile pour les personnes qui lisent peu. */
-  listen(r: CabinetRow): void {
-    const id = r.item.id;
-    if (this.isBusy(id)) return;
-    this.lock(id, true);
-    this.api.voiceAlert(id, r.heat ? 'thermal' : 'expiry').subscribe({
-      next: v => {
-        this.lock(id, false);
-        if (v.kind === 'unavailable') { this.platform.notify('Le message vocal n\'est pas encore disponible pour ce médicament', 'info'); return; }
-        this.stopAudio();
-        this.audioUrl = URL.createObjectURL(v.blob);
-        this.audio = new Audio(this.audioUrl);
-        this.audio.play().catch(() => this.platform.notify('Lecture audio impossible sur cet appareil', 'alert'));
-      },
-      error: () => { this.lock(id, false); this.platform.notify('Message vocal indisponible — réessayez plus tard', 'alert'); },
-    });
-  }
-
-  private stopAudio(): void {
-    this.audio?.pause();
-    this.audio = null;
-    if (this.audioUrl) { URL.revokeObjectURL(this.audioUrl); this.audioUrl = null; }
   }
 
   // ── Proches ───────────────────────────────────────────────────

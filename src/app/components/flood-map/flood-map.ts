@@ -38,6 +38,7 @@ export class FloodMap {
   private map: Leaflet.Map | null = null;
   private layer: Leaflet.LayerGroup | null = null;
   private lastView = '';
+  private resize: ResizeObserver | null = null;
 
   constructor() {
     afterNextRender(() => {
@@ -50,6 +51,11 @@ export class FloodMap {
           attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
         }).addTo(this.map);
         this.layer = L.layerGroup().addTo(this.map);
+        // Leaflet mesure son conteneur une seule fois : on le prévient de chaque changement de taille.
+        if (typeof ResizeObserver !== 'undefined') {
+          this.resize = new ResizeObserver(() => this.map?.invalidateSize());
+          this.resize.observe(this.box().nativeElement);
+        }
         this.lib.set(L);
       }).catch(() => this.failed.set(true));
     });
@@ -68,7 +74,7 @@ export class FloodMap {
       this.draw(L, center, radius, reports, pharmacies, flooded, me, selected);
     });
 
-    inject(DestroyRef).onDestroy(() => { this.map?.remove(); this.map = null; });
+    inject(DestroyRef).onDestroy(() => { this.resize?.disconnect(); this.map?.remove(); this.map = null; });
   }
 
   private draw(
