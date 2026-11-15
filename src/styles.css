@@ -163,7 +163,7 @@ pf-card + .pf-cols, pf-card + .pf-half, pf-card + .pf-cols3, pf-card + .pf-statg
   @apply font-body text-[15px] text-black border border-gray-line rounded-[10px] h-12 px-4 bg-white w-full transition-[border-color,box-shadow] duration-150;
 }
 .s-field textarea { @apply h-auto py-3 resize-y; }
-.s-field input:disabled, .s-field select:disabled { @apply bg-gray-bg text-gray-text; }
+.s-field input:disabled, .s-field select:disabled, .s-field input[readonly] { @apply bg-gray-bg text-gray-text; }
 .s-field input:not([type="checkbox"]):not([type="radio"]):focus, .s-field select:focus, .s-field textarea:focus,
 .pf-fieldrow input:not([type="checkbox"]):not([type="radio"]):focus { @apply outline-none border-green shadow-focus; }
 .pf-fieldrow { @apply grid grid-cols-2 gap-4 mb-5; }

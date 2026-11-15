@@ -47,7 +47,7 @@ const ALL_RESOURCES: readonly Resource[] = ['stock', 'history', 'demandes', 'req
 const STALE_AFTER_MS = 5 * 60 * 1000;
 
 /** Médicament du catalogue (saisie assistée). */
-type CatalogueItem = { id: number; name: string; label: string };
+type CatalogueItem = { id: number; name: string; label: string; dci: string | null };
 type LineAction = 'reserve' | 'orient' | 'substitute';
 /** Ligne en cours de saisie dans « Traiter l'ordonnance ». */
 interface DraftLine {
@@ -119,7 +119,7 @@ export class PharmaDash {
   /** Une requête d'écriture est en cours : boutons de validation désactivés (pas de double envoi). */
   readonly saving = signal(false);
   /** Catalogue (nom + forme/dosage) proposé en saisie assistée ; chargé à la première ouverture d'un formulaire. */
-  readonly catalogue = signal<{ id: number; name: string; label: string }[]>([]);
+  readonly catalogue = signal<CatalogueItem[]>([]);
   readonly rejectModal = signal<ApiPrescription | null>(null);
   readonly rejectReasons: readonly string[] = [
     'Ordonnance illisible ou incomplète',
@@ -560,7 +560,7 @@ export class PharmaDash {
   }
 
   /** Médicament choisi dans la liste : correspondance exacte du libellé, sinon nom exact et unique — jamais « le premier résultat ». */
-  private resolveMedicine(input: string): { id: number; name: string; label: string } | null {
+  private resolveMedicine(input: string): CatalogueItem | null {
     const value = input.trim().toLocaleLowerCase('fr');
     const list = this.catalogue();
     const byLabel = list.find(m => m.label.toLocaleLowerCase('fr') === value);
@@ -569,7 +569,11 @@ export class PharmaDash {
     return byName.length === 1 ? byName[0] : null;
   }
 
-  openAddRef(): void { this.ensureCatalogue(); this.addRefModal.set(true); }
+  openAddRef(): void { this.ensureCatalogue(); this.addRefMedicine.set(null); this.addRefModal.set(true); }
+
+  /** « Ajouter une référence » : médicament reconnu dans le catalogue (sa DCI s'affiche dans le formulaire). */
+  readonly addRefMedicine = signal<CatalogueItem | null>(null);
+  onAddRefMedicine(value: string): void { this.addRefMedicine.set(this.resolveMedicine(value)); }
 
   private apiError(e: HttpErrorResponse, fallback: string): string {
     return (e.error as ApiErrorBody | null)?.message ?? fallback;
