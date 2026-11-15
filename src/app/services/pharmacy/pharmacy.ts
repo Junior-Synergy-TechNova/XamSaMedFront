@@ -8,6 +8,12 @@ import {
 import { DemandeRow, StockRow, StockState } from '../../interfaces/models';
 import { formatWhen } from '../orders/orders';
 
+/** Ventes chargées par page dans le journal (« Afficher les ventes plus anciennes » charge la suivante). */
+export const SALES_PER_PAGE = 50;
+
+/** Une page du journal des ventes. */
+export interface SalesPage { data: ApiSale[]; page: number; lastPage: number; total: number; }
+
 /** Espace pharmacien : stock, demandes ciblées. */
 @Injectable({ providedIn: 'root' })
 export class PharmacyService {
@@ -101,8 +107,6 @@ export class PharmacyService {
     return this.http.post<{ message: string }>(`${this.base}/pharmacy/stock/${stockId}/expire`, { quantity, reason });
   }
 
-  // ── Module Vente & Comptabilité (offre Pro) ──────────────────
-
   /**
    * GET /pharmacy/thermal-status — température de la zone de l'officine comparée au
    * maximum de conservation de chaque médicament en stock. Les erreurs remontent
@@ -112,12 +116,24 @@ export class PharmacyService {
     return this.http.get<ApiPharmacyThermalStatus>(`${this.base}/pharmacy/thermal-status`);
   }
 
-  /** GET /pharmacy/sales?from=&to= */
-  sales(from?: string, to?: string): Observable<ApiSale[]> {
-    let params = new HttpParams().set('per_page', '100');
+  // ── Module Vente & Comptabilité (offre Pro) ──────────────────
+
+  /**
+   * GET /pharmacy/sales?from=&to=&page= — une page du journal (dates incluses ;
+   * sans dates, l'API prend le mois en cours). Les erreurs remontent à la vue.
+   */
+  salesPage(from: string | null, to: string | null, page = 1): Observable<SalesPage> {
+    let params = new HttpParams().set('per_page', String(SALES_PER_PAGE)).set('page', String(page));
     if (from) params = params.set('from', from);
     if (to) params = params.set('to', to);
-    return this.http.get<{ data: ApiSale[] }>(`${this.base}/pharmacy/sales`, { params }).pipe(map(r => r.data ?? []));
+    return this.http.get<{ data: ApiSale[]; pagination?: { total: number; current_page: number; last_page: number } }>(`${this.base}/pharmacy/sales`, { params }).pipe(
+      map(r => ({
+        data: r.data ?? [],
+        page: r.pagination?.current_page ?? page,
+        lastPage: r.pagination?.last_page ?? page,
+        total: r.pagination?.total ?? (r.data ?? []).length,
+      })),
+    );
   }
 
   /** POST /pharmacy/sales — vente complète (lignes, TVA, ordonnance) → reçu numéroté. */

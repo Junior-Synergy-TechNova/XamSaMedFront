@@ -15,6 +15,9 @@
 .pf-sale-ttc strong { @apply text-green-text text-[17px]; }
 .pf-sale-export { @apply flex flex-wrap gap-2 items-center; }
 .pf-sale-export input { @apply h-9 px-2.5 border border-gray-line rounded-[8px] text-[13.5px] bg-white; }
+.pf-sale-period { @apply flex flex-wrap items-center justify-between gap-3 mb-5; }
+.pf-sale-presets { @apply flex flex-wrap gap-2; }
+.pf-sale-more { @apply flex justify-center pt-5; }
 @media (max-width: 640px) {
   /* Période d'export : les deux dates partagent la ligne, le bouton passe dessous */
   .pf-sale-export { @apply w-full; }

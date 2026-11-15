@@ -36,6 +36,11 @@ type ExpiryFilter = 'all' | 'soon' | 'expired';
 const fold = (text: string): string => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
 /** Données du tableau de bord rechargeables séparément (une action ne recharge que ce qu'elle modifie). */
+/** Date locale au format AAAA-MM-JJ (pas toISOString, qui passe en UTC). */
+function isoDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 type Resource = 'stock' | 'history' | 'demandes' | 'requests' | 'prescriptions' | 'grouped' | 'sales';
 const ALL_RESOURCES: readonly Resource[] = ['stock', 'history', 'demandes', 'requests', 'prescriptions', 'grouped', 'sales'];
 /** Au retour sur l'onglet, données plus vieilles que ce délai : on actualise. */
@@ -386,6 +391,26 @@ export class PharmaDash {
   readonly isPro = this.auth.isPro;
   readonly sales = signal<ApiSale[]>([]);
   readonly salesStats = signal<ApiSalesStats | null>(null);
+  /** Période du journal (et de l'export) : du 1er du mois à aujourd'hui par défaut. */
+  readonly salesFrom = signal(isoDate(new Date(new Date().getFullYear(), new Date().getMonth(), 1)));
+  readonly salesTo = signal(isoDate(new Date()));
+  readonly salesPage = signal(1);
+  readonly salesLastPage = signal(1);
+  readonly salesTotal = signal(0);
+  /** Lecture en échec : la vue affiche « Réessayer », jamais « Aucune vente » à tort. */
+  readonly salesError = signal(false);
+  readonly salesStatsError = signal(false);
+  readonly salesLoading = signal(false);
+  readonly salesMoreLoading = signal(false);
+  readonly salesRemaining = computed(() => Math.max(0, this.salesTotal() - this.sales().length));
+  readonly today = isoDate(new Date());
+  readonly paymentMethods: readonly { value: string; label: string }[] = [
+    { value: 'cash', label: 'Espèces' },
+    { value: 'mobile_money', label: 'Mobile money' },
+    { value: 'card', label: 'Carte' },
+    { value: 'insurance', label: 'Assurance / IPM' },
+    { value: 'other', label: 'Autre' },
+  ];
   readonly cart = signal<CartLine[]>([]);
   readonly vatRate = signal(0);
   readonly savingSale = signal(false);
@@ -1040,8 +1065,54 @@ export class PharmaDash {
 
   // --- Ventes & comptabilité (offre Pro) ---
   reloadSales(): void {
-    this.pharmacy.sales().subscribe({ next: s => this.sales.set(s), error: () => this.sales.set([]) });
-    this.pharmacy.salesStats().subscribe({ next: s => this.salesStats.set(s), error: () => this.salesStats.set(null) });
+    this.loadSalesJournal();
+    this.pharmacy.salesStats().subscribe({
+      next: s => { this.salesStats.set(s); this.salesStatsError.set(false); },
+      error: () => this.salesStatsError.set(true),
+    });
+  }
+
+  /** Première page du journal pour la période choisie ; les pages suivantes s'ajoutent avec moreSales(). */
+  private loadSalesJournal(): void {
+    this.salesLoading.set(true);
+    this.pharmacy.salesPage(this.salesFrom(), this.salesTo(), 1).subscribe({
+      next: p => {
+        this.sales.set(p.data); this.salesPage.set(p.page); this.salesLastPage.set(p.lastPage); this.salesTotal.set(p.total);
+        this.salesError.set(false); this.salesLoading.set(false);
+      },
+      error: () => { this.salesError.set(true); this.salesLoading.set(false); },
+    });
+  }
+
+  /** Change la période du journal (dates incluses). */
+  setSalesPeriod(from: string, to: string): void {
+    if (!from || !to) { this.platform.notify('Choisissez une date de début et une date de fin', 'alert'); return; }
+    if (from > to) { this.platform.notify('La date de début doit précéder la date de fin', 'alert'); return; }
+    this.salesFrom.set(from);
+    this.salesTo.set(to);
+    this.loadSalesJournal();
+  }
+
+  /** Raccourcis de période : aujourd'hui, mois en cours, mois précédent. */
+  salesPreset(preset: 'today' | 'month' | 'lastMonth'): void {
+    const now = new Date();
+    if (preset === 'today') this.setSalesPeriod(this.today, this.today);
+    else if (preset === 'month') this.setSalesPeriod(isoDate(new Date(now.getFullYear(), now.getMonth(), 1)), this.today);
+    else this.setSalesPeriod(isoDate(new Date(now.getFullYear(), now.getMonth() - 1, 1)), isoDate(new Date(now.getFullYear(), now.getMonth(), 0)));
+  }
+
+  moreSales(): void {
+    if (this.salesMoreLoading() || this.salesPage() >= this.salesLastPage()) return;
+    this.salesMoreLoading.set(true);
+    this.pharmacy.salesPage(this.salesFrom(), this.salesTo(), this.salesPage() + 1).subscribe({
+      next: p => {
+        // Une vente enregistrée entre-temps décale les pages : on évite les doublons.
+        this.sales.update(list => [...list, ...p.data.filter(v => !list.some(x => x.id === v.id))]);
+        this.salesPage.set(p.page); this.salesLastPage.set(p.lastPage); this.salesTotal.set(p.total);
+        this.salesMoreLoading.set(false);
+      },
+      error: () => { this.salesMoreLoading.set(false); this.platform.notify('Ventes plus anciennes non chargées — réessayez', 'alert'); },
+    });
   }
 
   addToCart(stockIdInput: string, qtyInput: string, priceInput: string): void {
@@ -1089,9 +1160,12 @@ export class PharmaDash {
     });
   }
 
-  exportSales(from: string, to: string): void {
-    this.pharmacy.exportSales(from || undefined, to || undefined).subscribe({
-      next: blob => { saveBlob(blob, `ventes-${from || 'mois'}-${to || 'courant'}.csv`); this.platform.notify('Export comptable téléchargé', 'ok'); },
+  /** Exporte la période affichée dans le journal. */
+  exportSales(): void {
+    const from = this.salesFrom();
+    const to = this.salesTo();
+    this.pharmacy.exportSales(from, to).subscribe({
+      next: blob => { saveBlob(blob, `ventes-${from}-${to}.csv`); this.platform.notify('Export comptable téléchargé', 'ok'); },
       error: () => this.platform.notify('Échec de l\'export', 'alert'),
     });
   }

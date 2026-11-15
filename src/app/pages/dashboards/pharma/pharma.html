@@ -311,6 +311,13 @@
               </div>
             </pf-card>
           } @else {
+            @if (salesStatsError()) {
+              <div class="pf-banner amber" role="status">
+                <span class="pf-bannic"><nv-icon name="alert" [size]="22"/></span>
+                <div class="pf-banner-body"><strong>Chiffre d'affaires non chargé</strong><p>Les indicateurs ci-dessous ne sont pas à jour. Vous pouvez toujours enregistrer une vente.</p></div>
+                <button type="button" class="btn btn-white btn-sm" (click)="reloadSales()"><nv-icon name="refresh" [size]="15"/> Réessayer</button>
+              </div>
+            }
             <div class="pf-statgrid">
               <pf-stat icon="cart" tone="green" label="CA du jour" [value]="fcfa(salesStats()?.today.revenue ?? 0)"/>
               <pf-stat icon="chart" tone="blue" label="CA de la semaine" [value]="fcfa(salesStats()?.week.revenue ?? 0)"/>
@@ -352,10 +359,7 @@
                     <div class="s-field"><label>Client</label><input #sCustomer placeholder="Optionnel"/></div>
                     <div class="s-field"><label>Paiement</label>
                       <select #sPay>
-                        <option value="cash">Espèces</option>
-                        <option value="mobile_money">Mobile money</option>
-                        <option value="card">Carte</option>
-                        <option value="insurance">Assurance / IPM</option>
+                        @for (m of paymentMethods; track m.value) { <option [value]="m.value">{{ m.label }}</option> }
                       </select>
                     </div>
                     <div class="s-field pf-sale-qty"><label>TVA %</label><input type="number" min="0" max="100" [value]="vatRate()" (input)="setVat($any($event.target).value)"/></div>
@@ -397,28 +401,51 @@
               </div>
             </div>
 
-            <pf-card title="Journal des ventes" sub="Mois en cours — reçus et export pour la comptabilité externe">
-              <form right class="pf-sale-export" (submit)="exportSales(eFrom.value, eTo.value); $event.preventDefault()">
-                <input #eFrom type="date" title="Du" aria-label="Exporter du"/>
-                <input #eTo type="date" title="Au" aria-label="Exporter au"/>
-                <button type="submit" class="btn btn-outline btn-sm"><nv-icon name="doc" [size]="15"/> Export CSV</button>
-              </form>
-              <table class="pf-table">
-                <thead><tr><th>Reçu</th><th>Date</th><th>Articles</th><th>Paiement</th><th>TTC</th><th></th></tr></thead>
-                <tbody>
-                  @for (v of sales(); track v.id) {
-                    <tr>
-                      <td><strong>{{ v.receipt_number }}</strong><div class="pf-medsub">{{ v.customer_name || '—' }}{{ v.prescription_ref ? ' · ord. ' + v.prescription_ref : '' }}</div></td>
-                      <td class="muted">{{ v.created_at | date:'d MMM, HH:mm' }}</td>
-                      <td>@for (i of v.items; track i.medicine_id) { <div class="pf-medsub">{{ i.quantity }} × {{ i.medicine }}</div> }</td>
-                      <td class="muted">{{ v.payment_label }}</td>
-                      <td><strong>{{ fcfa(v.total_ttc) }}</strong></td>
-                      <td class="pf-td-right"><button class="btn btn-ghost btn-sm" (click)="downloadReceipt(v)"><nv-icon name="doc" [size]="15"/> Reçu</button></td>
-                    </tr>
-                  }
-                  @if (sales().length === 0) { <tr><td colspan="6" class="muted pf-td-empty">Aucune vente ce mois-ci.</td></tr> }
-                </tbody>
-              </table>
+            <pf-card title="Journal des ventes" [sub]="'Du ' + (salesFrom() | date:'d MMM y') + ' au ' + (salesTo() | date:'d MMM y') + (salesError() ? '' : ' — ' + plural(salesTotal(), 'vente', 'ventes'))">
+              <div class="pf-sale-period">
+                <div class="pf-sale-presets" role="group" aria-label="Période rapide">
+                  <button type="button" class="btn btn-outline btn-sm" (click)="salesPreset('today')">Aujourd'hui</button>
+                  <button type="button" class="btn btn-outline btn-sm" (click)="salesPreset('month')">Ce mois-ci</button>
+                  <button type="button" class="btn btn-outline btn-sm" (click)="salesPreset('lastMonth')">Mois dernier</button>
+                </div>
+                <form class="pf-sale-export" (submit)="setSalesPeriod(pFrom.value, pTo.value); $event.preventDefault()">
+                  <input #pFrom type="date" [value]="salesFrom()" [max]="today" aria-label="Du"/>
+                  <input #pTo type="date" [value]="salesTo()" [max]="today" aria-label="Au"/>
+                  <button type="submit" class="btn btn-outline btn-sm" [disabled]="salesLoading()">Afficher</button>
+                  <button type="button" class="btn btn-outline btn-sm" (click)="exportSales()" [disabled]="salesError()"><nv-icon name="doc" [size]="15"/> Export CSV</button>
+                </form>
+              </div>
+              @if (salesError()) {
+                <div class="pf-empty">
+                  <nv-icon name="alert" [size]="30" color="var(--color-red)"/>
+                  <p>Le journal des ventes n'a pas pu être chargé. Vérifiez la connexion puis réessayez.</p>
+                  <button type="button" class="btn btn-green btn-sm" (click)="reloadSales()"><nv-icon name="refresh" [size]="15"/> Réessayer</button>
+                </div>
+              } @else {
+                <table class="pf-table">
+                  <thead><tr><th>Reçu</th><th>Date</th><th>Articles</th><th>Paiement</th><th>TTC</th><th></th></tr></thead>
+                  <tbody>
+                    @for (v of sales(); track v.id) {
+                      <tr>
+                        <td><strong>{{ v.receipt_number }}</strong><div class="pf-medsub">{{ v.customer_name || '—' }}{{ v.prescription_ref ? ' · ord. ' + v.prescription_ref : '' }}</div></td>
+                        <td class="muted">{{ v.created_at | date:'d MMM, HH:mm' }}</td>
+                        <td>@for (i of v.items; track i.medicine_id) { <div class="pf-medsub">{{ i.quantity }} × {{ i.medicine }}</div> }</td>
+                        <td class="muted">{{ v.payment_label }}</td>
+                        <td><strong>{{ fcfa(v.total_ttc) }}</strong></td>
+                        <td class="pf-td-right"><button class="btn btn-ghost btn-sm" (click)="downloadReceipt(v)"><nv-icon name="doc" [size]="15"/> Reçu</button></td>
+                      </tr>
+                    }
+                    @if (sales().length === 0) { <tr><td colspan="6" class="muted pf-td-empty">{{ salesLoading() ? 'Chargement…' : 'Aucune vente sur cette période.' }}</td></tr> }
+                  </tbody>
+                </table>
+                @if (salesRemaining() > 0) {
+                  <div class="pf-sale-more">
+                    <button type="button" class="btn btn-outline btn-sm" (click)="moreSales()" [disabled]="salesMoreLoading()">
+                      {{ salesMoreLoading() ? 'Chargement…' : 'Afficher les ventes plus anciennes (' + plural(salesRemaining(), 'restante', 'restantes') + ')' }}
+                    </button>
+                  </div>
+                }
+              }
             </pf-card>
           }
         </div>
