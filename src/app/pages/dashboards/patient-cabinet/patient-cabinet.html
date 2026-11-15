@@ -1,0 +1,303 @@
+<div>
+  <pf-page-head title="Armoire familiale" sub="Les médicaments gardés à la maison, pour vous et vos proches : péremption et chaleur surveillées.">
+    <button actions type="button" class="btn btn-outline btn-sm" (click)="openMembers()"><nv-icon name="users" [size]="16"/> Mes proches</button>
+    <button actions type="button" class="btn btn-green btn-sm" (click)="openAdd()"><nv-icon name="plus" [size]="16"/> Ajouter un médicament</button>
+  </pf-page-head>
+
+  <!-- ── Conservation thermique ─────────────────────────────── -->
+  @if (thermalError()) {
+    <div class="pf-banner amber" role="status">
+      <span class="pf-bannic"><nv-icon name="thermo" [size]="22"/></span>
+      <div class="pf-banner-body"><strong>Surveillance de la chaleur indisponible</strong><p>Le statut thermique n'a pas pu être chargé.</p></div>
+      <button type="button" class="btn btn-white btn-sm" (click)="reload()"><nv-icon name="refresh" [size]="15"/> Réessayer</button>
+    </div>
+  } @else if (thermal(); as t) {
+    @if (t.kind === 'no-location') {
+      <div class="pf-banner">
+        <span class="pf-bannic"><nv-icon name="thermo" [size]="22"/></span>
+        <div class="pf-banner-body">
+          <strong>Activez la surveillance de la chaleur</strong>
+          <p>Indiquez où se trouve votre domicile : nous comparons la température de votre zone au maximum supporté par chaque médicament, et vous alertons s'il fait trop chaud.</p>
+        </div>
+        <button type="button" class="btn btn-primary btn-sm" (click)="locationOpen.set(true)"><nv-icon name="pin" [size]="15"/> Localiser mon domicile</button>
+      </div>
+    } @else if (t.status.current_temp_c === null) {
+      <div class="pf-banner amber" role="status">
+        <span class="pf-bannic"><nv-icon name="thermo" [size]="22"/></span>
+        <div class="pf-banner-body"><strong>Météo indisponible pour le moment</strong><p>La température de votre zone n'a pas pu être lue. La péremption reste surveillée.</p></div>
+        <button type="button" class="btn btn-white btn-sm" (click)="reload()" [disabled]="thermalLoading()"><nv-icon name="refresh" [size]="15"/> Réessayer</button>
+      </div>
+    } @else if (t.status.items_at_risk > 0) {
+      <div class="pf-banner red" role="alert">
+        <span class="pf-bannic"><nv-icon name="thermo" [size]="22"/></span>
+        <div class="pf-banner-body">
+          <strong>Il fait {{ t.status.current_temp_c | number:'1.0-1' }} °C : {{ plural(t.status.items_at_risk, 'médicament exposé', 'médicaments exposés') }} à la chaleur</strong>
+          <p>Rangez-les dans l'endroit le plus frais de la maison, à l'abri du soleil — jamais dans une voiture. Un médicament exposé longtemps peut perdre son efficacité : demandez conseil à votre pharmacien.</p>
+        </div>
+        <button type="button" class="btn btn-white btn-sm" (click)="stateFilter.set('heat')">Voir lesquels</button>
+      </div>
+    } @else {
+      <div class="pf-banner green" role="status">
+        <span class="pf-bannic"><nv-icon name="thermo" [size]="22"/></span>
+        <div class="pf-banner-body">
+          <strong>{{ t.status.current_temp_c | number:'1.0-1' }} °C dans votre zone — aucun médicament exposé</strong>
+          <p>Température extérieure estimée par la météo, pas une mesure de votre placard. Elle est vérifiée chaque heure.</p>
+        </div>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="locationOpen.set(true)"><nv-icon name="pin" [size]="15"/> Changer de domicile</button>
+      </div>
+    }
+  }
+
+  @if (loading()) {
+    <pf-card><div class="pf-empty">Chargement de votre armoire…</div></pf-card>
+  } @else if (loadError()) {
+    <pf-card>
+      <div class="pf-empty">
+        <nv-icon name="alert" [size]="34" color="var(--color-red)"/>
+        <p>Votre armoire n'a pas pu être chargée. Vérifiez la connexion puis réessayez.</p>
+        <button type="button" class="btn btn-green btn-sm" (click)="reload()"><nv-icon name="refresh" [size]="15"/> Réessayer</button>
+      </div>
+    </pf-card>
+  } @else if (items().length === 0) {
+    <pf-card>
+      <div class="pf-empty">
+        <nv-icon name="home" [size]="34" color="var(--color-gray)"/>
+        <p>Votre armoire est vide. Ajoutez les médicaments que vous gardez à la maison : vous serez prévenu 30 jours puis 7 jours avant leur péremption, et s'il fait trop chaud pour eux.</p>
+        <button type="button" class="btn btn-green btn-sm" (click)="openAdd()"><nv-icon name="plus" [size]="15"/> Ajouter un médicament</button>
+      </div>
+    </pf-card>
+  } @else {
+    <div class="pf-statgrid">
+      <pf-stat icon="home" tone="blue" label="Médicaments" [value]="counts().total"/>
+      <pf-stat icon="clock" tone="amber" label="À utiliser bientôt" [value]="counts().soon"/>
+      <pf-stat icon="alert" tone="red" label="Périmés" [value]="counts().expired"/>
+      <pf-stat icon="thermo" tone="red" label="Exposés à la chaleur" [value]="counts().heat"/>
+    </div>
+
+    <div class="pf-cab-filters">
+      <div class="pf-cab-filter" role="group" aria-label="Filtrer par personne">
+        <button type="button" class="btn btn-sm" [class.btn-primary]="memberFilter() === 'all'" [class.btn-outline]="memberFilter() !== 'all'" [attr.aria-pressed]="memberFilter() === 'all'" (click)="memberFilter.set('all')">Toute la famille</button>
+        <button type="button" class="btn btn-sm" [class.btn-primary]="memberFilter() === 'me'" [class.btn-outline]="memberFilter() !== 'me'" [attr.aria-pressed]="memberFilter() === 'me'" (click)="memberFilter.set('me')">Moi</button>
+        @for (m of members(); track m.id) {
+          <button type="button" class="btn btn-sm" [class.btn-primary]="memberFilter() === m.id" [class.btn-outline]="memberFilter() !== m.id" [attr.aria-pressed]="memberFilter() === m.id" (click)="memberFilter.set(m.id)">{{ m.name }}</button>
+        }
+      </div>
+      <div class="pf-cab-filter" role="group" aria-label="Filtrer par état">
+        <button type="button" class="btn btn-sm" [class.btn-primary]="stateFilter() === 'all'" [class.btn-outline]="stateFilter() !== 'all'" [attr.aria-pressed]="stateFilter() === 'all'" (click)="stateFilter.set('all')">Tous</button>
+        <button type="button" class="btn btn-sm" [class.btn-primary]="stateFilter() === 'soon'" [class.btn-outline]="stateFilter() !== 'soon'" [attr.aria-pressed]="stateFilter() === 'soon'" (click)="stateFilter.set('soon')">Bientôt périmés</button>
+        <button type="button" class="btn btn-sm" [class.btn-primary]="stateFilter() === 'expired'" [class.btn-outline]="stateFilter() !== 'expired'" [attr.aria-pressed]="stateFilter() === 'expired'" (click)="stateFilter.set('expired')">Périmés</button>
+        <button type="button" class="btn btn-sm" [class.btn-primary]="stateFilter() === 'heat'" [class.btn-outline]="stateFilter() !== 'heat'" [attr.aria-pressed]="stateFilter() === 'heat'" (click)="stateFilter.set('heat')">Chaleur</button>
+      </div>
+    </div>
+
+    <div class="pf-cab-legend">
+      <span class="pf-cab-legend-title">Péremption</span>
+      <pf-tag s="ok">Plus d'un mois</pf-tag>
+      <pf-tag s="low">Moins d'un mois</pf-tag>
+      <pf-tag s="crit">Moins de 7 jours ou périmé</pf-tag>
+    </div>
+
+    @if (visibleRows().length === 0) {
+      <pf-card>
+        <div class="pf-empty">
+          <nv-icon name="filter" [size]="30" color="var(--color-gray)"/>
+          <p>Aucun médicament ne correspond à ces filtres.</p>
+          <button type="button" class="btn btn-outline btn-sm" (click)="memberFilter.set('all'); stateFilter.set('all')">Tout afficher</button>
+        </div>
+      </pf-card>
+    } @else {
+      @for (r of visibleRows(); track r.item.id) {
+        <div class="pf-li pf-li-top pf-cab-row">
+          <span class="pf-liic {{ r.tone }}"><nv-icon [name]="r.heat ? 'thermo' : 'pill'" [size]="20"/></span>
+          <div class="pf-libody">
+            <strong>{{ r.label }} @if (r.item.medicine.is_controlled) { <span class="chip chip-ctrl chip-inline">Contrôlé</span> }</strong>
+            <span>Pour {{ forWhom(r.item) }} · {{ r.item.storage_label }}@if (r.item.storage_location === 'fridge' && r.item.fridge_power_cuts) { (coupures de courant) }@if (r.item.opened_at) { · ouvert le {{ r.item.opened_at | date:'d MMM y' }} }</span>
+            <div class="pf-cab-tags">
+              <pf-expiry [level]="r.item.expiry_level" [date]="r.item.expiry_date" [days]="r.item.days_to_expiry"/>
+              @if (r.thermal; as th) {
+                @if (r.heat) {
+                  <pf-tag s="crit">Trop chaud : {{ th.current_temp | number:'1.0-1' }} °C, {{ th.max_temp_c | number:'1.0-0' }} °C max@if (th.hours_above_threshold) { · {{ plural(th.hours_above_threshold, 'heure', 'heures') }} d'exposition }</pf-tag>
+                } @else if (r.item.storage_location === 'fridge' && !r.item.fridge_power_cuts) {
+                  <pf-tag s="vue">Au frais</pf-tag>
+                } @else {
+                  <pf-tag s="vue">Supporte jusqu'à {{ th.max_temp_c | number:'1.0-0' }} °C</pf-tag>
+                }
+              }
+            </div>
+            @if (r.item.expiry_level === 'expired') {
+              <p class="pf-cab-advice">Ne l'utilisez plus : rapportez-le à votre pharmacie pour qu'il soit détruit sans risque.</p>
+            } @else if (r.item.storage_location === 'car') {
+              <p class="pf-cab-advice">Une voiture au soleil devient vite trop chaude : rangez-le plutôt dans une pièce fraîche.</p>
+            }
+          </div>
+          <div class="pf-li-act tight">
+            @if (r.heat || r.item.expiring_soon) {
+              <button type="button" class="btn btn-ghost btn-sm" (click)="listen(r)" [disabled]="isBusy(r.item.id)" [attr.aria-label]="'Écouter l\'alerte pour ' + r.item.medicine.name"><nv-icon name="sound" [size]="16"/> Écouter</button>
+            }
+            @if (!r.item.opened && r.item.expiry_level !== 'expired') {
+              <button type="button" class="btn btn-outline btn-sm" (click)="markOpened(r.item)" [disabled]="isBusy(r.item.id)">Ouvert aujourd'hui</button>
+            }
+            <button type="button" class="btn btn-outline btn-sm" (click)="openEdit(r.item)" [disabled]="isBusy(r.item.id)">Modifier</button>
+            <button type="button" class="btn btn-ghost btn-sm btn-danger" (click)="toDelete.set(r.item)" [disabled]="isBusy(r.item.id)">Retirer</button>
+          </div>
+        </div>
+      }
+    }
+  }
+</div>
+
+<!-- ── Ajouter / modifier un médicament ─────────────────────── -->
+@if (form(); as f) {
+  <div class="pf-modal-overlay" (click)="form.set(null)">
+    <form class="pf-modal" (click)="$event.stopPropagation()" (submit)="saveItem(); $event.preventDefault()">
+      <div class="pf-modal-head">
+        <h2>{{ f.id === null ? 'Ajouter un médicament' : 'Modifier le médicament' }}</h2>
+        <button type="button" class="pf-modal-close" (click)="form.set(null)"><nv-icon name="x" [size]="20"/></button>
+      </div>
+      <div class="pf-modal-body">
+        <div class="s-field"><label>Médicament *</label>
+          <input required list="pf-cab-catalogue" autocomplete="off" placeholder="Tapez puis choisissez (ex : Paracétamol)"
+                 [value]="f.medicine" (input)="patchForm({ medicine: $any($event.target).value })"/>
+        </div>
+        <div class="pf-fieldrow">
+          <div class="s-field"><label>Pour qui ?</label>
+            <select [value]="f.member" (change)="patchForm({ member: $any($event.target).value })">
+              <option value="">Moi</option>
+              @for (m of members(); track m.id) { <option [value]="m.id" [selected]="f.member === '' + m.id">{{ m.name }} ({{ relationLabel(m.relationship).toLocaleLowerCase('fr') }})</option> }
+            </select>
+          </div>
+          <div class="s-field"><label>Date de péremption *</label>
+            <input type="date" required [value]="f.expiry" (input)="patchForm({ expiry: $any($event.target).value })"/>
+          </div>
+        </div>
+        <div class="pf-fieldrow">
+          <div class="s-field"><label>Où est-il rangé ? *</label>
+            <select [value]="f.storage" (change)="patchForm({ storage: $any($event.target).value })">
+              @for (s of storages; track s.id) { <option [value]="s.id" [selected]="f.storage === s.id">{{ s.label }}</option> }
+            </select>
+          </div>
+          <div class="s-field"><label>Ouvert le <span class="muted">(facultatif)</span></label>
+            <input type="date" [max]="today" [value]="f.openedAt" (input)="patchForm({ openedAt: $any($event.target).value })"/>
+          </div>
+        </div>
+        <p class="pf-cab-hint">{{ storageHint() }}</p>
+        @if (f.storage === 'fridge') {
+          <label class="pf-cab-check">
+            <input type="checkbox" class="pf-check" [checked]="f.powerCuts" (change)="patchForm({ powerCuts: $any($event.target).checked })"/>
+            Il y a souvent des coupures de courant chez moi
+          </label>
+        }
+        @if (formError(); as err) { <div class="pf-banner red" role="alert"><div class="pf-banner-body"><p>{{ err }}</p></div></div> }
+      </div>
+      <div class="pf-modal-foot">
+        <button type="button" class="btn btn-ghost btn-sm" (click)="form.set(null)">Annuler</button>
+        <button type="submit" class="btn btn-green btn-sm" [disabled]="saving()">{{ saving() ? 'Enregistrement…' : 'Enregistrer' }}</button>
+      </div>
+    </form>
+  </div>
+}
+
+<!-- ── Retirer un médicament ────────────────────────────────── -->
+@if (toDelete(); as d) {
+  <div class="pf-modal-overlay" (click)="toDelete.set(null)">
+    <div class="pf-modal" (click)="$event.stopPropagation()">
+      <div class="pf-modal-head">
+        <h2>Retirer {{ d.medicine.name }} ?</h2>
+        <button type="button" class="pf-modal-close" (click)="toDelete.set(null)"><nv-icon name="x" [size]="20"/></button>
+      </div>
+      <div class="pf-modal-body">
+        <p class="muted">Il ne sera plus suivi (péremption et chaleur). @if (d.expiry_level === 'expired') { Pensez à rapporter la boîte périmée à votre pharmacie. }</p>
+      </div>
+      <div class="pf-modal-foot">
+        <button type="button" class="btn btn-ghost btn-sm" (click)="toDelete.set(null)">Annuler</button>
+        <button type="button" class="btn btn-danger btn-sm" (click)="confirmDelete()" [disabled]="isBusy(d.id)">Retirer de l'armoire</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ── Proches ──────────────────────────────────────────────── -->
+@if (membersOpen()) {
+  <div class="pf-modal-overlay" (click)="membersOpen.set(false)">
+    <div class="pf-modal" (click)="$event.stopPropagation()">
+      <div class="pf-modal-head">
+        <h2>Mes proches</h2>
+        <button type="button" class="pf-modal-close" (click)="membersOpen.set(false)"><nv-icon name="x" [size]="20"/></button>
+      </div>
+      <div class="pf-modal-body">
+        <p class="muted pf-cab-intro">Les personnes dont vous gérez les médicaments : enfants, parents âgés…</p>
+        @for (m of members(); track m.id) {
+          <div class="pf-li pf-li-sm">
+            <span class="pf-liic blue"><nv-icon name="user" [size]="18"/></span>
+            <div class="pf-libody">
+              <strong>{{ m.name }}</strong>
+              <span>{{ relationLabel(m.relationship) }} · {{ plural(itemsByMember().get(m.id) ?? 0, 'médicament', 'médicaments') }}</span>
+            </div>
+            <div class="pf-li-act tight">
+              <button type="button" class="btn btn-ghost btn-sm" (click)="editMember(m)">Modifier</button>
+              <button type="button" class="btn btn-ghost btn-sm btn-danger" (click)="removeMember(m)" [disabled]="isBusy(-m.id) || (itemsByMember().get(m.id) ?? 0) > 0"
+                      [attr.title]="(itemsByMember().get(m.id) ?? 0) > 0 ? 'Retirez d\'abord ses médicaments de l\'armoire' : null">Retirer</button>
+            </div>
+          </div>
+        } @empty {
+          <div class="pf-note-sm">Aucun proche pour l'instant.</div>
+        }
+
+        @if (memberEdit(); as me) {
+          <div class="pf-cab-memberform">
+            <div class="pf-fieldrow">
+              <div class="s-field"><label>Prénom *</label>
+                <input required maxlength="100" placeholder="Ex : Awa" [value]="me.name" (input)="patchMember({ name: $any($event.target).value })"/>
+              </div>
+              <div class="s-field"><label>Lien *</label>
+                <select [value]="me.relationship" (change)="patchMember({ relationship: $any($event.target).value })">
+                  @for (r of relationships; track r.id) { <option [value]="r.id" [selected]="me.relationship === r.id">{{ r.label }}</option> }
+                </select>
+              </div>
+            </div>
+            <div class="pf-cab-memberact">
+              <button type="button" class="btn btn-ghost btn-sm" (click)="memberEdit.set(null)">Annuler</button>
+              <button type="button" class="btn btn-green btn-sm" (click)="saveMember()" [disabled]="saving()">{{ me.id === null ? 'Ajouter' : 'Enregistrer' }}</button>
+            </div>
+          </div>
+        }
+        @if (memberError(); as err) { <div class="pf-banner red" role="alert"><div class="pf-banner-body"><p>{{ err }}</p></div></div> }
+      </div>
+      <div class="pf-modal-foot">
+        <button type="button" class="btn btn-ghost btn-sm" (click)="membersOpen.set(false)">Fermer</button>
+        @if (!memberEdit()) { <button type="button" class="btn btn-green btn-sm" (click)="newMember()"><nv-icon name="plus" [size]="15"/> Ajouter un proche</button> }
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ── Localiser le domicile ────────────────────────────────── -->
+@if (locationOpen()) {
+  <div class="pf-modal-overlay" (click)="locationOpen.set(false)">
+    <div class="pf-modal" (click)="$event.stopPropagation()">
+      <div class="pf-modal-head">
+        <h2>Où se trouve votre domicile ?</h2>
+        <button type="button" class="pf-modal-close" (click)="locationOpen.set(false)"><nv-icon name="x" [size]="20"/></button>
+      </div>
+      <div class="pf-modal-body">
+        <p class="muted pf-cab-intro">Seule la météo de votre zone est utilisée, pour vous prévenir s'il fait trop chaud pour vos médicaments.</p>
+        <button type="button" class="btn btn-primary pf-cab-locate" (click)="useMyPosition()" [disabled]="locating()">
+          <nv-icon name="pin" [size]="16"/> {{ locating() ? 'Localisation…' : 'Utiliser ma position actuelle' }}
+        </button>
+        <div class="s-field"><label>Ou choisissez votre ville</label>
+          <select #city [disabled]="locating()" (change)="useCity(city.value)">
+            <option value="">Sélectionnez une ville</option>
+            @for (c of cities; track c.name) { <option [value]="c.name">{{ c.name }}</option> }
+          </select>
+        </div>
+      </div>
+      <div class="pf-modal-foot">
+        <button type="button" class="btn btn-ghost btn-sm" (click)="locationOpen.set(false)">Fermer</button>
+      </div>
+    </div>
+  </div>
+}
+
+<datalist id="pf-cab-catalogue">
+  @for (m of catalogue(); track m.id) { <option [value]="m.label"></option> }
+</datalist>

@@ -732,3 +732,60 @@ export interface ApiNotification {
 
 /** Réponse d'erreur Laravel (validation / métier). */
 export interface ApiErrorBody { message?: string; code?: string; errors?: Record<string, string[]>; }
+
+/* ── Armoire familiale (patient) ─────────────────────────────────── */
+
+export type CabinetStorage = 'fridge' | 'room' | 'bag' | 'car';
+export type FamilyRelationship = 'child' | 'parent' | 'spouse' | 'sibling' | 'grandparent' | 'other';
+
+/** GET /cabinet/members — proche du patient. */
+export interface ApiFamilyMember { id: number; name: string; relationship: FamilyRelationship; }
+
+/** GET /cabinet — médicament gardé à la maison (péremption : seuils domicile J-30 / J-7). */
+export interface ApiCabinetItem {
+  id: number;
+  member: ApiFamilyMember | null;
+  medicine: { id: number; name: string; brand: string | null; form: string | null; dosage: string | null; is_controlled: boolean };
+  expiry_date: string;
+  expiry_level: 'ok' | 'warn' | 'crit' | 'expired';
+  expiry_color: 'green' | 'orange' | 'red';
+  days_to_expiry: number;
+  expiring_soon: boolean;
+  expires_today: boolean;
+  storage_location: CabinetStorage;
+  storage_label: string;
+  fridge_power_cuts: boolean | null;
+  opened: boolean;
+  opened_at: string | null;
+}
+
+/** POST /cabinet, PUT /cabinet/{id}. */
+export interface CabinetItemPayload {
+  medicine_id: number;
+  family_member_id: number | null;
+  expiry_date: string;
+  storage_location: CabinetStorage;
+  fridge_power_cuts: boolean | null;
+  opened_at: string | null;
+}
+
+/** GET /cabinet/thermal-status — une ligne par médicament de l'armoire. */
+export interface ApiThermalItem {
+  id: number;
+  medicine: string | null;
+  max_temp_c: number;
+  requires_fridge: boolean;
+  current_temp: number | null;
+  at_risk: boolean;
+  hours_above_threshold: number | null;
+  last_alerted_at: string | null;
+  risk_note: string;
+}
+
+/** GET /cabinet/thermal-status (422 tant que le domicile n'est pas localisé). */
+export interface ApiThermalStatus {
+  current_temp_c: number | null;
+  location: { lat: number; lng: number };
+  items_at_risk: number;
+  data: ApiThermalItem[];
+}

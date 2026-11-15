@@ -29,6 +29,7 @@ export const NAV: Record<RoleId, NavItem[]> = {
   patient: [
     { id: 'search', label: 'Rechercher', icon: 'search' },
     { id: 'resa', label: 'Mes réservations', icon: 'cart', badge: 0 },
+    { id: 'cabinet', label: 'Armoire familiale', icon: 'home' },
     { id: 'phar', label: 'Pharmacies', icon: 'pin' },
     { id: 'profil', label: 'Mon profil', icon: 'user' },
   ],

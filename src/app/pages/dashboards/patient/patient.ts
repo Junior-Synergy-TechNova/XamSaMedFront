@@ -13,6 +13,7 @@ import { ApiGroupedSearch, ApiGroupedSearchStatus } from '../../../interfaces/ap
 import { PatientResults } from '../patient-results/patient-results';
 import { PatientPharmacies } from '../patient-pharmacies/patient-pharmacies';
 import { SimpleProfile } from '../profile/profile';
+import { PatientCabinet } from '../patient-cabinet/patient-cabinet';
 
 import { ModalA11y } from '../../../directives/modal-a11y/modal-a11y';
 import { FieldLabel } from '../../../directives/field-label/field-label';
@@ -23,7 +24,7 @@ import { DatePipe } from '@angular/common';
 @Component({
   selector: 'app-patient-dash',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ModalA11y, FieldLabel, Icon, Card, PageHead, Tag, PatientResults, PatientPharmacies, SimpleProfile, DatePipe],
+  imports: [ModalA11y, FieldLabel, Icon, Card, PageHead, Tag, PatientResults, PatientPharmacies, PatientCabinet, SimpleProfile, DatePipe],
   templateUrl: './patient.html',
   styleUrl: './patient.css',
 })
