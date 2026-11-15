@@ -31,6 +31,7 @@ export const NAV: Record<RoleId, NavItem[]> = {
     { id: 'resa', label: 'Mes réservations', icon: 'cart', badge: 0 },
     { id: 'cabinet', label: 'Armoire familiale', icon: 'home' },
     { id: 'phar', label: 'Pharmacies', icon: 'pin' },
+    { id: 'inond', label: 'Routes inondées', icon: 'cloud' },
     { id: 'profil', label: 'Mon profil', icon: 'user' },
   ],
   // Trois métiers : répondre aux patients (Comptoir), tenir le stock (Stock), gérer l'officine.

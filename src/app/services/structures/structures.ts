@@ -86,6 +86,9 @@ export function projectToBox(lat: number | string | null, lng: number | string |
   return { x: clamp(x), y: clamp(y) };
 }
 
+/** Officine positionnée (coordonnées réelles, pas la projection de la mini-carte). */
+export interface PharmacyPoint { id: number; name: string; city: string; point: GeoPoint }
+
 /** Accès aux structures (pharmacies / hôpitaux / distributeurs). */
 @Injectable({ providedIn: 'root' })
 export class StructureService {
@@ -97,6 +100,19 @@ export class StructureService {
     return this.http.get<{ data: ApiStructure[] }>(`${this.base}/pharmacies`).pipe(
       map(r => r.data.map(toPharmacy)),
       catchError(() => of([])),
+    );
+  }
+
+  /**
+   * GET /pharmacies → coordonnées réelles (carte des inondations). Les officines sans
+   * position sont écartées. L'erreur remonte : la page décide quoi afficher.
+   */
+  pharmacyPoints(): Observable<PharmacyPoint[]> {
+    return this.http.get<{ data: ApiStructure[] }>(`${this.base}/pharmacies`).pipe(
+      map(r => (r.data ?? []).flatMap(s => {
+        const point = toPoint(s.latitude, s.longitude);
+        return point ? [{ id: s.id, name: s.name, city: s.city ?? '', point }] : [];
+      })),
     );
   }
 

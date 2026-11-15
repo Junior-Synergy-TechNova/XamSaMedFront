@@ -123,6 +123,17 @@ export interface ApiAvailabilityRow {
   distance_label?: string | null;
   /** Renseigné quand l'appel fournit une position GPS (tri PostGIS côté API). */
   distance_metres?: number | string | null;
+  /** Score d'accessibilité (§15.4) : sert seulement au tri, jamais affiché ; null sans position. */
+  score?: number | null;
+  /** Raisons du classement, à afficher (« Stock mis à jour il y a 2 h », « À 0,8 km », « Inondation signalée… »). */
+  reasons?: string[];
+}
+
+/** GET /medicines/{id}/availability?lat=&lng=&qty=&sort=score */
+export interface ApiAvailabilityResponse {
+  data: ApiAvailabilityRow[];
+  /** gps = position envoyée, home = domicile enregistré, null = aucune position (pas de score). */
+  position_source?: 'gps' | 'home' | null;
 }
 export interface ApiStructure {
   id: number;
@@ -824,3 +835,30 @@ export interface ApiPharmacyThermalStatus {
   items_at_risk: number;
   data: ApiPharmacyThermalItem[];
 }
+
+/* ── Routes inondées (§15, GET/POST /flood-reports) ───────────────── */
+
+export type FloodSeverity = 'difficult' | 'very_difficult' | 'impassable';
+
+/** Signalement anonyme ; coordonnées arrondies à ~11 m. */
+export interface ApiFloodReport {
+  id: number;
+  latitude: number;
+  longitude: number;
+  severity: FloodSeverity;
+  severity_label: string;
+  /** active = signalé, confirmed = ≥ confirmations_required personnes, expired = sans confirmation depuis 6 h. */
+  status: 'active' | 'confirmed' | 'expired';
+  status_label: string;
+  confirmations: number;
+  confirmations_required: number;
+  reported_at: string;
+  last_confirmed_at: string;
+  expires_at: string;
+  /** Uniquement dans la liste autour d'un point. */
+  distance_metres?: number;
+  confirmed_by_me: boolean;
+}
+
+/** POST /flood-reports — merged = compté comme confirmation d'un signalement existant à moins de 200 m. */
+export interface ApiFloodReportCreated extends ApiFloodReport { merged: boolean; }

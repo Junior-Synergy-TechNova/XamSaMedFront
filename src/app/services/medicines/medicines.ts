@@ -2,9 +2,9 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, catchError, map, of } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { ApiAvailabilityRow, ApiGroupedSearchEquivalent, ApiMedicine, GlobalSearchResult } from '../../interfaces/api';
+import { ApiAvailabilityResponse, ApiAvailabilityRow, ApiGroupedSearchEquivalent, ApiMedicine, GlobalSearchResult } from '../../interfaces/api';
 import { AvailabilityRow, DispoState, Med } from '../../interfaces/models';
-import { REF, haversineKm, kmLabel, toPoint } from '../structures/structures';
+import { GeoPoint, REF, haversineKm, kmLabel, toPoint } from '../structures/structures';
 
 /** Référentiel médicaments + disponibilité (recherche patient). */
 @Injectable({ providedIn: 'root' })
@@ -62,6 +62,19 @@ export class MedicineService {
       catchError(() => of([])),
     );
   }
+
+  /**
+   * GET /medicines/{id}/availability?sort=score — classement par score d'accessibilité
+   * (disponibilité, fraîcheur du stock, distance, inondations confirmées). Sans `from`,
+   * l'API prend le domicile enregistré ; sans domicile, `position_source` est null et le score aussi.
+   */
+  rankedAvailability(medId: number, from: GeoPoint | null, qty = 1): Observable<{ rows: AvailabilityRow[]; positionSource: 'gps' | 'home' | null }> {
+    let params = new HttpParams().set('sort', 'score').set('qty', String(qty));
+    if (from) params = params.set('lat', from.lat.toFixed(5)).set('lng', from.lng.toFixed(5));
+    return this.http.get<ApiAvailabilityResponse>(`${this.base}/medicines/${medId}/availability`, { params }).pipe(
+      map(r => ({ rows: (r.data ?? []).map(toAvailabilityRow), positionSource: r.position_source ?? null })),
+    );
+  }
 }
 
 export function toMed(m: ApiMedicine): Med {
@@ -100,5 +113,7 @@ function toAvailabilityRow(r: ApiAvailabilityRow): AvailabilityRow {
     s: toDispoState(r.status),
     label: r.label,
     available: Number(r.available ?? 0),
+    score: typeof r.score === 'number' ? r.score : null,
+    reasons: r.reasons ?? [],
   };
 }

@@ -5,6 +5,8 @@ import { Icon } from '../../../components/icon/icon';
 import { Card } from '../../../components/card/card';
 import { Tag } from '../../../components/tag/tag';
 import { MedicineService } from '../../../services/medicines/medicines';
+import { GeoService } from '../../../services/geo/geo';
+import { PlatformState } from '../../../services/platform/platform';
 import { AvailabilityRow, Med } from '../../../interfaces/models';
 import { ApiGroupedSearchEquivalent } from '../../../interfaces/api';
 
@@ -20,6 +22,17 @@ function byAvailabilityThenDistance(a: AvailabilityRow, b: AvailabilityRow): num
   return s !== 0 ? s : (a.distKm ?? Infinity) - (b.distKm ?? Infinity);
 }
 
+/**
+ * Classement par score d'accessibilité (§15.4) : l'API a déjà trié par score ;
+ * on garde cet ordre et on renvoie seulement les ruptures en fin de liste.
+ */
+function byScore(a: AvailabilityRow, b: AvailabilityRow): number {
+  return Number(a.s === 'out') - Number(b.s === 'out') || (b.score ?? -1) - (a.score ?? -1);
+}
+
+/** Raison qui signale un accès gêné (inondation) : mise en avant dans la liste. */
+export function isFloodReason(reason: string): boolean { return reason.startsWith('Inondation'); }
+
 /* Résultats de recherche patient : points de disponibilité (API réelle). */
 @Component({
   selector: 'app-patient-results',
@@ -30,6 +43,8 @@ function byAvailabilityThenDistance(a: AvailabilityRow, b: AvailabilityRow): num
 })
 export class PatientResults {
   private readonly meds = inject(MedicineService);
+  private readonly platform = inject(PlatformState);
+  protected readonly geo = inject(GeoService);
 
   readonly med = input.required<Med>();
   readonly back = output<void>();
@@ -42,17 +57,26 @@ export class PatientResults {
   /** Équivalents proposés quand le médicament est indisponible partout (§6.1, §9). */
   readonly equivalents = signal<ApiGroupedSearchEquivalent[]>([]);
 
+  /** Position utilisée par le classement : gps, domicile enregistré, ou aucune (pas de score). */
+  readonly positionSource = signal<'gps' | 'home' | null>(null);
+  /** L'API a renvoyé des scores : la liste est classée par accessibilité, pas seulement par distance. */
+  readonly ranked = computed(() => this.rows().some(r => r.score !== null));
+  readonly isFloodReason = isFloodReason;
+
   readonly best = computed(() => this.rows().find(r => r.s !== 'out'));
   readonly availableCount = computed(() => this.rows().filter(r => r.s !== 'out').length);
 
   constructor() {
     // Rechargement à chaque changement de médicament ; switchMap annule la
     // requête précédente si l'utilisateur change de résultat rapidement.
-    toObservable(this.med).pipe(
+    // La position partagée relance aussi le classement.
+    const query = computed(() => ({ med: this.med(), at: this.geo.position() }));
+    toObservable(query).pipe(
       tap(() => this.loading.set(true)),
       tap(() => this.equivalents.set([])),
-      switchMap(m => this.meds.availability(Number(m.id)).pipe(
-        map(list => [...list].sort(byAvailabilityThenDistance)),
+      switchMap(({ med: m, at }) => this.meds.rankedAvailability(Number(m.id), at).pipe(
+        tap(r => this.positionSource.set(r.positionSource)),
+        map(r => [...r.rows].sort(r.rows.some(x => x.score !== null) ? byScore : byAvailabilityThenDistance)),
         catchError(() => of([] as AvailabilityRow[])),
         tap(rows => { this.rows.set(rows); this.loading.set(false); }),
         // Indisponibilité totale : on propose les équivalents classés.
@@ -72,5 +96,10 @@ export class PatientResults {
       cat: 'Équivalent thérapeutique',
     });
   }
+  /** Partager sa position : le classement est recalculé depuis l'endroit où l'on est. */
+  useMyPosition(): void {
+    this.geo.locate().catch(reason => this.platform.notify(GeoService.failureMessage(reason), 'alert'));
+  }
+
   plural(n: number, one: string, many: string): string { return `${n} ${n > 1 ? many : one}`; }
 }

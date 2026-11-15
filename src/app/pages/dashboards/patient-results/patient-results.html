@@ -13,9 +13,24 @@
         @if (best(); as b) {
           <div class="pf-banner green pf-banner-best">
             <span class="pf-bannic"><nv-icon name="pin" [size]="22"/></span>
-            <div><strong>Pharmacie la plus proche disponible</strong><p>{{ b.pharmacy }} · {{ b.city }} · {{ b.dist }}</p></div>
+            <div class="pf-banner-body">
+              <strong>{{ ranked() ? 'Pharmacie la plus accessible' : 'Pharmacie la plus proche disponible' }}</strong>
+              <p>{{ b.pharmacy }} · {{ b.city }} · {{ b.dist }}</p>
+              @if (ranked() && b.reasons.length) { <p class="pf-res-why">{{ b.reasons.join(' · ') }}</p> }
+            </div>
             <button class="btn btn-white" (click)="reserve.emit(b.structureId)">Réserver ici</button>
           </div>
+        }
+
+        @if (!loading() && rows().length > 0) {
+          @if (positionSource() === null) {
+            <div class="pf-res-geo">
+              <span>Partagez votre position pour classer les pharmacies selon l'accès : distance, stock à jour, routes inondées.</span>
+              <button type="button" class="btn btn-outline btn-sm" (click)="useMyPosition()" [disabled]="geo.locating()"><nv-icon name="pin" [size]="15"/> {{ geo.locating() ? 'Localisation…' : 'Utiliser ma position' }}</button>
+            </div>
+          } @else if (ranked()) {
+            <p class="pf-res-rankinfo">Classées par accessibilité depuis {{ positionSource() === 'gps' ? 'votre position' : 'votre domicile' }} : stock disponible, mise à jour récente du stock, distance et inondations confirmées à proximité.</p>
+          }
         }
 
         @if (!loading() && availableCount() === 0) {
@@ -52,7 +67,16 @@
           @for (d of rows(); track d.structureId) {
             <div class="pf-li">
               <span class="pf-liic {{ d.s === 'ok' ? 'green' : d.s === 'low' ? 'amber' : 'red' }}"><nv-icon name="pin" [size]="18"/></span>
-              <div class="pf-libody"><strong>{{ d.pharmacy }}</strong><span>{{ d.city }} · {{ d.dist }} · {{ d.phone }}</span></div>
+              <div class="pf-libody">
+                <strong>{{ d.pharmacy }}</strong><span>{{ d.city }} · {{ d.dist }} · {{ d.phone }}</span>
+                @if (d.reasons.length) {
+                  <div class="pf-res-reasons">
+                    @for (why of d.reasons; track why) {
+                      <span class="chip" [class.chip-amber]="isFloodReason(why)" [class.chip-gray]="!isFloodReason(why)">{{ why }}</span>
+                    }
+                  </div>
+                }
+              </div>
               <div class="pf-li-act">
                 <pf-tag [s]="d.s">{{ d.label }}</pf-tag>
                 <button class="btn btn-green btn-sm" [disabled]="d.s === 'out'" (click)="reserve.emit(d.structureId)">{{ d.s === 'out' ? 'Indisponible' : 'Réserver' }}</button>

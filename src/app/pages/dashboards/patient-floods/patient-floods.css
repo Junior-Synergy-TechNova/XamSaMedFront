@@ -1,0 +1,35 @@
+@reference "../../../../styles.css";
+/* ===================== PATIENT — routes inondées ===================== */
+:host { @apply contents; }
+
+/* Position + rayon */
+.pf-fl-bar { @apply flex flex-wrap items-center justify-between gap-x-6 gap-y-3 mb-6; }
+.pf-fl-where { @apply flex flex-wrap items-center gap-2.5 text-[15px] text-black; }
+.pf-fl-where nv-icon { @apply text-blue; }
+.pf-fl-radius { @apply flex gap-2; }
+
+/* Légende sous la carte */
+.pf-fl-legend { @apply flex flex-wrap gap-x-5 gap-y-2 mt-4 text-[13.5px] text-gray-text; }
+.pf-fl-legend span { @apply inline-flex items-center gap-2; }
+.pf-fl-dot { @apply inline-block w-3 h-3 rounded-full; }
+.pf-fl-dot.red { @apply bg-red; }
+.pf-fl-dot.orange { @apply bg-amber-text; }
+.pf-fl-dot.amber { @apply bg-amber; }
+.pf-fl-dot.dashed { @apply bg-amber/50 border border-dashed border-amber-text; }
+.pf-fl-dot.green { @apply bg-green; }
+.pf-fl-dot.gray { @apply bg-gray-text; }
+
+/* Liste des signalements */
+.pf-fl-row { @apply transition-colors duration-150; }
+.pf-fl-row.on { @apply border-blue bg-blue-soft-2; }
+.pf-fl-tags { @apply flex flex-wrap gap-2 mt-3; }
+
+.pf-fl-intro { @apply mb-5 text-[14.5px] leading-relaxed; }
+.pf-fl-sev { @apply flex flex-col gap-2.5; }
+.pf-fl-sev .pf-li { @apply mt-0; }
+.pf-fl-foot { @apply text-[13.5px] leading-relaxed mt-2; }
+
+@media (max-width: 640px) {
+  .pf-fl-row { @apply flex-wrap; }
+  .pf-fl-row .pf-li-act { @apply basis-full justify-start; }
+}

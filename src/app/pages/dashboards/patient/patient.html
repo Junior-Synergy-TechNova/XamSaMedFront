@@ -115,6 +115,8 @@
 
       @case ('phar') { <app-patient-pharmacies/> }
 
+      @case ('inond') { <app-patient-floods/> }
+
       @case ('profil') {
         <app-simple-profile role="patient" title="Mon profil" [name]="auth.user()?.name || 'Mon Profil'" sub="Patiente / Accompagnante" [fields]="profilFields()"/>
       }
