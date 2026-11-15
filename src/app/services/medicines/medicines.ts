@@ -31,13 +31,14 @@ export class MedicineService {
   }
 
   /** GET /medicines → catalogue complet (pour les listes déroulantes). */
-  list(): Observable<{ id: number; name: string; label: string }[]> {
+  list(): Observable<{ id: number; name: string; label: string; dci: string | null }[]> {
     const params = new HttpParams().set('per_page', '200');
     return this.http.get<{ data: ApiMedicine[] }>(`${this.base}/medicines`, { params }).pipe(
       map(r => (r.data ?? []).map(m => ({
         id: Number(m.id),
         name: m.name,
         label: m.dosage ? `${m.name} — ${m.dosage}${m.form ? ' (' + m.form + ')' : ''}` : m.name,
+        dci: m.dci?.trim() || null,
       }))),
       catchError(() => of([])),
     );
