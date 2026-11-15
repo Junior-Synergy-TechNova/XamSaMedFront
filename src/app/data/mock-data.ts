@@ -42,6 +42,7 @@ export const NAV: Record<RoleId, NavItem[]> = {
     { id: 'ventes', label: 'Ventes & comptabilité', icon: 'cart', group: 'Comptoir' },
     { id: 'stock', label: 'Gestion de stock', icon: 'box', group: 'Stock' },
     { id: 'alert', label: 'Alertes de seuil', icon: 'alert', group: 'Stock' },
+    { id: 'thermique', label: 'Conservation thermique', icon: 'thermo', group: 'Stock' },
     { id: 'recep', label: 'Réceptions', icon: 'truck', group: 'Stock' },
     { id: 'history', label: 'Historique', icon: 'clock', group: 'Stock' },
     { id: 'res', label: 'Réseau', icon: 'link', group: 'Officine' },

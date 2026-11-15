@@ -22,6 +22,7 @@ import {
   ApiErrorBody, ApiGroupedAlert, ApiPrescription, ApiPrescriptionLine, ApiProcessLine, ApiRestockRequest, ApiSale, ApiSalesStats, ApiStockMovement, ApiSupplier,
 } from '../../../interfaces/api';
 import { PharmaDemandes } from '../pharma-demandes/pharma-demandes';
+import { PharmaThermal } from '../pharma-thermal/pharma-thermal';
 import { SimpleProfile } from '../profile/profile';
 
 import { ModalA11y } from '../../../directives/modal-a11y/modal-a11y';
@@ -81,7 +82,7 @@ const EMPTY_SET: ReadonlySet<number> = new Set<number>();
 @Component({
   selector: 'app-pharma-dash',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ModalA11y, FieldLabel, TableLabels, Icon, Card, PageHead, Stat, Bar, Tag, PharmaDemandes, SimpleProfile, PartnersPanel, IncomingDeliveries, ExpiryTag, DatePipe, DecimalPipe, NgTemplateOutlet],
+  imports: [ModalA11y, FieldLabel, TableLabels, Icon, Card, PageHead, Stat, Bar, Tag, PharmaDemandes, PharmaThermal, SimpleProfile, PartnersPanel, IncomingDeliveries, ExpiryTag, DatePipe, DecimalPipe, NgTemplateOutlet],
   templateUrl: './pharma.html',
   styleUrl: './pharma.css',
   host: {

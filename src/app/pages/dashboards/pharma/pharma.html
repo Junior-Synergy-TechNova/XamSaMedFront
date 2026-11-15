@@ -259,6 +259,7 @@
         </div>
       }
 
+      @case ('thermique') { <app-pharma-thermal/> }
       @case ('dem') { <app-pharma-demandes [demandes]="demandes()" (changed)="onDemandesChanged()"/> }
 
       @case ('grouped') {

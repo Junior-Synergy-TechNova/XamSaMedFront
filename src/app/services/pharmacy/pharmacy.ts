@@ -3,7 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, catchError, map, of } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
-  ApiDemande, ApiGroupedAlert, ApiPrescription, ApiProcessLine, ApiRestockRequest, ApiSale, ApiSalesStats, ApiStockMovement, ApiStockRow, NewSaleLine,
+  ApiDemande, ApiGroupedAlert, ApiPharmacyThermalStatus, ApiPrescription, ApiProcessLine, ApiRestockRequest, ApiSale, ApiSalesStats, ApiStockMovement, ApiStockRow, NewSaleLine,
 } from '../../interfaces/api';
 import { DemandeRow, StockRow, StockState } from '../../interfaces/models';
 import { formatWhen } from '../orders/orders';
@@ -102,6 +102,15 @@ export class PharmacyService {
   }
 
   // ── Module Vente & Comptabilité (offre Pro) ──────────────────
+
+  /**
+   * GET /pharmacy/thermal-status — température de la zone de l'officine comparée au
+   * maximum de conservation de chaque médicament en stock. Les erreurs remontent
+   * (404 tant que l'endpoint n'existe pas, 422 sans position de l'officine).
+   */
+  thermalStatus(): Observable<ApiPharmacyThermalStatus> {
+    return this.http.get<ApiPharmacyThermalStatus>(`${this.base}/pharmacy/thermal-status`);
+  }
 
   /** GET /pharmacy/sales?from=&to= */
   sales(from?: string, to?: string): Observable<ApiSale[]> {

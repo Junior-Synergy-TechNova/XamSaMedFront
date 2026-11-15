@@ -789,3 +789,38 @@ export interface ApiThermalStatus {
   items_at_risk: number;
   data: ApiThermalItem[];
 }
+
+/* ── Conservation thermique (pharmacie) ──────────────────────────────
+   Contrat de GET /pharmacy/thermal-status — endpoint à implémenter côté
+   backend (réutilise ThermalChecker::getCurrentTemp + medicine_storage_rules).
+   422 { message } tant que la structure n'a pas de latitude / longitude. */
+
+/** Une ligne de stock (quantité > 0) dont le médicament a une règle de conservation. */
+export interface ApiPharmacyThermalItem {
+  stock_id: number;
+  medicine_id: number;
+  medicine: string;
+  dosage: string | null;
+  form: string | null;
+  /** Unités disponibles (quantité − réservé). */
+  quantity: number;
+  /** `fridge` = requires_fridge (2–8 °C, non comparé à la météo) ; `room` sinon. */
+  storage: 'fridge' | 'room';
+  max_temp_c: number;
+  min_temp_c: number | null;
+  /** room : current_temp_c > max_temp_c ; fridge : toujours false. */
+  at_risk: boolean;
+  /** notice | ARP | OMS */
+  source: string | null;
+  /** Règle validée par un pharmacien (`validated_by` renseigné). */
+  validated: boolean;
+}
+
+export interface ApiPharmacyThermalStatus {
+  /** Température extérieure (OpenWeatherMap) à la position de l'officine ; null si la météo ne répond pas. */
+  current_temp_c: number | null;
+  checked_at: string;
+  location: { lat: number; lng: number };
+  items_at_risk: number;
+  data: ApiPharmacyThermalItem[];
+}
