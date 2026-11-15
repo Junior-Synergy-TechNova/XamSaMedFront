@@ -1,0 +1,27 @@
+@import "leaflet/dist/leaflet.css";
+@reference "../../../styles.css";
+/* ===================== Carte des routes inondées (Leaflet) =====================
+   Encapsulation désactivée : toutes les règles sont préfixées pf-fm-. */
+pf-flood-map { @apply block; }
+.pf-fm-wrap { @apply relative; }
+.pf-fm-box { @apply h-[420px] max-[760px]:h-[320px] w-full rounded-md border border-gray-line overflow-hidden bg-gray-bg z-0; }
+.pf-fm-failed { @apply absolute inset-0 grid place-items-center p-6 text-center text-[14px] text-gray-text bg-gray-bg rounded-md; }
+
+/* Zone recherchée */
+.pf-fm-area { @apply stroke-blue fill-blue/5 [stroke-dasharray:6_6] [stroke-width:1.5]; }
+/* Zone de 500 m autour d'une inondation confirmée (pénalise les pharmacies du score) */
+.pf-fm-zone { @apply stroke-red/40 fill-red/10 [stroke-width:1]; }
+
+/* Signalements : couleur = gravité ; pointillés = pas encore confirmé */
+.pf-fm-flood { @apply stroke-white [stroke-width:2.5] fill-amber [fill-opacity:.95] cursor-pointer; }
+.pf-fm-very_difficult { @apply fill-amber-text; }
+.pf-fm-impassable { @apply fill-red; }
+.pf-fm-unconfirmed { @apply [fill-opacity:.55] [stroke-dasharray:3_3]; }
+.pf-fm-selected { @apply stroke-blue [stroke-width:3.5]; }
+
+/* Officines et position */
+.pf-fm-pharm { @apply stroke-white [stroke-width:2] fill-green [fill-opacity:1]; }
+.pf-fm-pharm-hit { @apply fill-gray-text; }
+.pf-fm-me { @apply stroke-white [stroke-width:3] fill-blue [fill-opacity:1]; }
+
+.pf-fm-box .leaflet-tooltip { @apply font-body text-[13px]; }

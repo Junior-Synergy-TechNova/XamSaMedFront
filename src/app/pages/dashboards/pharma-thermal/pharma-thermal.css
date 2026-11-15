@@ -1,0 +1,10 @@
+@reference "../../../../styles.css";
+/* ===================== PHARMACIEN — conservation thermique ===================== */
+:host { @apply contents; }
+
+/* Tableau : défile dans la carte si trop large sur ordinateur */
+.pf-th-scroll { @apply overflow-x-auto; }
+.pf-th-near { @apply text-amber-text font-semibold; }
+
+.pf-th-note { @apply mb-5; }
+.pf-th-foot { @apply text-[13.5px] leading-relaxed mt-2; }

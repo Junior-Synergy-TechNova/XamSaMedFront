@@ -46,7 +46,11 @@ export interface Feature { role: string; icon: string; color: 'green' | 'blue'; 
  * (patient ou officine qui oriente) ; `distKm` est la distance retenue (km,
  * null si coordonnées inconnues) et `dist` son libellé affiché.
  */
-export interface AvailabilityRow { structureId: number; pharmacy: string; city: string; phone: string; lat: number | null; lng: number | null; distKm: number | null; dist: string; s: DispoState; label: string; available: number; }
+export interface AvailabilityRow { structureId: number; pharmacy: string; city: string; phone: string; lat: number | null; lng: number | null; distKm: number | null; dist: string; s: DispoState; label: string; available: number;
+  /** Score d'accessibilité (tri uniquement) ; null sans position ou si l'API ne le calcule pas. */
+  score: number | null;
+  /** Raisons du classement affichées au patient. */
+  reasons: string[]; }
 export interface ResaRow {
   orderId: number; medName: string; pharmacyName: string; statut: string; quand: string; s: DispoState; status: string;
   /** Ordonnance multi-lignes : ce qui est prêt ici, orienté ailleurs, ou à accepter. */

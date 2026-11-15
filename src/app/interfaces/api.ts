@@ -123,6 +123,17 @@ export interface ApiAvailabilityRow {
   distance_label?: string | null;
   /** Renseigné quand l'appel fournit une position GPS (tri PostGIS côté API). */
   distance_metres?: number | string | null;
+  /** Score d'accessibilité (§15.4) : sert seulement au tri, jamais affiché ; null sans position. */
+  score?: number | null;
+  /** Raisons du classement, à afficher (« Stock mis à jour il y a 2 h », « À 0,8 km », « Inondation signalée… »). */
+  reasons?: string[];
+}
+
+/** GET /medicines/{id}/availability?lat=&lng=&qty=&sort=score */
+export interface ApiAvailabilityResponse {
+  data: ApiAvailabilityRow[];
+  /** gps = position envoyée, home = domicile enregistré, null = aucune position (pas de score). */
+  position_source?: 'gps' | 'home' | null;
 }
 export interface ApiStructure {
   id: number;
@@ -490,6 +501,10 @@ export interface ApiPrescription {
   expires_at?: string | null;
   rejection_reason?: string | null;
   lines?: ApiPrescriptionLine[];
+  /** Nombre d'AUTRES envois du même fichier (toutes pharmacies, tous comptes) — information seulement. */
+  photo_deja_envoyee?: number;
+  /** Rappel à afficher au pharmacien (vérifier l'original au retrait). */
+  rappel_controle?: string | null;
 }
 
 /** GET /pharmacy/stock/{stock}/movements — ligne de traçabilité. */
@@ -732,3 +747,122 @@ export interface ApiNotification {
 
 /** Réponse d'erreur Laravel (validation / métier). */
 export interface ApiErrorBody { message?: string; code?: string; errors?: Record<string, string[]>; }
+
+/* ── Armoire familiale (patient) ─────────────────────────────────── */
+
+export type CabinetStorage = 'fridge' | 'room' | 'bag' | 'car';
+export type FamilyRelationship = 'child' | 'parent' | 'spouse' | 'sibling' | 'grandparent' | 'other';
+
+/** GET /cabinet/members — proche du patient. */
+export interface ApiFamilyMember { id: number; name: string; relationship: FamilyRelationship; }
+
+/** GET /cabinet — médicament gardé à la maison (péremption : seuils domicile J-30 / J-7). */
+export interface ApiCabinetItem {
+  id: number;
+  member: ApiFamilyMember | null;
+  medicine: { id: number; name: string; brand: string | null; form: string | null; dosage: string | null; is_controlled: boolean };
+  expiry_date: string;
+  expiry_level: 'ok' | 'warn' | 'crit' | 'expired';
+  expiry_color: 'green' | 'orange' | 'red';
+  days_to_expiry: number;
+  expiring_soon: boolean;
+  expires_today: boolean;
+  storage_location: CabinetStorage;
+  storage_label: string;
+  fridge_power_cuts: boolean | null;
+  opened: boolean;
+  opened_at: string | null;
+}
+
+/** POST /cabinet, PUT /cabinet/{id}. */
+export interface CabinetItemPayload {
+  medicine_id: number;
+  family_member_id: number | null;
+  expiry_date: string;
+  storage_location: CabinetStorage;
+  fridge_power_cuts: boolean | null;
+  opened_at: string | null;
+}
+
+/** GET /cabinet/thermal-status — une ligne par médicament de l'armoire. */
+export interface ApiThermalItem {
+  id: number;
+  medicine: string | null;
+  max_temp_c: number;
+  requires_fridge: boolean;
+  current_temp: number | null;
+  at_risk: boolean;
+  hours_above_threshold: number | null;
+  last_alerted_at: string | null;
+  risk_note: string;
+}
+
+/** GET /cabinet/thermal-status (422 tant que le domicile n'est pas localisé). */
+export interface ApiThermalStatus {
+  current_temp_c: number | null;
+  location: { lat: number; lng: number };
+  items_at_risk: number;
+  data: ApiThermalItem[];
+}
+
+/* ── Conservation thermique (pharmacie) ──────────────────────────────
+   Contrat de GET /pharmacy/thermal-status — endpoint à implémenter côté
+   backend (réutilise ThermalChecker::getCurrentTemp + medicine_storage_rules).
+   422 { message } tant que la structure n'a pas de latitude / longitude. */
+
+/** Une ligne de stock (quantité > 0) dont le médicament a une règle de conservation. */
+export interface ApiPharmacyThermalItem {
+  stock_id: number;
+  medicine_id: number;
+  medicine: string;
+  dosage: string | null;
+  form: string | null;
+  /** Unités disponibles (quantité − réservé). */
+  quantity: number;
+  /** `fridge` = requires_fridge (2–8 °C, non comparé à la météo) ; `room` sinon. */
+  storage: 'fridge' | 'room';
+  max_temp_c: number;
+  min_temp_c: number | null;
+  /** room : current_temp_c > max_temp_c ; fridge : toujours false. */
+  at_risk: boolean;
+  /** notice | ARP | OMS */
+  source: string | null;
+  /** Règle validée par un pharmacien (`validated_by` renseigné). */
+  validated: boolean;
+}
+
+export interface ApiPharmacyThermalStatus {
+  /** Température extérieure (OpenWeatherMap) à la position de l'officine ; null si la météo ne répond pas. */
+  current_temp_c: number | null;
+  checked_at: string;
+  location: { lat: number; lng: number };
+  items_at_risk: number;
+  data: ApiPharmacyThermalItem[];
+}
+
+/* ── Routes inondées (§15, GET/POST /flood-reports) ───────────────── */
+
+export type FloodSeverity = 'difficult' | 'very_difficult' | 'impassable';
+
+/** Signalement anonyme ; coordonnées arrondies à ~11 m. */
+export interface ApiFloodReport {
+  id: number;
+  latitude: number;
+  longitude: number;
+  severity: FloodSeverity;
+  severity_label: string;
+  /** active = signalé, confirmed = ≥ confirmations_required personnes, expired = sans confirmation depuis 6 h. */
+  status: 'active' | 'confirmed' | 'expired';
+  status_label: string;
+  confirmations: number;
+  confirmations_required: number;
+  reported_at: string;
+  last_confirmed_at: string;
+  expires_at: string;
+  /** Uniquement dans la liste autour d'un point. */
+  distance_metres?: number;
+  confirmed_by_me: boolean;
+}
+
+/** POST /flood-reports — merged = compté comme confirmation d'un signalement existant à moins de 200 m. */
+export interface ApiFloodReportCreated extends ApiFloodReport { merged: boolean; }

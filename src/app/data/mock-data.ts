@@ -29,7 +29,9 @@ export const NAV: Record<RoleId, NavItem[]> = {
   patient: [
     { id: 'search', label: 'Rechercher', icon: 'search' },
     { id: 'resa', label: 'Mes réservations', icon: 'cart', badge: 0 },
+    { id: 'cabinet', label: 'Armoire familiale', icon: 'home' },
     { id: 'phar', label: 'Pharmacies', icon: 'pin' },
+    { id: 'inond', label: 'Routes inondées', icon: 'cloud' },
     { id: 'profil', label: 'Mon profil', icon: 'user' },
   ],
   // Trois métiers : répondre aux patients (Comptoir), tenir le stock (Stock), gérer l'officine.
@@ -41,6 +43,7 @@ export const NAV: Record<RoleId, NavItem[]> = {
     { id: 'ventes', label: 'Ventes & comptabilité', icon: 'cart', group: 'Comptoir' },
     { id: 'stock', label: 'Gestion de stock', icon: 'box', group: 'Stock' },
     { id: 'alert', label: 'Alertes de seuil', icon: 'alert', group: 'Stock' },
+    { id: 'thermique', label: 'Conservation thermique', icon: 'thermo', group: 'Stock' },
     { id: 'recep', label: 'Réceptions', icon: 'truck', group: 'Stock' },
     { id: 'history', label: 'Historique', icon: 'clock', group: 'Stock' },
     { id: 'res', label: 'Réseau', icon: 'link', group: 'Officine' },
