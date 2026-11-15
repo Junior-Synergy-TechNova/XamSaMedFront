@@ -11,6 +11,12 @@ import { formatWhen } from '../orders/orders';
 /** Ventes chargées par page dans le journal (« Afficher les ventes plus anciennes » charge la suivante). */
 export const SALES_PER_PAGE = 50;
 
+/** Ordonnances chargées par page (« Afficher les ordonnances plus anciennes » charge la suivante). */
+export const PRESCRIPTIONS_PER_PAGE = 50;
+
+/** Une page d'ordonnances reçues. */
+export interface PrescriptionPage { data: ApiPrescription[]; page: number; lastPage: number; total: number; }
+
 /** Une page du journal des ventes. */
 export interface SalesPage { data: ApiSale[]; page: number; lastPage: number; total: number; }
 
@@ -56,10 +62,16 @@ export class PharmacyService {
     return this.http.post(`${this.base}/pharmacy/demandes/${id}/collect`, {});
   }
 
-  /** GET /pharmacy/prescriptions — ordonnances numériques reçues. */
-  prescriptions(): Observable<ApiPrescription[]> {
-    return this.http.get<{ data: ApiPrescription[] }>(`${this.base}/pharmacy/prescriptions`).pipe(
-      map(r => r.data ?? []),
+  /** GET /pharmacy/prescriptions?page= — ordonnances numériques reçues, les plus récentes d'abord. */
+  prescriptions(page = 1): Observable<PrescriptionPage> {
+    const params = new HttpParams().set('per_page', String(PRESCRIPTIONS_PER_PAGE)).set('page', String(page));
+    return this.http.get<{ data: ApiPrescription[]; pagination?: { total: number; current_page: number; last_page: number } }>(`${this.base}/pharmacy/prescriptions`, { params }).pipe(
+      map(r => ({
+        data: r.data ?? [],
+        page: r.pagination?.current_page ?? page,
+        lastPage: r.pagination?.last_page ?? page,
+        total: r.pagination?.total ?? (r.data ?? []).length,
+      })),
     );
   }
 

@@ -106,6 +106,11 @@ tr:nth-last-child(-n+2):not(:nth-child(-n+2)) .pf-moremenu { @apply top-auto bot
 .pf-ordo-summary { @apply mr-auto text-[14px] text-gray-text; }
 .pf-ordo-done { @apply flex flex-col gap-1.5 mt-2.5 m-0 p-0 list-none; }
 .pf-ordo-done li { @apply flex flex-wrap items-center gap-2 text-[14px]; }
+.pf-ordo-filters { @apply flex flex-wrap gap-2 mb-5; }
+.pf-ordo-reuse { @apply flex items-start gap-2.5 mt-3 px-4 py-3 rounded-[10px] bg-amber-soft text-amber-text text-[14px] leading-snug; }
+.pf-ordo-reuse nv-icon { @apply flex-none mt-0.5; }
+.pf-ordo-reuse strong { @apply font-semibold; }
+.pf-ordo-more { @apply flex justify-center pt-5; }
 @media (max-width: 640px) {
   .pf-ordo-line-head { @apply grid-cols-[minmax(0,1fr)_76px_auto]; }
   .pf-ordo-num { @apply hidden; }

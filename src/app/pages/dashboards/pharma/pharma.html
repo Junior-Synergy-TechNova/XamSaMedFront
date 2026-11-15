@@ -496,18 +496,32 @@
 
       @case ('ordo') {
         <div>
-          <pf-page-head title="Ordonnances reçues" sub="Envoyées par les patients depuis leur espace."/>
+          <pf-page-head title="Ordonnances reçues" sub="Envoyées par les patients depuis leur espace. Vérifiez toujours l'original au retrait."/>
+          <div class="pf-ordo-filters" role="group" aria-label="Filtrer les ordonnances">
+            <button type="button" class="btn btn-sm" [class.btn-primary]="ordoFilter() === 'all'" [class.btn-outline]="ordoFilter() !== 'all'" [attr.aria-pressed]="ordoFilter() === 'all'" (click)="ordoFilter.set('all')">Toutes ({{ ordoCounts().all }})</button>
+            <button type="button" class="btn btn-sm" [class.btn-primary]="ordoFilter() === 'pending'" [class.btn-outline]="ordoFilter() !== 'pending'" [attr.aria-pressed]="ordoFilter() === 'pending'" (click)="ordoFilter.set('pending')">À traiter ({{ ordoCounts().pending }})</button>
+            <button type="button" class="btn btn-sm" [class.btn-primary]="ordoFilter() === 'confirmed'" [class.btn-outline]="ordoFilter() !== 'confirmed'" [attr.aria-pressed]="ordoFilter() === 'confirmed'" (click)="ordoFilter.set('confirmed')">Prêtes au retrait ({{ ordoCounts().confirmed }})</button>
+            <button type="button" class="btn btn-sm" [class.btn-primary]="ordoFilter() === 'done'" [class.btn-outline]="ordoFilter() !== 'done'" [attr.aria-pressed]="ordoFilter() === 'done'" (click)="ordoFilter.set('done')">Terminées ({{ ordoCounts().done }})</button>
+          </div>
           <pf-card>
           @if (prescriptions().length === 0) {
             <div class="pf-empty"><nv-icon name="doc" [size]="28" color="var(--color-gray)"/><p>Aucune ordonnance reçue. Les patients peuvent vous en envoyer depuis leur espace.</p></div>
+          } @else if (visiblePrescriptions().length === 0) {
+            <div class="pf-empty"><p>Aucune ordonnance dans cette catégorie.</p><button type="button" class="btn btn-outline btn-sm" (click)="ordoFilter.set('all')">Tout afficher</button></div>
           }
-          @for (o of prescriptions(); track o.id) {
+          @for (o of visiblePrescriptions(); track o.id) {
               <div class="pf-row pf-rowline">
                 <span class="pf-liic {{ ordoTile(o.status) }}"><nv-icon name="doc" [size]="18"/></span>
                 <div class="pf-row-body">
                   <div class="pf-medname">{{ o.patient || 'Patient' }}</div>
                   <p class="muted pf-row-sub">{{ o.phone || 'Téléphone non communiqué' }}{{ o.submitted_at ? ' · reçue le ' + dayMonth(o.submitted_at) : '' }}</p>
                   <p class="pf-row-sub pf-patientnote">{{ patientNote(o) }}</p>
+                  @if ((o.photo_deja_envoyee ?? 0) > 0 && (o.status === 'pending' || o.status === 'confirmed')) {
+                    <div class="pf-ordo-reuse" role="note">
+                      <nv-icon name="alert" [size]="16"/>
+                      <span><strong>Même photo déjà envoyée {{ reuseLabel(o.photo_deja_envoyee ?? 0) }}</strong> (ailleurs ou pour une autre demande). {{ o.rappel_controle || defaultReuseReminder }}</span>
+                    </div>
+                  }
                   @if (o.lines?.length) {
                     <ul class="pf-ordo-done">
                       @for (l of o.lines; track l.id) {
@@ -516,7 +530,7 @@
                     </ul>
                   }
                   @if (o.status === 'cancelled' && o.rejection_reason) { <p class="pf-row-sub muted">Motif envoyé au patient : {{ o.rejection_reason }}</p> }
-                  @if (o.status === 'confirmed' && o.expires_at) { <p class="pf-row-sub muted">À retirer avant le {{ o.expires_at | date:'d MMMM, HH:mm' }}</p> }
+                  @if (o.status === 'confirmed' && o.expires_at) { <p class="pf-row-sub muted">À retirer avant le {{ o.expires_at | date:'d MMMM, HH:mm' }} — demandez l'ordonnance originale.</p> }
                 </div>
                 <div class="pf-li-act">
                   @if (o.status === 'pending') {
@@ -531,6 +545,13 @@
                   }
                 </div>
               </div>
+          }
+          @if (ordoRemaining() > 0) {
+            <div class="pf-ordo-more">
+              <button type="button" class="btn btn-outline btn-sm" (click)="moreOrdo()" [disabled]="ordoMoreLoading()">
+                {{ ordoMoreLoading() ? 'Chargement…' : 'Afficher les ordonnances plus anciennes (' + plural(ordoRemaining(), 'restante', 'restantes') + ')' }}
+              </button>
+            </div>
           }
           </pf-card>
         </div>

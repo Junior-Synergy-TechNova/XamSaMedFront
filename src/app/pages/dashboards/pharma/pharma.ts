@@ -230,6 +230,27 @@ export class PharmaDash {
 
   // Ordonnances numériques reçues
   readonly prescriptions = signal<ApiPrescription[]>([]);
+  readonly ordoPage = signal(1);
+  readonly ordoLastPage = signal(1);
+  readonly ordoTotal = signal(0);
+  readonly ordoMoreLoading = signal(false);
+  readonly ordoRemaining = computed(() => Math.max(0, this.ordoTotal() - this.prescriptions().length));
+  /** Filtre de la liste : à traiter, prêtes au retrait, terminées (retirées, orientées, refusées). */
+  readonly ordoFilter = signal<'all' | 'pending' | 'confirmed' | 'done'>('all');
+  readonly ordoCounts = computed(() => {
+    const list = this.prescriptions();
+    const pending = list.filter(p => p.status === 'pending').length;
+    const confirmed = list.filter(p => p.status === 'confirmed').length;
+    return { all: list.length, pending, confirmed, done: list.length - pending - confirmed };
+  });
+  /** À traiter d'abord, puis prêtes au retrait, puis le reste (l'API trie par date d'envoi). */
+  readonly visiblePrescriptions = computed(() => {
+    const f = this.ordoFilter();
+    const rank = (s: string) => s === 'pending' ? 0 : s === 'confirmed' ? 1 : 2;
+    return this.prescriptions()
+      .filter(p => f === 'all' || (f === 'done' ? p.status !== 'pending' && p.status !== 'confirmed' : p.status === f))
+      .sort((a, b) => rank(a.status) - rank(b.status));
+  });
   readonly processModal = signal<ApiPrescription | null>(null);
   /** Ordonnance affichée à côté du formulaire de traitement (lue depuis l'API, jamais devinée). */
   readonly ordoPreview = signal<{ url: string; safe: SafeResourceUrl; kind: 'image' | 'pdf' | 'other' } | null>(null);
@@ -487,7 +508,9 @@ export class PharmaDash {
         case 'history': this.track('historique', this.pharmacy.movements(), m => this.history.set(m)); break;
         case 'demandes': this.track('demandes', this.pharmacy.demandes(), d => this.demandes.set(d)); break;
         case 'requests': this.track('demandes fournisseurs', this.pharmacy.restockRequests(), r => this.restockRequests.set(r)); break;
-        case 'prescriptions': this.track('ordonnances', this.pharmacy.prescriptions(), p => this.prescriptions.set(p)); break;
+        case 'prescriptions': this.track('ordonnances', this.pharmacy.prescriptions(), p => {
+          this.prescriptions.set(p.data); this.ordoPage.set(p.page); this.ordoLastPage.set(p.lastPage); this.ordoTotal.set(p.total);
+        }); break;
         case 'grouped': this.track('alertes groupées', this.pharmacy.groupedAlerts(), g => this.groupedAlerts.set(g)); break;
         case 'sales': if (this.isPro()) this.reloadSales(); break;
       }
@@ -1022,6 +1045,23 @@ export class PharmaDash {
     return status === 'reserved' || status === 'substitute_accepted' || status === 'collected' || status === 'legacy_debited' ? 'ok'
       : status === 'substitute_refused' || status === 'expired' ? 'crit' : status === 'cancelled' ? 'vue' : 'low';
   }
+
+  /** Page suivante des ordonnances (les plus anciennes). */
+  moreOrdo(): void {
+    if (this.ordoMoreLoading() || this.ordoPage() >= this.ordoLastPage()) return;
+    this.ordoMoreLoading.set(true);
+    this.pharmacy.prescriptions(this.ordoPage() + 1).subscribe({
+      next: p => {
+        this.prescriptions.update(list => [...list, ...p.data.filter(o => !list.some(x => x.id === o.id))]);
+        this.ordoPage.set(p.page); this.ordoLastPage.set(p.lastPage); this.ordoTotal.set(p.total);
+        this.ordoMoreLoading.set(false);
+      },
+      error: () => { this.ordoMoreLoading.set(false); this.platform.notify('Ordonnances plus anciennes non chargées — réessayez', 'alert'); },
+    });
+  }
+
+  reuseLabel(n: number): string { return n === 1 ? 'une autre fois' : `${n} autres fois`; }
+  readonly defaultReuseReminder = 'Vérifiez l\'ordonnance originale (signature, date) au retrait.';
 
   ordoLabel(status: string): string {
     return status === 'confirmed' ? 'Prête au retrait' : status === 'collected' ? 'Retirée' : status === 'oriented' ? 'Orientée'

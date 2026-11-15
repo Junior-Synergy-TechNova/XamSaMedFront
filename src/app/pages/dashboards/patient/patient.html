@@ -9,7 +9,7 @@
               @if (q()) { <button type="button" class="pf-sbclear" (click)="clear()" aria-label="Effacer"><nv-icon name="x" [size]="18"/></button> }
             </div>
             <button type="button" class="btn btn-outline" disabled title="Le scan de QR code arrive bientôt"><nv-icon name="qr" [size]="18"/> Scanner (bientôt)</button>
-            <button class="btn btn-outline" (click)="prescriptionModal.set(true)"><nv-icon name="doc" [size]="18"/> Ordonnance</button>
+            <button class="btn btn-outline" (click)="openPrescription()"><nv-icon name="doc" [size]="18"/> Ordonnance</button>
           </div>
 
           @if (!q()) {
@@ -130,22 +130,28 @@
             <button type="button" class="pf-modal-close" (click)="prescriptionModal.set(false)"><nv-icon name="x" [size]="20"/></button>
           </div>
           <div class="pf-modal-body">
+            @if (prescriptionFor(); as m) {
+              <div class="pf-banner amber" role="status">
+                <div class="pf-banner-body"><strong>{{ m }} est délivré sur ordonnance</strong><p>Envoyez une photo de votre ordonnance à la pharmacie : elle prépare votre traitement et vous prévient. Présentez l'original au retrait.</p></div>
+              </div>
+            }
             <div class="s-field"><label>Pharmacie destinataire *</label>
               <select #oPharm required>
                 <option value="">Sélectionnez une pharmacie</option>
-                @for (p of pharmacies(); track p.id) { <option [value]="p.id">{{ p.nom }}{{ p.ville ? ' — ' + p.ville : '' }}</option> }
+                @for (p of pharmacies(); track p.id) { <option [value]="p.id" [selected]="prescriptionPharmacy() === +p.id">{{ p.nom }}{{ p.ville ? ' — ' + p.ville : '' }}</option> }
               </select>
             </div>
-            <div class="s-field"><label>Ordonnance (image ou PDF) *</label>
+            <div class="s-field"><label>Ordonnance (photo JPG / PNG ou PDF, 5 Mo maximum) *</label>
               <input type="file" accept="image/jpeg,image/png,application/pdf" (change)="onPrescriptionFile($event)" required/>
             </div>
             <div class="s-field"><label>Note (facultatif)</label>
-              <textarea #oNotes rows="3" placeholder="Précisions pour le pharmacien…"></textarea>
+              <textarea #oNotes rows="3" maxlength="500" placeholder="Précisions pour le pharmacien…"></textarea>
             </div>
+            @if (prescriptionError(); as err) { <div class="pf-banner red" role="alert"><div class="pf-banner-body"><p>{{ err }}</p></div></div> }
           </div>
           <div class="pf-modal-foot">
             <button type="button" class="btn btn-ghost btn-sm" (click)="prescriptionModal.set(false)">Annuler</button>
-            <button type="submit" class="btn btn-green btn-sm" [disabled]="!prescriptionFile()">Envoyer</button>
+            <button type="submit" class="btn btn-green btn-sm" [disabled]="!prescriptionFile() || sendingPrescription()">{{ sendingPrescription() ? 'Envoi…' : 'Envoyer' }}</button>
           </div>
         </form>
       </div>

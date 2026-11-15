@@ -501,6 +501,10 @@ export interface ApiPrescription {
   expires_at?: string | null;
   rejection_reason?: string | null;
   lines?: ApiPrescriptionLine[];
+  /** Nombre d'AUTRES envois du même fichier (toutes pharmacies, tous comptes) — information seulement. */
+  photo_deja_envoyee?: number;
+  /** Rappel à afficher au pharmacien (vérifier l'original au retrait). */
+  rappel_controle?: string | null;
 }
 
 /** GET /pharmacy/stock/{stock}/movements — ligne de traçabilité. */

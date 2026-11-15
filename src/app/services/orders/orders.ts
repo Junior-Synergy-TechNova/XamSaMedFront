@@ -35,13 +35,13 @@ export class OrderService {
   }
 
   /** POST /orders/prescriptions → envoie une ordonnance numérique (multipart). */
-  submitPrescription(structureId: number, file: File, notes: string): Observable<unknown> {
+  submitPrescription(structureId: number, file: File, notes: string): Observable<{ message?: string }> {
     const form = new FormData();
     form.append('structure_id', String(structureId));
     form.append('prescription_file', file);
     if (notes) form.append('notes', notes);
     // Pas de Content-Type manuel : Angular pose la frontière multipart lui-même.
-    return this.http.post(`${this.base}/orders/prescriptions`, form);
+    return this.http.post<{ message?: string }>(`${this.base}/orders/prescriptions`, form);
   }
 
   /** POST /grouped-search → lance une recherche groupée auprès des pharmacies de la zone. */
