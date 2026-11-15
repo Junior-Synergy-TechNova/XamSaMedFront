@@ -520,7 +520,7 @@
           </div>
           <div class="pf-modal-body">
             <div class="pf-fieldrow">
-              <div class="s-field"><label>Médicament *</label><input #medName required list="pf-catalogue" autocomplete="off" placeholder="Nom ou DCI, puis choisissez" (input)="onAddRefMedicine(medName.value)"/></div>
+              <div class="s-field"><label>Médicament *</label><input #medName required list="pf-catalogue" autocomplete="off" placeholder="Nom ou DCI" (input)="onAddRefMedicine(medName.value)"/></div>
               <div class="s-field"><label>DCI <span class="muted">(catalogue national)</span></label><input readonly [value]="addRefMedicine()?.dci ?? ''" [placeholder]="addRefMedicine() ? 'Non renseignée au catalogue' : 'Choisissez un médicament'"/></div>
             </div>
             <div class="pf-fieldrow">
