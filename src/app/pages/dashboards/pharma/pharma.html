@@ -259,7 +259,7 @@
         </div>
       }
 
-      @case ('thermique') { <app-pharma-thermal/> }
+      @case ('thermique') { <app-pharma-thermal [refreshKey]="reloadTick()"/> }
       @case ('dem') { <app-pharma-demandes [demandes]="demandes()" (changed)="onDemandesChanged()"/> }
 
       @case ('grouped') {
@@ -455,6 +455,18 @@
         <div>
           <pf-page-head title="Réceptions" sub="Confirmer une réception crédite votre stock."/>
           <pf-incoming-deliveries (received)="onDeliveryReceived()"/>
+        </div>
+      }
+
+      @case ('carte') {
+        <div>
+          <pf-page-head title="Carte du réseau" sub="Vos fournisseurs et les officines voisines : à qui demander, où orienter un patient."/>
+          @defer (on immediate) {
+            <pf-network-map [medicines]="mapMedicines()" [origin]="myPoint()" [originName]="structureName()" [selfId]="myStructureId()"
+                             [asked]="askedByMedicine()" (request)="requestFromMap($event)"/>
+          } @placeholder {
+            <div class="pf-map-placeholder">Chargement de la carte…</div>
+          }
         </div>
       }
 
@@ -798,6 +810,12 @@
             </figure>
             <div class="pf-ordo-form">
               <p class="pf-patientnote">{{ patientNote(o) }}</p>
+              @if ((o.photo_deja_envoyee ?? 0) > 0) {
+                <div class="pf-ordo-reuse" role="note">
+                  <nv-icon name="alert" [size]="16"/>
+                  <span><strong>Même photo déjà envoyée {{ reuseLabel(o.photo_deja_envoyee ?? 0) }}</strong> (ailleurs ou pour une autre demande) — rien n'est bloqué. {{ o.rappel_controle || defaultReuseReminder }}</span>
+                </div>
+              }
               <!-- Une ligne par médicament prescrit : réservé ici si le stock suffit, sinon orienté ou remplacé -->
               <ol class="pf-ordo-lines">
                 @for (l of draftLines(); track l.key; let i = $index) {

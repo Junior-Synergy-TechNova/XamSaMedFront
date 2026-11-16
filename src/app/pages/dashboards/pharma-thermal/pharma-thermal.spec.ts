@@ -57,4 +57,23 @@ describe('PharmaThermal', () => {
     expect(text).toContain('+4 °C');
     expect(text).toContain('Insuline Glargine');
   });
+
+  it("« à valider » n'est pas une source ; l'« Actualiser » du tableau de bord relit la météo", async () => {
+    const fixture = TestBed.createComponent(PharmaThermal);
+    const body = (temp: number) => ({
+      current_temp_c: temp, checked_at: '2026-11-15T14:00:00Z', location: { lat: 14.69, lng: -17.44 }, items_at_risk: 0,
+      data: [row({ stock_id: 1, source: 'à valider' }), row({ stock_id: 2, medicine: 'Quinine', source: 'OMS', validated: true })],
+    });
+    http.expectOne(url).flush(body(20));
+    await fixture.whenStable();
+    const c = fixture.componentInstance;
+    expect(c.roomRows().map(r => r.source)).toEqual([null, 'OMS']);
+    expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Météo de');
+
+    fixture.componentRef.setInput('refreshKey', 1);
+    await fixture.whenStable();
+    http.expectOne(url).flush(body(31));
+    await fixture.whenStable();
+    expect(c.status()?.current_temp_c).toBe(31);
+  });
 });

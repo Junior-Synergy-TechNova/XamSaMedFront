@@ -1,0 +1,33 @@
+@import "leaflet/dist/leaflet.css";
+@reference "../../../styles.css";
+/* ===================== Carte générique (Leaflet) =====================
+   Encapsulation désactivée : toutes les règles sont préfixées pf-gm-. */
+pf-geo-map { @apply block; }
+.pf-gm-wrap { @apply relative; }
+.pf-gm-box { @apply h-[400px] max-[760px]:h-[300px] w-full rounded-md border border-gray-line overflow-hidden bg-gray-bg z-0; }
+.pf-gm-failed { @apply absolute inset-0 grid place-items-center p-6 text-center text-[14px] text-gray-text bg-gray-bg rounded-md; }
+
+/* Halo (étendue / gravité) puis point cliquable */
+.pf-gm-halo { @apply [stroke-width:0] [fill-opacity:.22]; }
+.pf-gm-dot { @apply stroke-white [stroke-width:2.5] [fill-opacity:1] cursor-pointer; }
+.pf-gm-dot.pf-gm-on { @apply stroke-blue [stroke-width:3.5]; }
+.pf-gm-red { @apply fill-red; }
+.pf-gm-amber { @apply fill-amber; }
+.pf-gm-green { @apply fill-green; }
+.pf-gm-blue { @apply fill-blue; }
+.pf-gm-gray { @apply fill-gray-text; }
+.pf-gm-dark { @apply fill-black; }
+.pf-gm-me { @apply stroke-white [stroke-width:3] fill-blue [fill-opacity:1] [filter:drop-shadow(0_0_6px_rgba(0,51,102,.35))]; }
+
+.pf-gm-box .leaflet-tooltip { @apply font-body text-[13px]; }
+
+/* Légende sous la carte (partagée par les pages qui l'utilisent) */
+.pf-gm-legend { @apply flex flex-wrap gap-x-5 gap-y-2 mt-4 text-[13px] text-gray-text; }
+.pf-gm-legend > span { @apply inline-flex items-center gap-2; }
+.pf-gm-legend i { @apply w-3 h-3 rounded-full inline-block; }
+.pf-gm-legend i.red { @apply bg-red; }
+.pf-gm-legend i.amber { @apply bg-amber; }
+.pf-gm-legend i.green { @apply bg-green; }
+.pf-gm-legend i.blue { @apply bg-blue; }
+.pf-gm-legend i.gray { @apply bg-gray-text; }
+.pf-gm-legend i.dark { @apply bg-black; }

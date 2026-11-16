@@ -1,28 +1,39 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, catchError, map, of } from 'rxjs';
+import { Observable, map } from 'rxjs';
+import { SharedRead } from '../shared-read/shared-read';
 import { environment } from '../../../environments/environment';
+import { GeoPoint, toPoint } from '../structures/structures';
 import {
   ApiDelivery, ApiDestination, ApiForecast, ApiIncomingRequest, ApiInstitutionalOrder, ApiPnaDashboard, ApiRegionalDemand, ApiShortageReport,
   ApiZone, DistributorAlertsResponse, ShortageAlert,
 } from '../../interfaces/api';
 import { DemandeReg, ZoneInfo, ZoneLevel, DeliveryRow, DeliveryStatus } from '../../interfaces/models';
 
-/** Coordonnées (% sur la carte) des principales villes du Sénégal. */
-const CITY_GEO: Record<string, { x: number; y: number }> = {
-  'Dakar': { x: 28, y: 36 }, 'Pikine': { x: 33, y: 33 }, 'Rufisque': { x: 37, y: 41 },
-  'Thiès': { x: 47, y: 47 }, 'Saint-Louis': { x: 40, y: 16 }, 'Louga': { x: 49, y: 28 },
-  'Kaolack': { x: 55, y: 62 }, 'Ziguinchor': { x: 30, y: 86 }, 'Tambacounda': { x: 78, y: 56 },
+/** Centre des principales villes du Sénégal, si l'API ne fournit pas de coordonnées. */
+const CITY_GEO: Record<string, GeoPoint> = {
+  'Dakar': { lat: 14.6928, lng: -17.4467 }, 'Pikine': { lat: 14.7547, lng: -17.3906 }, 'Guédiawaye': { lat: 14.7833, lng: -17.4 },
+  'Rufisque': { lat: 14.7167, lng: -17.2667 }, 'Thiès': { lat: 14.7910, lng: -16.9359 }, 'Mbour': { lat: 14.4198, lng: -16.9693 },
+  'Saint-Louis': { lat: 16.0326, lng: -16.4818 }, 'Louga': { lat: 15.6144, lng: -16.2286 }, 'Diourbel': { lat: 14.6550, lng: -16.2314 },
+  'Touba': { lat: 14.8500, lng: -15.8833 }, 'Kaolack': { lat: 14.1652, lng: -16.0758 }, 'Fatick': { lat: 14.3390, lng: -16.4111 },
+  'Kaffrine': { lat: 14.1059, lng: -15.5508 }, 'Ziguinchor': { lat: 12.5681, lng: -16.2719 }, 'Kolda': { lat: 12.8939, lng: -14.9411 },
+  'Sédhiou': { lat: 12.7081, lng: -15.5569 }, 'Tambacounda': { lat: 13.7707, lng: -13.6673 }, 'Kédougou': { lat: 12.5605, lng: -12.1747 },
+  'Matam': { lat: 15.6559, lng: -13.2554 },
 };
 
 export function asZoneLevel(level: string): ZoneLevel {
   return level === 'crit' || level === 'haute' || level === 'moyenne' || level === 'basse' ? level : 'moyenne';
 }
 
-/** Construit un ZoneInfo (avec coords carte) à partir d'un nom de ville. */
-export function toZoneInfo(name: string, level: string, ruptures: number): ZoneInfo {
-  const g = CITY_GEO[name] ?? { x: 50, y: 50 };
-  return { nom: name, x: g.x, y: g.y, niveau: asZoneLevel(level), ruptures };
+/** ApiZone → ZoneInfo : coordonnées de l'API, sinon centre connu de la ville, sinon null (hors carte). */
+export function toZoneInfo(z: ApiZone): ZoneInfo {
+  return {
+    nom: z.name,
+    point: toPoint(z.latitude, z.longitude) ?? CITY_GEO[z.name] ?? null,
+    niveau: asZoneLevel(z.level),
+    ruptures: z.ruptures,
+    tensions: z.tensions,
+  };
 }
 
 /** Indicateurs du tableau de bord distributeur (GET /distributor/dashboard). */
@@ -58,7 +69,6 @@ export class DistributorService {
   dashboard(): Observable<Partial<DistributorDashboard>> {
     return this.http.get<{ data: DistributorDashboard }>(`${this.base}/distributor/dashboard`).pipe(
       map(r => r.data ?? {}),
-      catchError(() => of({})),
     );
   }
 
@@ -66,21 +76,23 @@ export class DistributorService {
   alerts(): Observable<ShortageAlert[]> {
     return this.http.get<DistributorAlertsResponse>(`${this.base}/distributor/alerts`).pipe(
       map(r => r.data ?? []),
-      catchError(() => of([])),
     );
   }
 
   /** GET /distributor/regional-demands — agrégation par zone + médicament (avec les officines concernées). */
-  regionalDemands(): Observable<DemandeReg[]> {
-    return this.http.get<{ data: ApiRegionalDemand[] }>(`${this.base}/distributor/regional-demands`).pipe(
-      map(r => (r.data ?? []).map(toDemandeReg))
-    );
+  /** Partagé entre la cloche et le premier affichage (`maxAgeMs`, voir `SharedRead`). */
+  regionalDemands(maxAgeMs = 0): Observable<DemandeReg[]> {
+    return this.regionalRead.get(maxAgeMs);
   }
+  private readonly regionalRead = new SharedRead<DemandeReg[]>(() =>
+    this.http.get<{ data: ApiRegionalDemand[] }>(`${this.base}/distributor/regional-demands`).pipe(
+      map(r => (r.data ?? []).map(toDemandeReg)),
+    ));
 
   /** GET /distributor/zones — villes avec ruptures + niveau de tension. */
   zones(): Observable<ZoneInfo[]> {
     return this.http.get<{ data: ApiZone[] }>(`${this.base}/distributor/zones`).pipe(
-      map(r => (r.data ?? []).map(z => toZoneInfo(z.name, z.level, z.ruptures)))
+      map(r => (r.data ?? []).map(toZoneInfo))
     );
   }
 
@@ -88,7 +100,6 @@ export class DistributorService {
   previsions(): Observable<ApiForecast[]> {
     return this.http.get<{ data: ApiForecast[] }>(`${this.base}/distributor/previsions`).pipe(
       map(r => r.data ?? []),
-      catchError(() => of([])),
     );
   }
 
@@ -133,7 +144,6 @@ export class DistributorService {
     if (medicineId) params = params.set('medicine_id', String(medicineId));
     return this.http.get<{ data: ApiDestination[] }>(`${this.base}/distributor/destinations`, { params }).pipe(
       map(r => r.data ?? []),
-      catchError(() => of([])),
     );
   }
 
@@ -193,7 +203,6 @@ export class DistributorService {
   praPnaOrders(): Observable<ApiInstitutionalOrder[]> {
     return this.http.get<{ data: ApiInstitutionalOrder[] }>(`${this.base}/pra/pna-orders`).pipe(
       map(r => r.data ?? []),
-      catchError(() => of([])),
     );
   }
 
@@ -206,7 +215,6 @@ export class DistributorService {
   pnaDashboard(): Observable<ApiPnaDashboard> {
     return this.http.get<{ data: ApiPnaDashboard }>(`${this.base}/pna/dashboard`).pipe(
       map(r => r.data ?? {}),
-      catchError(() => of({})),
     );
   }
 
@@ -214,7 +222,6 @@ export class DistributorService {
   pnaOrders(): Observable<ApiInstitutionalOrder[]> {
     return this.http.get<{ data: ApiInstitutionalOrder[] }>(`${this.base}/pna/orders`).pipe(
       map(r => r.data ?? []),
-      catchError(() => of([])),
     );
   }
 

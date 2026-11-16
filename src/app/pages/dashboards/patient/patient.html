@@ -25,7 +25,15 @@
             <div class="pf-searching">Recherche en cours…</div>
           }
 
-          @if (q() && !searching() && results().length === 0) {
+          @if (q() && !searching() && searchError()) {
+            <pf-card>
+              <div class="pf-empty" role="alert">
+                <nv-icon name="alert" [size]="30" color="var(--color-red)"/>
+                <p><strong>La recherche n'a pas pu aboutir.</strong> Vérifiez votre connexion internet puis réessayez.</p>
+                <button type="button" class="btn btn-primary btn-sm" (click)="retrySearch()"><nv-icon name="refresh" [size]="15"/> Réessayer</button>
+              </div>
+            </pf-card>
+          } @else if (q() && !searching() && results().length === 0) {
             <pf-card>
               <div class="pf-empty">
                 <nv-icon name="search" [size]="34" color="var(--color-gray)"/>
@@ -56,7 +64,17 @@
       @case ('resa') {
         <div>
           <pf-page-head title="Mes réservations" sub="Suivez l'état de vos demandes et retraits."/>
-          @if (resas().length === 0) {
+          @if (resasError() && resas().length === 0) {
+            <pf-card>
+              <div class="pf-empty" role="alert">
+                <nv-icon name="alert" [size]="30" color="var(--color-red)"/>
+                <p><strong>Impossible de charger vos réservations.</strong> Vérifiez votre connexion internet puis réessayez — elles n'ont pas été perdues.</p>
+                <button type="button" class="btn btn-primary btn-sm" (click)="loadResas(0)"><nv-icon name="refresh" [size]="15"/> Réessayer</button>
+              </div>
+            </pf-card>
+          } @else if (resasLoading()) {
+            <div class="pf-loader" role="status"><span class="pf-spin pf-spin-sm"></span> Chargement de vos réservations…</div>
+          } @else if (resas().length === 0) {
             <pf-card>
               <div class="pf-empty">
                 <nv-icon name="cart" [size]="34" color="var(--color-gray)"/>
@@ -111,7 +129,7 @@
         </div>
       }
 
-      @case ('cabinet') { <app-patient-cabinet/> }
+      @case ('cabinet') { <app-patient-cabinet (itemsChange)="onCabinetItems($event)"/> }
 
       @case ('phar') { <app-patient-pharmacies/> }
 
@@ -141,6 +159,12 @@
                 @for (p of pharmacies(); track p.id) { <option [value]="p.id" [selected]="prescriptionPharmacy() === +p.id">{{ p.nom }}{{ p.ville ? ' — ' + p.ville : '' }}</option> }
               </select>
             </div>
+            @if (pharmaciesError()) {
+              <div class="pf-banner red" role="alert">
+                <div class="pf-banner-body"><p>La liste des pharmacies n'a pas pu être chargée.</p></div>
+                <button type="button" class="btn btn-white btn-sm" (click)="loadPharmacies()"><nv-icon name="refresh" [size]="15"/> Réessayer</button>
+              </div>
+            }
             <div class="s-field"><label>Ordonnance (photo JPG / PNG ou PDF, 5 Mo maximum) *</label>
               <input type="file" accept="image/jpeg,image/png,application/pdf" (change)="onPrescriptionFile($event)" required/>
             </div>

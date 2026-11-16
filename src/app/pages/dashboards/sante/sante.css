@@ -9,3 +9,8 @@
 .pf-filters-flat { @apply mb-0; }
 /* Champ non pertinent pour le type de rapport choisi */
 .pf-field-off { @apply opacity-50; }
+/* Catalogue : fiches sans DCI, actions de ligne, fenêtre d'édition */
+.pf-cat-banner { @apply mb-5; }
+.pf-cat-acts { @apply flex justify-end gap-2; }
+.pf-cat-check { @apply flex items-center gap-3 text-[15px] text-black cursor-pointer mt-2; }
+.pf-cat-err { @apply mt-4; }

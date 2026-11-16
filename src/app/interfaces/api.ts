@@ -98,6 +98,20 @@ export interface ApiMedicine {
   requires_prescription?: boolean;
   /** pharmaceutical | hospital | both — séparation officine ↔ hôpital. */
   category?: string;
+  atc_code?: string | null;
+}
+
+/** POST / PUT /admin/medicines — fiche du catalogue national. Sans `requires_prescription`, l'API le propose (IA). */
+export interface ApiMedicinePayload {
+  name?: string;
+  dci?: string | null;
+  brand?: string | null;
+  form?: string | null;
+  dosage?: string | null;
+  atc_code?: string | null;
+  category?: string;
+  is_controlled?: boolean;
+  requires_prescription?: boolean;
 }
 
 export interface GlobalSearchResult {
@@ -262,6 +276,8 @@ export interface ApiSupplier {
   city: string | null;
   region: string | null;
   phone: string | null;
+  latitude?: number | string | null;
+  longitude?: number | string | null;
   is_partner: boolean;
   available: number | null;
   has_stock: boolean | null;
@@ -372,6 +388,9 @@ export interface ApiZone {
   ruptures: number;
   tensions?: number;
   level: string;
+  /** Moyenne des coordonnées des structures de la ville (null si aucune n'est géolocalisée). */
+  latitude?: number | string | null;
+  longitude?: number | string | null;
 }
 /** Deux niveaux d'urgence hospitaliers (§6.4) : tension (stock critique non nul) / rupture (zéro). */
 export type HospitalSeverity = 'tension' | 'rupture';
@@ -551,17 +570,64 @@ export interface ApiGroupedSearchPharmacy {
   phone: string | null;
   quantity?: number | null;
 }
-/** Équivalent thérapeutique classé (§9) : pertinence + disponibilité réelle. */
+/** Avertissement attaché à un équivalent ou une alternative (forme / dosage / molécule différents…). */
+export interface ApiEquivalentWarning {
+  code: string;
+  message: string;
+}
+/** Officine qui détient un équivalent (les plus proches d'abord). */
+export interface ApiEquivalentPharmacy {
+  structure_id?: number;
+  name?: string | null;
+  phone?: string | null;
+  available?: number;
+  distance_label?: string | null;
+}
+/**
+ * Équivalent thérapeutique classé (§9) : pertinence + disponibilité réelle.
+ * Même type pour la recherche groupée (forme courte) et `GET /medicines/{id}/equivalents`
+ * (forme complète : `dci`, `match_level`, `warnings`…). `note` vaut `null` quand
+ * aucun lien n'a été saisi au catalogue.
+ */
 export interface ApiGroupedSearchEquivalent {
   id: number;
   name: string | null;
   dosage: string | null;
   form: string | null;
-  score?: number;
+  brand?: string | null;
+  dci?: string | null;
+  rank?: number;
+  /** `exact` | `dosage_differs` | `form_differs` | `form_and_dosage_differ` | `different_dci` */
+  match_level?: string;
+  same_dci?: boolean;
+  same_form?: boolean;
+  same_dosage?: boolean;
+  /** null pour une alternative (autre molécule) : jamais de score. */
+  score?: number | null;
+  reason_codes?: string[];
   reasons?: string[];
-  note?: string;
+  warnings?: ApiEquivalentWarning[];
+  note?: string | null;
   available_pharmacies?: number;
+  total_available?: number;
+  nearest_distance_metres?: number | null;
   nearest_km?: number | null;
+  pharmacies?: ApiEquivalentPharmacy[];
+}
+/** GET /medicines/{id}/equivalents — même DCI d'un côté, autres molécules (à valider) de l'autre. */
+export interface ApiEquivalentsResponse {
+  medicine?: { id: number; name: string; dci: string | null; form: string | null; dosage: string | null };
+  searched_at?: { lat: number; lng: number; radius_m: number } | null;
+  /** true = aucun équivalent dans le rayon, résultats élargis à tout le réseau. */
+  fallback?: boolean;
+  disclaimer?: string;
+  count?: number;
+  data: ApiGroupedSearchEquivalent[];
+  alternatives?: {
+    requires_validation: boolean;
+    notice: string;
+    data: ApiGroupedSearchEquivalent[];
+  };
 }
 /** GET /grouped-search/{id}/status */
 export interface ApiGroupedSearchStatus {
@@ -806,8 +872,9 @@ export interface ApiThermalStatus {
 }
 
 /* ── Conservation thermique (pharmacie) ──────────────────────────────
-   Contrat de GET /pharmacy/thermal-status — endpoint à implémenter côté
-   backend (réutilise ThermalChecker::getCurrentTemp + medicine_storage_rules).
+   Contrat de GET /pharmacy/thermal-status — implémenté côté backend
+   (branche feat/pharmacie-conservation-thermique, PharmacyThermalController ;
+   ThermalChecker::getCurrentTemp + medicine_storage_rules, météo en cache 30 min).
    422 { message } tant que la structure n'a pas de latitude / longitude. */
 
 /** Une ligne de stock (quantité > 0) dont le médicament a une règle de conservation. */
@@ -825,7 +892,7 @@ export interface ApiPharmacyThermalItem {
   min_temp_c: number | null;
   /** room : current_temp_c > max_temp_c ; fridge : toujours false. */
   at_risk: boolean;
-  /** notice | ARP | OMS */
+  /** notice | ARP | OMS — « à valider » tant qu'aucun pharmacien n'a validé (le front l'affiche comme non renseignée). */
   source: string | null;
   /** Règle validée par un pharmacien (`validated_by` renseigné). */
   validated: boolean;

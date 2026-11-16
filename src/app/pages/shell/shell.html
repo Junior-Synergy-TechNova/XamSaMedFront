@@ -48,7 +48,8 @@
                       <strong>{{ result.label }}</strong>
                     </button>
                   }
-                  @if (!searchLoading() && globalResults().length === 0) { <div class="pf-global-state">Aucun médicament ou officine trouvé.</div> }
+                  @if (!searchLoading() && searchError()) { <div class="pf-global-state" role="alert">Recherche indisponible — vérifiez la connexion puis retapez votre recherche.</div> }
+                  @else if (!searchLoading() && globalResults().length === 0) { <div class="pf-global-state">Aucun médicament ou officine trouvé.</div> }
                 </div>
               }
             </div>

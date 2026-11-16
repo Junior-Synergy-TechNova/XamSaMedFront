@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, Injector, afterNextRender, computed, effect, inject, model, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, Injector, afterNextRender, computed, effect, inject, model, signal, untracked } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { DatePipe, DecimalPipe, NgTemplateOutlet } from '@angular/common';
@@ -13,10 +13,11 @@ import { PartnersPanel, PartnerTypeOption } from '../../../components/partners-p
 import { IncomingDeliveries } from '../../../components/incoming-deliveries/incoming-deliveries';
 import { ExpiryTag } from '../../../components/expiry-tag/expiry-tag';
 import { PlatformState, saveBlob } from '../../../services/platform/platform';
-import { PharmacyService } from '../../../services/pharmacy/pharmacy';
+import { PharmacyService, SHARED_READ_MS } from '../../../services/pharmacy/pharmacy';
 import { MedicineService } from '../../../services/medicines/medicines';
 import { AuthService } from '../../../services/auth/auth';
 import { StructureService, rankByDistance, structurePoint } from '../../../services/structures/structures';
+import { MapMedicine, MapRequest, NetworkMap } from '../../../components/network-map/network-map';
 import { AvailabilityRow, DemandeRow, StockRow } from '../../../interfaces/models';
 import {
   ApiErrorBody, ApiGroupedAlert, ApiPrescription, ApiPrescriptionLine, ApiProcessLine, ApiRestockRequest, ApiSale, ApiSalesStats, ApiStockMovement, ApiSupplier,
@@ -87,7 +88,7 @@ const EMPTY_SET: ReadonlySet<number> = new Set<number>();
 @Component({
   selector: 'app-pharma-dash',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ModalA11y, FieldLabel, TableLabels, Icon, Card, PageHead, Stat, Bar, Tag, PharmaDemandes, PharmaThermal, SimpleProfile, PartnersPanel, IncomingDeliveries, ExpiryTag, DatePipe, DecimalPipe, NgTemplateOutlet],
+  imports: [ModalA11y, FieldLabel, TableLabels, Icon, Card, PageHead, Stat, Bar, Tag, PharmaDemandes, PharmaThermal, SimpleProfile, PartnersPanel, NetworkMap, IncomingDeliveries, ExpiryTag, DatePipe, DecimalPipe, NgTemplateOutlet],
   templateUrl: './pharma.html',
   styleUrl: './pharma.css',
   host: {
@@ -350,10 +351,13 @@ export class PharmaDash {
     }
     for (const p of this.prescriptions()) {
       if (p.status !== 'pending') continue;
+      // Même fichier déjà envoyé ailleurs : information seulement (le pharmacien décide), signalée en ambre.
+      const reused = (p.photo_deja_envoyee ?? 0) > 0;
+      const received = p.submitted_at ? 'Reçue le ' + this.dayMonth(p.submitted_at) : 'À préparer';
       items.push({
-        key: 'ordo-' + p.id, tone: 'blue', icon: 'doc', rank: 2, primary: false,
+        key: 'ordo-' + p.id, tone: reused ? 'amber' : 'blue', icon: 'doc', rank: 2, primary: false,
         title: `Ordonnance de ${p.patient ?? 'un patient'}`,
-        detail: p.submitted_at ? 'Reçue le ' + this.dayMonth(p.submitted_at) : 'À préparer',
+        detail: reused ? `${received} · même photo déjà envoyée ${this.reuseLabel(p.photo_deja_envoyee ?? 0)}` : received,
         action: 'Traiter', run: () => this.openProcess(p),
       });
     }
@@ -407,6 +411,17 @@ export class PharmaDash {
   readonly expiredCount = computed(() => this.stock().filter(s => s.expiryLevel === 'expired').length);
 
   readonly structureName = computed(() => this.auth.structure()?.name ?? 'Mon officine');
+  /** Carte du réseau : position de l'officine et médicaments de son stock (ruptures en tête). */
+  readonly myPoint = computed(() => structurePoint(this.auth.structure()));
+  readonly myStructureId = computed(() => this.auth.structure()?.id ?? null);
+  readonly mapMedicines = computed<MapMedicine[]>(() => {
+    const seen = new Set<number>();
+    return this.stock().flatMap(s => {
+      if (seen.has(s.medId)) return [];
+      seen.add(s.medId);
+      return [{ id: s.medId, label: s.sub && s.sub !== '—' ? `${s.name} (${s.sub})` : s.name, state: s.s }];
+    });
+  });
 
   // --- Module Vente & Comptabilité (offre Pro) ---
   readonly isPro = this.auth.isPro;
@@ -474,6 +489,7 @@ export class PharmaDash {
     phoneQuery.addEventListener('change', onPhone);
     inject(DestroyRef).onDestroy(() => phoneQuery.removeEventListener('change', onPhone));
     this.reload();
+    this.firstLoad = false;
     // Les pastilles de la sidebar comptent ce que les pages affichent — jamais un autre chiffre.
     effect(() => this.platform.navCounts.set({
       alert: this.alerts().length,
@@ -481,14 +497,27 @@ export class PharmaDash {
       ordo: this.pendingPrescriptions(),
       grouped: this.groupedAlerts().length,
     }));
+    // Premier passage sur « Ventes » : chargement à la demande.
+    effect(() => {
+      if (this.section() === 'ventes' && this.isPro() && !this.salesWanted) untracked(() => this.reloadSales());
+    });
     inject(DestroyRef).onDestroy(() => this.platform.navCounts.set(null));
   }
 
   /** « 1 médicament », « 2 médicaments » — accord du nom avec le nombre. */
   plural(n: number, one: string, many: string): string { return `${n} ${n > 1 ? many : one}`; }
 
+  /** Vrai seulement pendant le reload() du constructeur (voir `demandes(SHARED_READ_MS)`). */
+  private firstLoad = true;
+
   /** Tout recharger : premier affichage, « Actualiser », retour sur l'onglet après une longue absence. */
-  reload(): void { this.refresh(...ALL_RESOURCES); }
+  reload(): void {
+    this.reloadTick.update(n => n + 1);
+    this.refresh(...ALL_RESOURCES);
+  }
+
+  /** Signale un « tout recharger » aux sous-pages qui lisent leurs propres données (conservation thermique). */
+  readonly reloadTick = signal(0);
 
   /**
    * Recharge uniquement les données touchées par une action. Sur une 3G à
@@ -506,13 +535,16 @@ export class PharmaDash {
           });
           break;
         case 'history': this.track('historique', this.pharmacy.movements(), m => this.history.set(m)); break;
-        case 'demandes': this.track('demandes', this.pharmacy.demandes(), d => this.demandes.set(d)); break;
+        // Premier affichage : la cloche vient de lire les mêmes demandes, on partage sa requête.
+        case 'demandes': this.track('demandes', this.pharmacy.demandes(this.firstLoad ? SHARED_READ_MS : 0), d => this.demandes.set(d)); break;
         case 'requests': this.track('demandes fournisseurs', this.pharmacy.restockRequests(), r => this.restockRequests.set(r)); break;
         case 'prescriptions': this.track('ordonnances', this.pharmacy.prescriptions(), p => {
           this.prescriptions.set(p.data); this.ordoPage.set(p.page); this.ordoLastPage.set(p.lastPage); this.ordoTotal.set(p.total);
         }); break;
         case 'grouped': this.track('alertes groupées', this.pharmacy.groupedAlerts(), g => this.groupedAlerts.set(g)); break;
-        case 'sales': if (this.isPro()) this.reloadSales(); break;
+        // Ventes : chargées seulement une fois la page « Ventes » ouverte (effet du constructeur) —
+        // 2 appels de moins au démarrage. Ne pas lire section() ici : refresh() tourne dès le constructeur.
+        case 'sales': if (this.isPro() && this.salesWanted) this.reloadSales(); break;
       }
     }
   }
@@ -744,7 +776,7 @@ export class PharmaDash {
   // --- Demande de réapprovisionnement aux fournisseurs ---
 
   /** Ouvre le choix des fournisseurs : ceux qui disposent du médicament sont proposés en premier. */
-  alertDistrib(s: StockRow): void {
+  alertDistrib(s: StockRow, only?: number): void {
     this.supplierModal.set(s);
     this.suppliers.set([]);
     this.selectedSuppliers.set(new Set());
@@ -756,12 +788,19 @@ export class PharmaDash {
         this.suppliersLoading.set(false);
         // Pré-sélection : les fournisseurs qui ont le médicament et ne sont pas déjà sollicités.
         const asked = this.alreadyAsked(s);
-        this.selectedSuppliers.set(new Set(list.filter(d => d.has_stock && !asked.has(d.id)).map(d => d.id)));
+        // Depuis la carte du réseau : seulement le fournisseur choisi.
+        this.selectedSuppliers.set(new Set(list.filter(d => (only ? d.id === only : d.has_stock) && !asked.has(d.id)).map(d => d.id)));
         // La liste arrive après l'ouverture : le focus va au premier fournisseur, pas sous la liste.
         afterNextRender({ read: () => document.querySelector<HTMLInputElement>('.pf-modal .pf-check:not(:disabled)')?.focus() }, { injector: this.injector });
       },
       error: () => { this.suppliersLoading.set(false); this.suppliersError.set(true); },
     });
+  }
+
+  /** « Demander » sur la carte du réseau : même formulaire, ce fournisseur pré-coché. */
+  requestFromMap(r: MapRequest): void {
+    const s = this.stock().find(x => x.medId === r.medicineId);
+    if (s) this.alertDistrib(s, r.supplierId);
   }
 
   /** Une demande est en attente pour ce médicament (fournisseurs ciblés ou tout le réseau). */
@@ -1108,7 +1147,11 @@ export class PharmaDash {
   }
 
   // --- Ventes & comptabilité (offre Pro) ---
+  /** La page « Ventes » a été ouverte : ses données suivent ensuite les rechargements. */
+  private salesWanted = false;
+
   reloadSales(): void {
+    this.salesWanted = true;
     this.loadSalesJournal();
     this.pharmacy.salesStats().subscribe({
       next: s => { this.salesStats.set(s); this.salesStatsError.set(false); },

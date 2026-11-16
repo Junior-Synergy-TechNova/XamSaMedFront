@@ -21,6 +21,7 @@
 
     <pf-card title="Partenaires connectés" [sub]="active().length + (active().length > 1 ? ' structures' : ' structure') + ' dans votre réseau'">
       @if (loading()) { <div class="pf-note-sm"><span class="pf-spin pf-spin-sm"></span> Chargement…</div> }
+      @if (!loading() && listError()) { <div class="pf-banner red" role="alert"><div class="pf-banner-body"><p>Votre réseau de partenaires n'a pas pu être chargé.</p></div><button type="button" class="btn btn-white btn-sm" (click)="reload()"><nv-icon name="refresh" [size]="15"/> Réessayer</button></div> }
       @for (p of active(); track p.id) {
         <div class="pf-li">
           <span class="pf-liic"><nv-icon [name]="icon(p.type)" [size]="18"/></span>
@@ -30,7 +31,7 @@
           </div>
         </div>
       }
-      @if (!loading() && active().length === 0) { <div class="pf-note">Aucun partenaire connecté pour le moment.</div> }
+      @if (!loading() && !listError() && active().length === 0) { <div class="pf-note">Aucun partenaire connecté pour le moment.</div> }
     </pf-card>
 
     @if (waiting().length > 0) {
@@ -75,7 +76,8 @@
                 </div>
               }
             </div>
-            @if (!searching() && candidates().length === 0) { <div class="pf-note-sm">Aucune structure connectable pour ce critère.</div> }
+            @if (!searching() && searchError()) { <div class="pf-banner red" role="alert"><div class="pf-banner-body"><p>La recherche n'a pas pu aboutir.</p></div><button type="button" class="btn btn-white btn-sm" (click)="retrySearch()"><nv-icon name="refresh" [size]="15"/> Réessayer</button></div> }
+            @else if (!searching() && candidates().length === 0) { <div class="pf-note-sm">Aucune structure connectable pour ce critère.</div> }
             <form class="s-field pf-mt" (submit)="invite({ identifier: ident.value }); $event.preventDefault()">
               <label>Ou par email / code structure</label>
               <div class="pf-partners-inline">

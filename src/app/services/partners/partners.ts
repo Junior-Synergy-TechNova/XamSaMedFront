@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, catchError, map, of } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ApiPartner, ApiPartnerCandidate } from '../../interfaces/api';
 
@@ -18,7 +18,6 @@ export class PartnerService {
   list(): Observable<ApiPartner[]> {
     return this.http.get<{ data: ApiPartner[] }>(`${this.base}/partners`).pipe(
       map(r => r.data ?? []),
-      catchError(() => of([])),
     );
   }
 
@@ -28,7 +27,6 @@ export class PartnerService {
     if (type) params = params.set('type', type);
     return this.http.get<{ data: ApiPartnerCandidate[] }>(`${this.base}/partners/search`, { params }).pipe(
       map(r => r.data ?? []),
-      catchError(() => of([])),
     );
   }
 

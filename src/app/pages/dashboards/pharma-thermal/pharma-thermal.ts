@@ -1,5 +1,7 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { DatePipe, DecimalPipe } from '@angular/common';
+import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
+import { skip } from 'rxjs';
+import { DecimalPipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Icon } from '../../../components/icon/icon';
 import { Card } from '../../../components/card/card';
@@ -15,6 +17,8 @@ type LoadProblem = { kind: 'unavailable' } | { kind: 'no-location'; message: str
 
 /** Écart sous le maximum en dessous duquel une référence est « proche du seuil ». */
 const NEAR_MARGIN_C = 2;
+/** Valeur posée par le backend tant qu'aucun pharmacien n'a validé la règle : ce n'est pas une source. */
+const SOURCE_PENDING = 'à valider';
 
 interface ThermalRow {
   item: ApiPharmacyThermalItem;
@@ -22,6 +26,8 @@ interface ThermalRow {
   /** Température extérieure − maximum supporté (positif = au-dessus). */
   gap: number | null;
   near: boolean;
+  /** Source réelle de la règle (notice, ARP, OMS), null si non renseignée ou « à valider ». */
+  source: string | null;
 }
 
 /* ============================================================
@@ -31,7 +37,7 @@ interface ThermalRow {
 @Component({
   selector: 'app-pharma-thermal',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, Card, PageHead, Stat, Tag, TableLabels, DatePipe, DecimalPipe],
+  imports: [Icon, Card, PageHead, Stat, Tag, TableLabels, DecimalPipe],
   templateUrl: './pharma-thermal.html',
   styleUrl: './pharma-thermal.css',
 })
@@ -44,7 +50,16 @@ export class PharmaThermal {
   readonly refreshing = signal(false);
   readonly nearMargin = NEAR_MARGIN_C;
 
-  constructor() { this.load(); }
+  /**
+   * Incrémenté par le « Actualiser » du tableau de bord pharmacien : l'écran n'a
+   * plus sa propre ligne « Météo de HH:MM », il suit l'actualisation générale.
+   */
+  readonly refreshKey = input(0);
+
+  constructor() {
+    this.load();
+    toObservable(this.refreshKey).pipe(skip(1), takeUntilDestroyed()).subscribe(() => this.load());
+  }
 
   load(): void {
     // Après le premier chargement, on garde l'écran affiché pendant l'actualisation.
@@ -72,6 +87,7 @@ export class PharmaThermal {
         label: item.dosage ? `${item.medicine} — ${item.dosage}${item.form ? ' (' + item.form + ')' : ''}` : item.medicine,
         gap,
         near: !item.at_risk && gap !== null && gap > -NEAR_MARGIN_C,
+        source: item.source && item.source.trim().toLowerCase() !== SOURCE_PENDING ? item.source : null,
       };
     });
   });

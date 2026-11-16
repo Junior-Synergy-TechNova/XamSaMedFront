@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, catchError, map, of } from 'rxjs';
+import { SharedRead } from '../shared-read/shared-read';
 import { environment } from '../../../environments/environment';
 import {
   ApiDemande, ApiGroupedAlert, ApiPharmacyThermalStatus, ApiPrescription, ApiProcessLine, ApiRestockRequest, ApiSale, ApiSalesStats, ApiStockMovement, ApiStockRow, NewSaleLine,
@@ -19,6 +20,9 @@ export interface PrescriptionPage { data: ApiPrescription[]; page: number; lastP
 
 /** Une page du journal des ventes. */
 export interface SalesPage { data: ApiSale[]; page: number; lastPage: number; total: number; }
+
+// Lecture partagée cloche / tableau de bord (voir `services/shared-read`). Réexporté pour les imports existants.
+export { SHARED_READ_MS } from '../shared-read/shared-read';
 
 /** Espace pharmacien : stock, demandes ciblées. */
 @Injectable({ providedIn: 'root' })
@@ -40,11 +44,20 @@ export class PharmacyService {
     return this.http.post(`${this.base}/pharmacy/stock/${stockId}/restock`, { quantity_received: quantity });
   }
 
-  /** GET /pharmacy/demandes */
-  demandes(): Observable<DemandeRow[]> {
-    return this.http.get<{ data: ApiDemande[] }>(`${this.base}/pharmacy/demandes`).pipe(
-      map(r => r.data.map(toDemandeRow)),
-    );
+  /** GET /pharmacy/demandes partagé entre la cloche et le premier affichage. */
+  private readonly demandesRead = new SharedRead<DemandeRow[]>(() =>
+    this.http.get<{ data: ApiDemande[] }>(`${this.base}/pharmacy/demandes`).pipe(map(r => r.data.map(toDemandeRow))));
+
+  /**
+   * GET /pharmacy/demandes. La cloche (NotificationService) et le premier affichage du tableau
+   * de bord lisent les mêmes demandes à quelques centaines de ms d'écart : avec `maxAgeMs > 0`,
+   * on réutilise la lecture précédente (réponse ou requête encore en cours) si elle a moins de
+   * `maxAgeMs` et a été faite avec le même jeton — un autre compte connecté entre-temps ne
+   * voit jamais les demandes du précédent. `maxAgeMs = 0` (défaut, actions) : nouvel appel,
+   * qui devient la lecture partagée. Une erreur n'est pas gardée.
+   */
+  demandes(maxAgeMs = 0): Observable<DemandeRow[]> {
+    return this.demandesRead.get(maxAgeMs);
   }
 
   /** POST /pharmacy/demandes/{order}/accept */
