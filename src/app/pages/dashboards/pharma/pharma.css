@@ -2,18 +2,49 @@
 /* ===================== PHARMACIE — tableau de bord, stock, ventes ===================== */
 :host { @apply contents; }
 /* Formulaire de vente : une ligne d'article (médicament, quantité, prix, ajouter) */
-.pf-sale-line { @apply grid grid-cols-[minmax(0,1fr)_76px_130px_auto] gap-2.5 items-end mb-3; }
+.pf-sale-line { @apply grid grid-cols-[minmax(0,1fr)_76px_190px_auto] gap-2.5 items-end mb-3; }
+.pf-sale-line label { @apply whitespace-nowrap; }
 .pf-sale-line .s-field { @apply m-0; }
-.pf-sale-hint { @apply -mt-1 mb-2 pt-0; }
+.pf-sale-hint { @apply flex items-center gap-2 m-0 mb-4 min-h-[22px] text-[13.5px] text-gray-text; }
+.pf-sale-hint nv-icon { @apply shrink-0 flex; }
+.pf-sale-hint.warn { @apply text-amber-text; }
+/* Caisse : saisie à gauche, ticket « Panier » à droite (hauteur bornée, défile à l'intérieur) */
+.pf-pos { @apply grid grid-cols-[minmax(0,1fr)_minmax(320px,380px)] gap-7 items-start; }
+.pf-pos-entry { @apply min-w-0; }
+.pf-pos-meta { @apply mt-2; }
+.pf-ticket { @apply flex flex-col border border-gray-line rounded-[12px] bg-gray-bg overflow-hidden; }
+.pf-ticket-head { @apply flex items-center justify-between gap-3 px-5 py-4 border-b border-gray-line bg-white; }
+.pf-ticket-head h3 { @apply flex items-center gap-2 m-0 text-[15px] font-semibold text-black; }
+.pf-ticket-empty { @apply flex flex-col items-center gap-1 px-5 py-10 text-center text-gray-text; }
+.pf-ticket-empty p { @apply m-0 mt-1 font-semibold text-black; }
+.pf-ticket-empty span { @apply text-[13.5px]; }
+.pf-ticket-lines { @apply m-0 p-3 list-none flex flex-col gap-2 max-h-[320px] overflow-y-auto overscroll-contain; }
+.pf-ticket-line { @apply grid grid-cols-[minmax(0,1fr)_auto_auto] grid-rows-[auto_auto] gap-x-3 gap-y-2 items-center px-3.5 py-3 rounded-[10px] bg-white border border-gray-line; }
+.pf-ticket-name { @apply col-span-2 min-w-0 flex flex-col gap-0.5; }
+.pf-ticket-name strong { @apply text-[14px] leading-snug text-black; }
+.pf-ticket-sub { @apply flex flex-wrap items-center gap-x-2 text-[12.5px] text-gray-text tabular-nums; }
+.pf-ticket-rx { @apply px-1.5 py-px rounded-[5px] bg-blue-soft text-blue text-[11.5px] font-semibold; }
+.pf-ticket-remove { @apply row-start-1 col-start-3 justify-self-end grid place-items-center size-8 rounded-[8px] text-gray-text hover:bg-red-soft hover:text-red; }
+.pf-ticket-qty { @apply row-start-2 col-start-1 inline-flex items-center self-center justify-self-start border border-gray-line rounded-[8px] overflow-hidden; }
+.pf-ticket-qty button { @apply grid place-items-center size-8 text-black hover:bg-gray-bg disabled:opacity-35 disabled:cursor-not-allowed; }
+.pf-ticket-qty span { @apply min-w-9 text-center text-[14px] font-semibold tabular-nums; }
+.pf-ticket-total { @apply row-start-2 col-start-2 col-span-2 justify-self-end text-[14.5px] tabular-nums text-blue whitespace-nowrap; }
+.pf-ticket-foot { @apply flex flex-col gap-4 px-5 py-4 border-t border-gray-line bg-white; }
+@media (max-width: 1100px) {
+  .pf-pos { @apply grid-cols-1; }
+}
 .pf-sale-meta { @apply grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_84px] gap-2.5 mt-4; }
 .pf-sale-meta .s-field { @apply m-0; }
 @media (max-width: 640px) {
   .pf-sale-line, .pf-sale-meta { @apply grid-cols-1; }
 }
-.pf-sale-totals { @apply flex flex-wrap justify-end gap-x-5 gap-y-1 mt-3 text-[13.5px] text-gray-text; }
-.pf-sale-totals strong { @apply text-blue ml-1; }
-.pf-sale-ttc { @apply text-[15px]; }
-.pf-sale-ttc strong { @apply text-green-text text-[17px]; }
+.pf-sale-totals { @apply grid grid-cols-[1fr_auto] items-baseline gap-y-1.5 w-full m-0 text-[14px] tabular-nums; }
+.pf-sale-totals dt { @apply text-gray-text; }
+.pf-sale-totals dd { @apply m-0 pl-8 text-right font-semibold text-blue whitespace-nowrap; }
+.pf-sale-sep { @apply col-span-2 h-px my-1 bg-gray-line; }
+.pf-sale-totals .pf-sale-ttc { @apply text-[16px] font-bold; }
+.pf-sale-totals dt.pf-sale-ttc { @apply text-black; }
+.pf-sale-totals dd.pf-sale-ttc { @apply text-green-text text-[18px]; }
 .pf-sale-export { @apply flex flex-wrap gap-2 items-center; }
 .pf-sale-export input { @apply h-9 px-2.5 border border-gray-line rounded-[8px] text-[13.5px] bg-white; }
 .pf-sale-period { @apply flex flex-wrap items-center justify-between gap-3 mb-5; }

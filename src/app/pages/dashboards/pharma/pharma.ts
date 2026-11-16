@@ -463,6 +463,8 @@ export class PharmaDash {
   readonly cart = signal<CartLine[]>([]);
   readonly vatRate = signal(0);
   readonly savingSale = signal(false);
+  /** Nombre d'unités dans le panier (en-tête du ticket). */
+  readonly cartUnits = computed(() => this.cart().reduce((n, l) => n + l.qty, 0));
   readonly cartNeedsRx = computed(() => this.cart().some(l => l.requiresRx));
   /** Médicaments du panier qui exigent une ordonnance (les autres sont en vente libre). */
   readonly rxNames = computed(() => this.cart().filter(l => l.requiresRx).map(l => l.name.split(' · ')[0]).join(', '));
@@ -484,6 +486,8 @@ export class PharmaDash {
   readonly salePriceInput = signal('');
   /** Prix repris du catalogue : champ en lecture seule, à titre indicatif. */
   readonly salePriceLocked = computed(() => this.saleItem()?.price != null);
+  /** Saisie manuelle seulement pour un médicament choisi sans prix catalogue. */
+  readonly salePriceManual = computed(() => { const s = this.saleItem(); return !!s && s.price == null; });
   readonly revenueMax = computed(() => Math.max(1, ...(this.salesStats()?.daily ?? []).map(d => d.revenue)));
 
   readonly partnerTypes: readonly PartnerTypeOption[] = [
@@ -1249,6 +1253,10 @@ export class PharmaDash {
     this.salePriceInput.set('');
   }
   removeLine(stockId: number): void { this.cart.update(lines => lines.filter(l => l.stockId !== stockId)); }
+  /** −/+ dans le panier : entre 1 et le disponible de la ligne. */
+  changeLineQty(stockId: number, delta: number): void {
+    this.cart.update(lines => lines.map(l => l.stockId === stockId ? { ...l, qty: Math.min(l.available, Math.max(1, l.qty + delta)) } : l));
+  }
   setVat(value: string): void { const v = Number(value); this.vatRate.set(isNaN(v) || v < 0 ? 0 : v); }
 
   submitSale(customer: string, payment: string): void {

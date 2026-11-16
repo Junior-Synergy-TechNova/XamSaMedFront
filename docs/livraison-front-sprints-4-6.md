@@ -159,7 +159,8 @@ Branche `feat/prix-catalogue-medicaments` (front et back).
   - le serveur applique toujours le prix du catalogue, quel que soit le prix envoyé ;
   - si la fiche n'a pas de prix, le champ redevient obligatoire pour cette vente (sinon refus `price_required`) ;
   - la TVA s'ajoute au prix HT, le total TTC reste affiché en bas du panier ;
-  - après « Ajouter », le formulaire revient à « Choisir un médicament… », quantité 1, pour enchaîner sur un autre médicament.
+  - après « Ajouter », le formulaire revient à « Choisir un médicament… », quantité 1, pour enchaîner sur un autre médicament ;
+  - mise en page « caisse » : saisie, client, paiement, TVA et ordonnance à gauche ; à droite un ticket **Panier** de hauteur fixe (la liste défile à l'intérieur au lieu d'allonger la page), avec −/+ pour la quantité de chaque ligne (borné au disponible), × pour retirer, et les totaux HT / TVA / TTC + « Valider » toujours visibles en bas ; « Chiffre d'affaires » et « Top ventes » passent côte à côte en dessous.
 
 ## À vérifier à la main
 
