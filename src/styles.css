@@ -39,6 +39,26 @@
   --color-amber: #d49a2a;
   --color-amber-text: #8f5f0a;
   --color-amber-soft: #fcf3e2;
+  /* Teintes de catégorie (pas d'état) : types de mouvement de stock. Texte sur fond soft ≥ 4,5:1. */
+  --color-violet: #7c3aed;
+  --color-violet-text: #5b21b6;
+  --color-violet-soft: #f1ebfe;
+  --color-teal: #0891b2;
+  --color-teal-text: #0e6680;
+  --color-teal-soft: #dcf2f8;
+  --color-sky: #0284c7;
+  --color-sky-text: #075985;
+  --color-sky-soft: #e3f1fa;
+  --color-rose: #db2777;
+  --color-rose-text: #9d174d;
+  --color-rose-soft: #fce8f1;
+  /* Carte : teintes vives, bien séparées entre elles et du fond OpenStreetMap (verts, beiges). */
+  --color-map-blue: #2563eb;
+  --color-map-green: #16a34a;
+  --color-map-amber: #f59e0b;
+  --color-map-red: #dc2626;
+  --color-map-violet: #9333ea;
+  --color-map-gray: #64748b;
 
   --font-title: "IBM Plex Sans", system-ui, sans-serif;
   --font-body: "IBM Plex Sans", system-ui, sans-serif;
@@ -121,6 +141,10 @@
 .chip-gray { @apply bg-gray-bg text-gray-text; }
 .chip-red { @apply bg-red-soft text-red-text; }
 .chip-amber { @apply bg-amber-soft text-amber-text; }
+.chip-violet { @apply bg-violet-soft text-violet-text; }
+.chip-teal { @apply bg-teal-soft text-teal-text; }
+.chip-sky { @apply bg-sky-soft text-sky-text; }
+.chip-rose { @apply bg-rose-soft text-rose-text; }
 /* Médicament contrôlé (stupéfiant…) : statut réglementaire, pas un état de stock → marine, jamais rouge */
 .chip-ctrl { @apply bg-white text-blue border border-blue/25 py-[6px]; }
 .chip-inline { @apply ml-2; }

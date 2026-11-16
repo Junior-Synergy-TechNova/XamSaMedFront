@@ -116,7 +116,7 @@ export class NetworkMap {
     for (const s of this.suppliers()) {
       if (!s.point) continue;
       const stock = !med ? '' : s.s.has_stock ? ` · ${s.s.available} disponibles` : ' · pas de stock';
-      out.push({ id: s.key, point: s.point, tone: 'dark', size: med && s.s.has_stock ? 16 : 0, label: `${s.s.name} (${s.s.kind})${stock}` });
+      out.push({ id: s.key, point: s.point, tone: 'violet', size: med && s.s.has_stock ? 16 : 0, label: `${s.s.name} (${s.s.kind})${stock}` });
     }
     return out;
   });

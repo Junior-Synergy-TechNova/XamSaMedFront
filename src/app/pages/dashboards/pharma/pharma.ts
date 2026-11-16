@@ -85,6 +85,19 @@ const EMPTY_SET: ReadonlySet<number> = new Set<number>();
    PHARMACIEN — tableau de bord, stock (lots / péremption), alertes,
    demandes, ordonnances, ventes (offre Pro), réceptions, réseau.
    ============================================================ */
+/** Types de StockLedger::movementLabel (backend) → teinte de pf-tag. */
+const MOVEMENT_TONE: Record<string, string> = {
+  initial_stock: 'green', restock: 'green', delivery_received: 'green',
+  patient_order: 'blue',
+  reservation: 'sky', reservation_cancelled: 'gray',
+  external_sale: 'violet',
+  sale_invoice: 'teal',
+  delivery: 'rose', service_issue: 'rose',
+  inventory_adjustment: 'amber',
+  expired: 'red', damaged: 'red', tension_detected: 'red',
+  deletion: 'gray', demo_refresh: 'gray',
+};
+
 @Component({
   selector: 'app-pharma-dash',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -641,9 +654,9 @@ export class PharmaDash {
   }
 
   /** Un mouvement ordinaire (vente, sortie, ajustement) est neutre ; seuls un lot périmé ou une tension sont des alertes. */
+  /** Une teinte par type de mouvement (rouge réservé aux pertes / alertes). */
   movementTag(m: ApiStockMovement): string {
-    return m.type === 'tension_detected' || m.type === 'expired' ? 'crit'
-      : m.direction === 'entrée' ? 'ok' : 'vue';
+    return MOVEMENT_TONE[m.type] ?? (m.direction === 'entrée' ? 'green' : 'gray');
   }
   /** Ordonnance : à traiter (orange), prête ou retirée (vert), refusée (neutre — ce n'est pas une alerte). */
   ordoTile(status: string): string { return status === 'pending' ? 'amber' : status === 'cancelled' ? '' : 'green'; }

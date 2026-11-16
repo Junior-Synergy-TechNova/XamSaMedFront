@@ -5,7 +5,7 @@ import type * as Leaflet from 'leaflet';
 import { GeoPoint, REF } from '../../services/structures/structures';
 
 /** Couleur d'un point : mêmes teintes que les pastilles `pf-tag` / `pf-liic`. */
-export type GeoTone = 'red' | 'amber' | 'green' | 'blue' | 'gray' | 'dark';
+export type GeoTone = 'red' | 'amber' | 'green' | 'blue' | 'gray' | 'violet';
 
 /** Point affiché sur la carte. `size` = rayon du halo en pixels (0 = pas de halo). */
 export interface GeoMarker {
@@ -100,7 +100,7 @@ export class GeoMap {
         .on('click', () => this.select.emit(m.id))
         .addTo(layer);
     }
-    if (me) L.circleMarker([me.lat, me.lng], { radius: 7, className: 'pf-gm-me', interactive: false }).bindTooltip('Votre position').addTo(layer);
+    if (me) L.circleMarker([me.lat, me.lng], { radius: 9, className: 'pf-gm-me', interactive: false }).bindTooltip('Votre position').addTo(layer);
 
     // Recadre seulement quand l'ensemble des points change (pas à chaque sélection).
     const framed = fitIds ? markers.filter(m => fitIds.includes(m.id)) : markers;
