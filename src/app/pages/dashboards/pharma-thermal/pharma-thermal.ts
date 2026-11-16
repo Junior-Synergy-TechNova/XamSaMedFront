@@ -15,6 +15,8 @@ type LoadProblem = { kind: 'unavailable' } | { kind: 'no-location'; message: str
 
 /** Écart sous le maximum en dessous duquel une référence est « proche du seuil ». */
 const NEAR_MARGIN_C = 2;
+/** Valeur posée par le backend tant qu'aucun pharmacien n'a validé la règle : ce n'est pas une source. */
+const SOURCE_PENDING = 'à valider';
 
 interface ThermalRow {
   item: ApiPharmacyThermalItem;
@@ -22,6 +24,8 @@ interface ThermalRow {
   /** Température extérieure − maximum supporté (positif = au-dessus). */
   gap: number | null;
   near: boolean;
+  /** Source réelle de la règle (notice, ARP, OMS), null si non renseignée ou « à valider ». */
+  source: string | null;
 }
 
 /* ============================================================
@@ -72,6 +76,7 @@ export class PharmaThermal {
         label: item.dosage ? `${item.medicine} — ${item.dosage}${item.form ? ' (' + item.form + ')' : ''}` : item.medicine,
         gap,
         near: !item.at_risk && gap !== null && gap > -NEAR_MARGIN_C,
+        source: item.source && item.source.trim().toLowerCase() !== SOURCE_PENDING ? item.source : null,
       };
     });
   });

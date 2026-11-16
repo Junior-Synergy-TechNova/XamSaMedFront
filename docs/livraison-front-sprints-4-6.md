@@ -131,7 +131,7 @@ Non couvert par les tests automatiques ni par le test dans le navigateur :
    - Si le conteneur `xamsamed-app` redémarre en boucle avec une classe introuvable : le volume `vendor_data` est en retard sur `composer.json`. Lancer `docker compose run --rm --no-deps app composer install`.
    - Signalements d'inondation de démo : `docker compose exec app php artisan db:seed --class='Database\Seeders\FloodReportSeeder'`.
 2. Front (dossier `xamsamed/`, Node 24) : `npm start`, puis http://localhost:4200.
-3. Comptes de démo (mot de passe `password123`) : `patient@xamsamed.test`, `pharma@xamsamed.test` (offre Pro).
+3. Comptes de démo (mot de passe : à demander à Fatou ou Alioune) : `patient@xamsamed.test`, `pharma@xamsamed.test` (offre Pro).
 
 ## Tests
 

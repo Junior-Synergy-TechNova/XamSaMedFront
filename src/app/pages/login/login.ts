@@ -43,7 +43,7 @@ export class LoginScreen {
 
   readonly role = signal<RoleId>('pharma');
   readonly email = signal<string>(this.demoEmail['pharma']);
-  readonly password = signal<string>('password123');
+  readonly password = signal<string>('');
   readonly error = signal<string | null>(null);
   readonly loading = signal(false);
   // Affichage en clair du mot de passe (évite les fautes de frappe à l'aveugle).

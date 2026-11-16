@@ -78,7 +78,7 @@
                     @else if (r.gap === null) { <pf-tag s="vue">Non comparé</pf-tag> }
                     @else { <pf-tag s="ok">Conforme</pf-tag> }
                   </td>
-                  <td class="muted">{{ r.item.source ?? '—' }}@if (!r.item.validated) { <span class="chip chip-amber chip-inline">À valider</span> }</td>
+                  <td class="muted">{{ r.source ?? '—' }}@if (!r.item.validated) { <span class="chip chip-amber chip-inline">À valider</span> }</td>
                 </tr>
               }
             </tbody>
@@ -97,7 +97,7 @@
             <span class="pf-liic blue"><nv-icon name="thermo" [size]="18"/></span>
             <div class="pf-libody">
               <strong>{{ r.label }}</strong>
-              <span>{{ plural(r.item.quantity, 'unité', 'unités') }} · entre {{ (r.item.min_temp_c ?? 2) | number:'1.0-1' }} et {{ r.item.max_temp_c | number:'1.0-1' }} °C@if (r.item.source) { · source {{ r.item.source }} }</span>
+              <span>{{ plural(r.item.quantity, 'unité', 'unités') }} · entre {{ (r.item.min_temp_c ?? 2) | number:'1.0-1' }} et {{ r.item.max_temp_c | number:'1.0-1' }} °C@if (r.source) { · source {{ r.source }} }</span>
             </div>
             @if (!r.item.validated) { <span class="chip chip-amber">Seuil à valider</span> }
           </div>
