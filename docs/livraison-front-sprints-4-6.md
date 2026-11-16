@@ -3,12 +3,14 @@
 Tâches front d'Alioune dans la feuille de route PAS, fusionnées dans `develop` le 15 novembre 2026 (PR #8 et #9).
 Testé dans le navigateur contre le backend `develop` en local (Docker), sauf les points listés en fin de document.
 
+**Mise à jour du 16 novembre 2026** (PR #11 et #12) : conservation thermique pharmacien branchée sur le backend, mots de passe retirés de l'interface, couleurs de l'historique et des cartes. Voir [Mise à jour du 16 novembre](#mise-à-jour-du-16-novembre).
+
 ## En bref
 
 | Tâche (sprint) | État | Où le voir |
 |---|---|---|
 | Interface armoire familiale (S4) | ✅ Fait | Patient → **Armoire familiale** |
-| Interface alertes conservation thermique (S4) | ✅ Patient · ⏳ Pharmacien (attend le back) | Patient → Armoire familiale ; Pharmacien → Stock → **Conservation thermique** |
+| Interface alertes conservation thermique (S4) | ✅ Fait (patient et pharmacien) | Patient → Armoire familiale ; Pharmacien → Stock → **Conservation thermique** |
 | Carte zones inondées + score accessibilité (S5) | ✅ Carte · ⏳ Score (attend le back) | Patient → **Routes inondées** ; Patient → Rechercher → résultats |
 | Module vente interface pharmacien (S5) | ✅ Fait (existait, complété) | Pharmacien → Comptoir → **Ventes & comptabilité** |
 | Interface gestion ordonnances (S6) | ✅ Fait (existait, complété) | Pharmacien → Comptoir → **Ordonnances** ; Patient → Rechercher |
@@ -41,7 +43,9 @@ Fichiers : `pages/dashboards/pharma-thermal/`, `PharmacyService.thermalStatus()`
 
 - Température de la zone de l'officine comparée au maximum supporté par chaque médicament en stock.
 - Bandeau (trop chaud / conforme / météo indisponible), indicateurs, tableau trié par urgence (écart, « proche du seuil » à moins de 2 °C, source du seuil, badge « À valider »), section chaîne du froid (2–8 °C) avec les consignes en cas de coupure.
-- **L'endpoint n'existe pas encore** : l'écran affiche « Surveillance pas encore disponible » (voir plus bas).
+- Branché sur `GET /pharmacy/thermal-status` (backend PR #102, dans `develop`). La météo est rafraîchie au plus toutes les 30 minutes par officine.
+- Toutes les règles ont aujourd'hui `source = « à valider »`, en attendant la validation d'un pharmacien : l'écran l'affiche « — » avec le badge « À valider ».
+- Pas de ligne « Météo de HH:MM » propre à l'écran : le bouton « Actualiser » du tableau de bord pharmacien relit aussi la météo.
 
 ### Routes inondées + score d'accessibilité (patient)
 
@@ -83,14 +87,14 @@ Ces points bloquent ou limitent des écrans déjà prêts. Le front n'a rien à 
 
 | # | Manque | Effet aujourd'hui | Qui / quoi faire |
 |---|---|---|---|
-| 1 | **`GET /pharmacy/thermal-status` n'existe pas** | Pharmacien → Conservation thermique affiche « Surveillance pas encore disponible » (404) | Fatou : implémenter l'endpoint selon le contrat ci-dessous |
+| 1 | ~~`GET /pharmacy/thermal-status` n'existe pas~~ | ✅ Fait (PR backend #102, 16 novembre) | — |
 | 2 | **Score d'accessibilité pas dans `develop`** (branche `feat/score-accessibilite`) | Résultats de recherche triés par disponibilité puis distance, sans raisons | Myriam : fusionner la branche dans `develop` |
-| 3 | **Clé OpenWeatherMap** absente en local | Armoire et pharmacie : « Météo indisponible pour le moment » | Renseigner `services.openweathermap.api_key` dans le `.env` du backend |
-| 4 | **Position des officines** | Sans latitude / longitude, l'écran pharmacien affichera « Position de l'officine manquante » (422) une fois l'endpoint fait | Admin : renseigner les coordonnées des structures |
-| 5 | **Seuils de conservation à valider** | Badge « À valider » sur les seuils non validés par un pharmacien | Équipe : faire valider `medicine_storage_rules` |
-| 6 | **Expiration des réservations** non planifiée en local | Une ordonnance peut rester « Prête au retrait » après son délai | Lancer le planificateur Laravel (`reservations:cancel-expired`) |
+| 3 | **Clé OpenWeatherMap** : nécessaire en local seulement (déjà configurée en ligne) | Sans clé : « Météo indisponible pour le moment » (armoire et pharmacie) | Mettre `OPENWEATHERMAP_API_KEY` dans le `.env` local du backend ; une clé neuve peut mettre jusqu'à 2 h à s'activer |
+| 4 | **Position des officines** | Sans latitude / longitude, l'écran pharmacien affiche « Position de l'officine manquante » (422) | Admin : renseigner les coordonnées des structures |
+| 5 | **Seuils de conservation à valider** | Badge « À valider » sur tous les seuils (`source = « à valider »`) | Fatou : validation demandée à un pharmacien |
+| 6 | **Expiration des réservations** | Déjà gérée en ligne par le planificateur ; en local, une ordonnance peut rester « Prête au retrait » après son délai | En local seulement : lancer `reservations:cancel-expired` |
 
-### Contrat attendu pour `GET /pharmacy/thermal-status`
+### Contrat de `GET /pharmacy/thermal-status` (implémenté)
 
 Rôle `pharmacy_user`. Type côté front : `ApiPharmacyThermalStatus` dans `src/app/interfaces/api.ts`.
 
@@ -116,6 +120,35 @@ Rôle `pharmacy_user`. Type côté front : `ApiPharmacyThermalStatus` dans `src/
 - `validated` : `validated_by` renseigné.
 - 422 `{ "message": "..." }` si la structure n'a pas de coordonnées.
 
+## Mise à jour du 16 novembre
+
+### Sécurité (PR #11)
+- Page de connexion : le champ mot de passe n'est plus pré-rempli et la liste des comptes de démo n'affiche plus de mot de passe.
+- Aucun mot de passe dans la doc ni dans les tests.
+
+### Cartes et lectures (PR #11)
+- Vraies cartes Leaflet + OpenStreetMap partout (`components/geo-map/`) : « Carte du réseau » pharmacien et hôpital (`components/network-map/`), « Zones critiques », « Pharmacies à proximité ».
+- Une seule lecture partagée entre la cloche et le tableau de bord (`services/shared-read/`).
+- Les erreurs de lecture s'affichent (« Réessayer », bandeaux orange) au lieu de listes vides.
+
+### Couleurs (PR #12)
+- **Historique pharmacien** : une couleur par type de mouvement.
+
+  | Type | Couleur |
+  |---|---|
+  | Vente hors plateforme | violet |
+  | Vente comptoir avec facture | cyan |
+  | Commande patient | bleu nuit |
+  | Réapprovisionnement, livraison confirmée, stock initial | vert |
+  | Ajustement inventaire | orange |
+  | Réservation | bleu ciel |
+  | Livraison expédiée, sortie vers service | rose |
+  | Périmé, endommagé, tension détectée | rouge |
+  | Réservation annulée, référence supprimée | gris |
+
+  Le rouge reste réservé aux pertes et aux alertes.
+- **Cartes** : votre structure en bleu vif (plus grosse), fournisseurs en violet, officines en vert / orange / rouge selon le stock (gris ardoise sans médicament choisi), marqueur sélectionné cerclé de noir.
+
 ## À vérifier à la main
 
 Non couvert par les tests automatiques ni par le test dans le navigateur :
@@ -123,16 +156,21 @@ Non couvert par les tests automatiques ni par le test dans le navigateur :
 - **Signaler / confirmer une inondation** : demande l'autorisation de position du navigateur, à tester sur place avec un téléphone.
 - **Suggestions DCI** : en tapant une DCI (« lispro »), la liste de Chrome doit proposer « Insuline Humalog ».
 - **« Non renseignée au catalogue »** (DCI) : impossible à voir avec les données actuelles, tous les médicaments ont une DCI.
+- **Couleurs des réservations, livraisons expédiées et pertes** dans l'historique : absentes des données de démo, pas vues à l'écran.
 - **Tuiles OpenStreetMap** : avant une vraie mise en production, vérifier que leurs conditions d'usage couvrent notre trafic, ou passer par un fournisseur de tuiles.
 
 ## Lancer en local
 
 1. Backend (dépôt `XamSaMed`, branche `develop`) : `docker compose up -d`, puis `docker compose exec app php artisan migrate`.
    - Si le conteneur `xamsamed-app` redémarre en boucle avec une classe introuvable : le volume `vendor_data` est en retard sur `composer.json`. Lancer `docker compose run --rm --no-deps app composer install`.
+   - Règles de conservation thermique : `docker compose exec app php artisan db:seed --class='Database\Seeders\MedicineStorageRuleSeeder'`.
+   - Météo : `OPENWEATHERMAP_API_KEY` dans le `.env` du backend, puis `docker compose restart app`.
    - Signalements d'inondation de démo : `docker compose exec app php artisan db:seed --class='Database\Seeders\FloodReportSeeder'`.
 2. Front (dossier `xamsamed/`, Node 24) : `npm start`, puis http://localhost:4200.
 3. Comptes de démo (mot de passe : à demander à Fatou ou Alioune) : `patient@xamsamed.test`, `pharma@xamsamed.test` (offre Pro).
 
 ## Tests
 
-`ng test` : 13 tests (Vitest), dont les nouveaux `patient-cabinet.spec.ts`, `pharma-thermal.spec.ts`, `patient-floods.spec.ts`, `services/pharmacy/pharmacy.spec.ts` et `pages/dashboards/patient/patient.spec.ts`.
+`ng test` : 57 tests (Vitest) dans 17 fichiers au 16 novembre. Les premiers de ce lot : `patient-cabinet.spec.ts`, `pharma-thermal.spec.ts`, `patient-floods.spec.ts`, `services/pharmacy/pharmacy.spec.ts` et `pages/dashboards/patient/patient.spec.ts` ; puis auth, guards, connexion, shell, tableaux de bord (distributeur, pharmacien, hôpital, santé publique), résultats patient et `shared-read`.
+
+Backend : `PharmacyThermalStatusTest` (6 tests) passe sur `develop`.
