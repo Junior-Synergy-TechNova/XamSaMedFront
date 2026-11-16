@@ -511,7 +511,13 @@ export class PharmaDash {
   private firstLoad = true;
 
   /** Tout recharger : premier affichage, « Actualiser », retour sur l'onglet après une longue absence. */
-  reload(): void { this.refresh(...ALL_RESOURCES); }
+  reload(): void {
+    this.reloadTick.update(n => n + 1);
+    this.refresh(...ALL_RESOURCES);
+  }
+
+  /** Signale un « tout recharger » aux sous-pages qui lisent leurs propres données (conservation thermique). */
+  readonly reloadTick = signal(0);
 
   /**
    * Recharge uniquement les données touchées par une action. Sur une 3G à

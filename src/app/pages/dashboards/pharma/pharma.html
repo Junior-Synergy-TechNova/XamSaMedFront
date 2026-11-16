@@ -259,7 +259,7 @@
         </div>
       }
 
-      @case ('thermique') { <app-pharma-thermal/> }
+      @case ('thermique') { <app-pharma-thermal [refreshKey]="reloadTick()"/> }
       @case ('dem') { <app-pharma-demandes [demandes]="demandes()" (changed)="onDemandesChanged()"/> }
 
       @case ('grouped') {

@@ -22,11 +22,6 @@
       </div>
     </pf-card>
   } @else if (status(); as s) {
-    <div class="pf-sync">
-      <span>Météo de {{ s.checked_at | date:'HH:mm' }}</span>
-      <button type="button" class="btn btn-ghost btn-sm" (click)="load()" [disabled]="refreshing()"><nv-icon name="refresh" [size]="14"/> Actualiser</button>
-    </div>
-
     @if (s.current_temp_c === null) {
       <div class="pf-banner amber" role="status">
         <span class="pf-bannic"><nv-icon name="thermo" [size]="22"/></span>

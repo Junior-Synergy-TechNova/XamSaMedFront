@@ -1,5 +1,7 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { DatePipe, DecimalPipe } from '@angular/common';
+import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
+import { skip } from 'rxjs';
+import { DecimalPipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Icon } from '../../../components/icon/icon';
 import { Card } from '../../../components/card/card';
@@ -35,7 +37,7 @@ interface ThermalRow {
 @Component({
   selector: 'app-pharma-thermal',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, Card, PageHead, Stat, Tag, TableLabels, DatePipe, DecimalPipe],
+  imports: [Icon, Card, PageHead, Stat, Tag, TableLabels, DecimalPipe],
   templateUrl: './pharma-thermal.html',
   styleUrl: './pharma-thermal.css',
 })
@@ -48,7 +50,16 @@ export class PharmaThermal {
   readonly refreshing = signal(false);
   readonly nearMargin = NEAR_MARGIN_C;
 
-  constructor() { this.load(); }
+  /**
+   * Incrémenté par le « Actualiser » du tableau de bord pharmacien : l'écran n'a
+   * plus sa propre ligne « Météo de HH:MM », il suit l'actualisation générale.
+   */
+  readonly refreshKey = input(0);
+
+  constructor() {
+    this.load();
+    toObservable(this.refreshKey).pipe(skip(1), takeUntilDestroyed()).subscribe(() => this.load());
+  }
 
   load(): void {
     // Après le premier chargement, on garde l'écran affiché pendant l'actualisation.
