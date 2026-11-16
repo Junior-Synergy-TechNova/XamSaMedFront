@@ -4,6 +4,7 @@
 /* Formulaire de vente : une ligne d'article (médicament, quantité, prix, ajouter) */
 .pf-sale-line { @apply grid grid-cols-[minmax(0,1fr)_76px_130px_auto] gap-2.5 items-end mb-3; }
 .pf-sale-line .s-field { @apply m-0; }
+.pf-sale-hint { @apply -mt-1 mb-2 pt-0; }
 .pf-sale-meta { @apply grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_84px] gap-2.5 mt-4; }
 .pf-sale-meta .s-field { @apply m-0; }
 @media (max-width: 640px) {

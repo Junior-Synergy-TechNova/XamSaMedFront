@@ -210,14 +210,18 @@ export class SanteDash {
    * backend ne propose jamais d'équivalent (il ne devine pas la molécule).
    * Délivrance « auto » à l'ajout = l'API la propose elle-même.
    */
-  submitMedicine(f: { name: string; dci: string; brand: string; form: string; dosage: string; atc: string; category: string; rx: string; controlled: boolean }): void {
+  submitMedicine(f: { name: string; dci: string; brand: string; form: string; dosage: string; atc: string; price: string; category: string; rx: string; controlled: boolean }): void {
     const name = f.name.trim(), dci = f.dci.trim();
     if (!name || !dci) { this.medError.set('Le nom et la DCI sont obligatoires.'); return; }
+    const priceText = f.price.trim().replace(/\s/g, '').replace(',', '.');
+    const price = priceText === '' ? null : Number(priceText);
+    if (price === null || !Number.isFinite(price) || price < 0) { this.medError.set('Indiquez un prix de référence valide (en FCFA).'); return; }
     const editing = this.medEditing();
     const payload: ApiMedicinePayload = {
       name, dci,
       brand: f.brand.trim() || null, form: f.form.trim() || null, dosage: f.dosage.trim() || null,
       atc_code: f.atc.trim().toUpperCase() || null,
+      price,
       category: f.category, is_controlled: f.controlled,
     };
     if (f.rx === 'yes' || f.rx === 'no') payload.requires_prescription = f.rx === 'yes';
@@ -233,6 +237,16 @@ export class SanteDash {
       },
       error: (e: HttpErrorResponse) => { this.medSaving.set(false); this.medError.set(medicineError(e)); },
     });
+  }
+  /** Prix de référence lisible (« 1 500 FCFA »), null si la fiche n'en a pas. */
+  medPrice(m: ApiMedicine): string | null {
+    const v = m.price == null || m.price === '' ? NaN : Number(m.price);
+    return Number.isFinite(v) ? `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 }).format(v)} FCFA` : null;
+  }
+  /** Valeur du champ prix à l'ouverture de la modale. */
+  medPriceInput(m: ApiMedicine | null): string {
+    const v = m?.price == null || m.price === '' ? NaN : Number(m.price);
+    return Number.isFinite(v) ? String(v) : '';
   }
   categoryLabel(c: string | undefined): string {
     return c === 'hospital' ? 'Hôpital uniquement' : c === 'pharmaceutical' ? 'Officine uniquement' : 'Officine et hôpital';

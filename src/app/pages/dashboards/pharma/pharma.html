@@ -329,14 +329,18 @@
               <pf-card title="Nouvelle vente" sub="Le stock est décrémenté à la validation — reçu PDF généré">
                 <form class="pf-sale-line" (submit)="addToCart(cMed.value, cQty.value, cPrice.value); $event.preventDefault()">
                   <div class="s-field"><label>Médicament</label>
-                    <select #cMed>
-                      @for (s of sellable(); track s.stockId) { <option [value]="s.stockId">{{ s.name }} · {{ s.sub }} ({{ s.q }} u.){{ s.requiresRx ? ' — ordonnance' : '' }}</option> }
+                    <select #cMed (change)="saleStockId.set(cMed.value ? +cMed.value : null)">
+                      <option value="" disabled [selected]="!saleItem()">Choisir un médicament…</option>
+                      @for (s of sellable(); track s.stockId) { <option [value]="s.stockId" [selected]="s.stockId === saleItem()?.stockId">{{ s.name }} · {{ s.sub }} ({{ s.q }} u.){{ s.requiresRx ? ' — ordonnance' : '' }}</option> }
                     </select>
                   </div>
-                  <div class="s-field pf-sale-qty"><label>Qté</label><input #cQty type="number" min="1" value="1"/></div>
-                  <div class="s-field pf-sale-price"><label>Prix unitaire HT</label><input #cPrice type="number" min="0" step="5" placeholder="FCFA"/></div>
+                  <div class="s-field pf-sale-qty"><label>Qté</label><input #cQty type="number" min="1" [value]="saleQty()" (input)="saleQty.set(cQty.value)"/></div>
+                  <div class="s-field pf-sale-price"><label>Prix unitaire HT{{ salePriceLocked() ? ' (FCFA)' : ' *' }}</label><input #cPrice type="number" min="0" step="any" placeholder="FCFA" [readonly]="salePriceLocked()" [attr.tabindex]="salePriceLocked() ? -1 : null" [value]="saleItem()?.price ?? salePriceInput()" (input)="salePriceInput.set(cPrice.value)" [title]="salePriceLocked() ? 'Prix de référence du catalogue national' : ''"/></div>
                   <button type="submit" class="btn btn-outline">Ajouter</button>
                 </form>
+                @if (saleItem(); as si) {
+                  <p class="pf-hint pf-sale-hint">{{ si.price != null ? 'Prix indicatif, repris automatiquement du catalogue national.' : 'Prix non renseigné au catalogue pour ce médicament : saisissez-le pour cette vente.' }}</p>
+                }
 
                 <table class="pf-table">
                   <thead><tr><th>Article</th><th>Qté</th><th>PU HT</th><th>Total HT</th><th></th></tr></thead>

@@ -72,6 +72,8 @@ export interface StockRow {
   /** Seuil critique de la ligne (null = non défini). */
   critical: number | null;
   controlled: boolean; requiresRx: boolean;
+  /** Prix de référence du catalogue (FCFA), appliqué automatiquement aux ventes ; null = non renseigné. */
+  price: number | null;
   batch: string | null; expiry: string | null; expiryLevel: ExpiryLevel; daysToExpiry: number | null;
 }
 export interface DemandeRow { id: number; medId: number | null; medName: string; from: string; type: string; qty: number; urgency: string; status: string; quand: string; }

@@ -10,7 +10,7 @@ import { environment } from '../../../../environments/environment';
 registerLocaleData(localeFr);
 const api = environment.apiUrl;
 
-const FORM = { name: 'Doliprane', dci: '', brand: '', form: 'Comprimé', dosage: '500 mg', atc: 'n02be01', category: 'both', rx: 'auto', controlled: false };
+const FORM = { name: 'Doliprane', dci: '', brand: '', form: 'Comprimé', dosage: '500 mg', atc: 'n02be01', price: '1 500', category: 'both', rx: 'auto', controlled: false };
 
 describe('SanteDash — catalogue national', () => {
   let http: HttpTestingController;
@@ -41,7 +41,7 @@ describe('SanteDash — catalogue national', () => {
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('1 fiche sans DCI');
   });
 
-  it('exige la DCI, puis crée la fiche avec la délivrance laissée à l\'API', async () => {
+  it('exige la DCI et le prix, puis crée la fiche avec la délivrance laissée à l\'API', async () => {
     const fixture = await setup();
     const c = fixture.componentInstance;
     c.openMedicine('new');
@@ -50,12 +50,16 @@ describe('SanteDash — catalogue national', () => {
     expect(c.medError()).toContain('DCI');
     http.expectNone(`${api}/admin/medicines`);
 
+    c.submitMedicine({ ...FORM, dci: 'Paracétamol', price: '' });
+    expect(c.medError()).toContain('prix');
+    http.expectNone(`${api}/admin/medicines`);
+
     c.submitMedicine({ ...FORM, dci: ' Paracétamol ' });
     const req = http.expectOne(`${api}/admin/medicines`);
     expect(req.request.method).toBe('POST');
     expect(req.request.body).toEqual({
       name: 'Doliprane', dci: 'Paracétamol', brand: null, form: 'Comprimé', dosage: '500 mg',
-      atc_code: 'N02BE01', category: 'both', is_controlled: false,
+      atc_code: 'N02BE01', price: 1500, category: 'both', is_controlled: false,
     });
     req.flush({ data: { id: 2, name: 'Doliprane' } }, { status: 201, statusText: 'Created' });
     expect(c.medModal()).toBeNull();
