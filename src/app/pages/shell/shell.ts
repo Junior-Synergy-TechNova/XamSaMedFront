@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, Injector, afterNextRender, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Subject, debounceTime, distinctUntilChanged, of, switchMap } from 'rxjs';
+import { Subject, catchError, debounceTime, distinctUntilChanged, of, switchMap } from 'rxjs';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Icon } from '../../components/icon/icon';
 import { Logo } from '../../components/logo/logo';
@@ -54,6 +54,8 @@ export class AppShell {
   readonly globalQuery = signal('');
   readonly globalResults = signal<GlobalSearchResult[]>([]);
   readonly searchLoading = signal(false);
+  /** Recherche en échec : message dédié, pas « aucun résultat ». */
+  readonly searchError = signal(false);
   readonly searchFocused = signal(false);
   readonly dismissedNotifications = signal<Set<string>>(new Set());
   readonly notifications = signal<Notif[]>([]);
@@ -127,12 +129,15 @@ export class AppShell {
       distinctUntilChanged(),
       switchMap(query => {
         const term = query.trim();
+        this.searchError.set(false);
         if (term.length < 2) {
           this.searchLoading.set(false);
           return of([]);
         }
         this.searchLoading.set(true);
-        return this.medicines.globalSearch(term);
+        return this.medicines.globalSearch(term).pipe(
+          catchError(() => { this.searchError.set(true); return of([]); }),
+        );
       }),
       takeUntilDestroyed(this.destroyRef),
     ).subscribe(results => {

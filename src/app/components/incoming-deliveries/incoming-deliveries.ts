@@ -29,6 +29,8 @@ export class IncomingDeliveries {
 
   readonly rows = signal<ApiIncomingDelivery[]>([]);
   readonly loading = signal(true);
+  /** Livraisons non lues : « Réessayer » au lieu de « aucune livraison attendue ». */
+  readonly loadError = signal(false);
   readonly busy = signal<number | null>(null);
 
   readonly expected = computed(() => this.rows().filter(r => r.status !== 'delivered'));
@@ -38,9 +40,10 @@ export class IncomingDeliveries {
 
   reload(): void {
     this.loading.set(true);
+    this.loadError.set(false);
     this.deliveries.incoming().subscribe({
       next: r => { this.rows.set(r); this.loading.set(false); },
-      error: () => this.loading.set(false),
+      error: () => { this.loading.set(false); this.loadError.set(true); },
     });
   }
 

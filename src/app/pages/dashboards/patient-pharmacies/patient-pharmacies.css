@@ -1,11 +1,8 @@
 @reference "../../../../styles.css";
 /* ===================== PATIENT — pharmacies à proximité ===================== */
 :host { @apply contents; }
-.pf-mapdot { @apply bg-green; }
-.pf-mapdot.on { @apply bg-blue; }
-.pf-mappin.me { @apply left-[48%] top-[52%]; }
-.pf-mapdot.me { @apply bg-blue w-3.5 h-3.5 shadow-[0_0_0_6px_rgba(0,51,102,.15)]; }
-.pf-maplegend .dot.green { @apply bg-green; }
-.pf-maplegend .dot.blue { @apply bg-blue; }
-.pf-pharm { @apply cursor-pointer rounded-[10px] px-2.5 py-3 bg-transparent transition duration-150; }
-.pf-pharm.on { @apply bg-gray-bg; }
+/* La ligne entière est un bouton ; les actions s'ouvrent dessous quand elle est choisie. */
+.pf-pharm { @apply flex-col items-stretch gap-0 p-0; }
+.pf-pharm.on { @apply border-blue; }
+.pf-pharm-main { @apply flex items-center gap-5 w-full text-left px-6 py-5 cursor-pointer bg-transparent border-0 rounded-[12px] font-[inherit] text-[inherit]; }
+.pf-pharm-actions { @apply flex flex-wrap gap-2 px-6 pb-5; }

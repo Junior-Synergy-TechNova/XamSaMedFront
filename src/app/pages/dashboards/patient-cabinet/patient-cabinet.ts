@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, output, signal } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Icon } from '../../../components/icon/icon';
@@ -97,6 +97,8 @@ export class PatientCabinet {
   private readonly api = inject(CabinetService);
   private readonly meds = inject(MedicineService);
   private readonly platform = inject(PlatformState);
+  /** Liste relue : le tableau de bord patient met à jour la pastille « Armoire familiale ». */
+  readonly itemsChange = output<ApiCabinetItem[]>();
 
   readonly relationships = RELATIONSHIPS;
   readonly storages = STORAGES;
@@ -192,7 +194,7 @@ export class PatientCabinet {
 
   private loadItems(): void {
     this.api.items().subscribe({
-      next: list => { this.items.set(list); this.loading.set(false); this.loadError.set(false); },
+      next: list => { this.items.set(list); this.loading.set(false); this.loadError.set(false); this.itemsChange.emit(list); },
       error: () => { this.loading.set(false); this.loadError.set(true); },
     });
   }

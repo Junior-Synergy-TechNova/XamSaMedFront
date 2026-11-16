@@ -1,30 +1,55 @@
-    <div>
-      <pf-page-head title="Pharmacies à proximité" sub="Localisez les officines partenaires autour de vous."/>
-      <div class="pf-cols">
-        <pf-card title="Carte" sub="Cliquez sur une officine">
-          <div class="pf-map">
-            @for (p of pharmacies(); track p.id) {
-              <button class="pf-mappin" [style.left.%]="p.lng" [style.top.%]="p.lat" (click)="sel.set(p.id)">
-                <span class="pf-mapdot" [class.on]="sel() === p.id"></span>
-              </button>
-            }
-            <span class="pf-mappin me">
-              <span class="pf-mapdot me"></span>
+<div>
+  <pf-page-head title="Pharmacies à proximité" sub="Les officines les plus proches de vous, sur la carte et par distance.">
+    <button actions type="button" class="btn btn-outline btn-sm" (click)="useMyPosition()" [disabled]="geo.locating()">
+      <nv-icon name="pin" [size]="16"/> {{ geo.locating() ? 'Localisation…' : mine() ? 'Actualiser ma position' : 'Utiliser ma position' }}
+    </button>
+  </pf-page-head>
+
+  @if (loadError()) {
+    <div class="pf-banner red" role="alert">
+      <span class="pf-bannic"><nv-icon name="alert" [size]="22"/></span>
+      <div class="pf-banner-body"><strong>Pharmacies non chargées</strong><p>Vérifiez la connexion puis réessayez.</p></div>
+      <button type="button" class="btn btn-white btn-sm" (click)="load()"><nv-icon name="refresh" [size]="15"/> Réessayer</button>
+    </div>
+  }
+
+  <div class="pf-cols">
+    <pf-card title="Carte" [sub]="mine() ? 'Autour de votre position' : 'Autour de Dakar Plateau — partagez votre position pour un classement exact'">
+      <pf-geo-map [markers]="markers()" [selected]="sel()" [me]="origin()" [maxZoom]="15" [fitIds]="nearestIds()"
+                  label="Carte des pharmacies proches" (select)="sel.set($event)"/>
+      <div class="pf-gm-legend">
+        <span><i class="green"></i> Les {{ nearestCount }} plus proches</span>
+        <span><i class="gray"></i> Autres officines</span>
+        <span><i class="blue"></i> {{ mine() ? 'Votre position' : 'Point de référence' }}</span>
+      </div>
+    </pf-card>
+
+    <pf-card title="Officines" [sub]="loading() ? 'Chargement…' : pharmacies().length + ' classées par distance'">
+      @for (p of pharmacies(); track p.id) {
+        <div class="pf-li pf-pharm" [class.on]="sel() === p.key">
+          <button type="button" class="pf-pharm-main" [attr.aria-expanded]="sel() === p.key" (click)="toggle(p.key)">
+            <span class="pf-liic" [class.green]="p.nearest"><nv-icon name="pin" [size]="18"/></span>
+            <span class="pf-libody">
+              <strong>{{ p.name }}</strong>
+              <span>{{ p.address || p.city }}@if (p.hours) { · {{ p.hours }}}</span>
             </span>
-            <div class="pf-maplegend">
-              <div><span class="dot green"></span> Officine partenaire</div>
-              <div><span class="dot blue"></span> Votre position</div>
-            </div>
-          </div>
-        </pf-card>
-        <pf-card title="Officines" [sub]="pharmacies().length + ' à proximité'">
-          @for (p of pharmacies(); track p.id) {
-            <div class="pf-li pf-pharm" [class.on]="sel() === p.id" (click)="sel.set(p.id)">
-              <span class="pf-liic"><nv-icon name="pin" [size]="18"/></span>
-              <div class="pf-libody"><strong>{{ p.nom }}</strong><span>{{ p.ville }} · {{ p.horaires }}</span></div>
-              <span class="chip chip-gray">{{ p.dist }}</span>
+            <span class="chip" [class.chip-green]="p.nearest" [class.chip-gray]="!p.nearest">{{ p.dist }}</span>
+          </button>
+          @if (sel() === p.key) {
+            <div class="pf-pharm-actions">
+              <a class="btn btn-primary btn-sm" [href]="directions(p)" target="_blank" rel="noopener">
+                <nv-icon name="arrow" [size]="15"/> Itinéraire
+              </a>
+              @if (p.phone) {
+                <a class="btn btn-outline btn-sm" [href]="tel(p.phone)"><nv-icon name="phoneCall" [size]="15"/> {{ p.phone }}</a>
+              }
             </div>
           }
-        </pf-card>
-      </div>
-    </div>
+        </div>
+      }
+      @if (!loading() && !loadError() && pharmacies().length === 0) {
+        <div class="pf-note">Aucune officine géolocalisée pour le moment.</div>
+      }
+    </pf-card>
+  </div>
+</div>

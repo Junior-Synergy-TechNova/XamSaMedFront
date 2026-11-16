@@ -431,7 +431,9 @@
                 <option value="">Sélectionnez une structure</option>
                 @for (d of ctx.destinations; track d.id) { <option [value]="d.id" [selected]="ctx.structureId === d.id">{{ destinationLabel(d) }}</option> }
               </select>
-              @if (!planLoading() && ctx.destinations.length === 0) { <div class="pf-hint">Aucune structure livrable dans votre périmètre.</div> }
+              @if (!planLoading() && planError()) {
+                <div class="pf-banner red" role="alert"><div class="pf-banner-body"><p>Les structures livrables n'ont pas pu être chargées.</p></div><button type="button" class="btn btn-white btn-sm" (click)="retryDestinations()"><nv-icon name="refresh" [size]="15"/> Réessayer</button></div>
+              } @else if (!planLoading() && ctx.destinations.length === 0) { <div class="pf-hint">Aucune structure livrable dans votre périmètre.</div> }
             </div>
             <div class="pf-fieldrow">
               <div class="s-field"><label>Quantité (unités) *</label><input #pQty required type="number" min="1" placeholder="Ex : 500" [value]="ctx.quantity ?? ''"/></div>

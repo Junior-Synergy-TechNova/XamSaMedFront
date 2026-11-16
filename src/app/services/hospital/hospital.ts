@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, catchError, map, of } from 'rxjs';
+import { Observable, map } from 'rxjs';
+import { SharedRead } from '../shared-read/shared-read';
 import { environment } from '../../../environments/environment';
 import {
   ApiAlertLevelUpdate, ApiCriticalMedicine, ApiDispensation, ApiDispensationByService, ApiHospitalAlert, ApiHospitalDashboard, ApiHospitalStockRow,
@@ -11,19 +12,24 @@ import { AlerteHop, CritMedRow, StockState } from '../../interfaces/models';
 import { formatWhen } from '../orders/orders';
 import { asZoneLevel } from '../distributor/distributor';
 
-/** Espace hôpital : alertes internes (tension / rupture), stock & sorties par service, médicaments critiques. */
+/**
+ * Espace hôpital : alertes internes (tension / rupture), stock & sorties par service, médicaments critiques.
+ * Les lectures laissent passer les erreurs : la page affiche « Réessayer » plutôt
+ * qu'une liste vide trompeuse (« aucune alerte » alors que le serveur est injoignable).
+ */
 @Injectable({ providedIn: 'root' })
 export class HospitalService {
   private readonly http = inject(HttpClient);
   private readonly base = environment.apiUrl;
 
-  /** GET /hospital/alerts */
-  alerts(): Observable<AlerteHop[]> {
-    return this.http.get<{ data: ApiHospitalAlert[] }>(`${this.base}/hospital/alerts`).pipe(
-      map(r => r.data.map(toAlerteHop)),
-      catchError(() => of([])),
-    );
+  /** GET /hospital/alerts — partagé entre la cloche et le premier affichage (`maxAgeMs`, voir `SharedRead`). */
+  alerts(maxAgeMs = 0): Observable<AlerteHop[]> {
+    return this.alertsRead.get(maxAgeMs);
   }
+  private readonly alertsRead = new SharedRead<AlerteHop[]>(() =>
+    this.http.get<{ data: ApiHospitalAlert[] }>(`${this.base}/hospital/alerts`).pipe(
+      map(r => (r.data ?? []).map(toAlerteHop)),
+    ));
 
   /** POST /hospital/alerts/{alert}/resolve */
   resolveAlert(id: number): Observable<unknown> {
@@ -42,7 +48,6 @@ export class HospitalService {
   stock(): Observable<ApiHospitalStockRow[]> {
     return this.http.get<{ data: ApiHospitalStockRow[] }>(`${this.base}/hospital/stock`).pipe(
       map(r => r.data ?? []),
-      catchError(() => of([])),
     );
   }
 
@@ -62,7 +67,6 @@ export class HospitalService {
   /** GET /hospital/dispensations — journal des sorties + agrégat par service. */
   dispensations(days = 30): Observable<{ data: ApiDispensation[]; by_service: ApiDispensationByService[] }> {
     return this.http.get<{ data: ApiDispensation[]; by_service: ApiDispensationByService[] }>(`${this.base}/hospital/dispensations`, { params: { days } }).pipe(
-      catchError(() => of({ data: [], by_service: [] })),
     );
   }
 
@@ -80,7 +84,6 @@ export class HospitalService {
   restockRequests(): Observable<ApiRestockRequest[]> {
     return this.http.get<{ data: ApiRestockRequest[] }>(`${this.base}/hospital/restock-requests`).pipe(
       map(r => r.data ?? []),
-      catchError(() => of([])),
     );
   }
 
@@ -98,7 +101,6 @@ export class HospitalService {
   criticalMedicines(): Observable<CritMedRow[]> {
     return this.http.get<{ data: ApiCriticalMedicine[] }>(`${this.base}/hospital/critical-medicines`).pipe(
       map(r => r.data.map(toCritMed)),
-      catchError(() => of([])),
     );
   }
 
@@ -106,7 +108,6 @@ export class HospitalService {
   alertHistory(): Observable<AlerteHop[]> {
     return this.http.get<{ data: ApiHospitalAlert[] }>(`${this.base}/hospital/alerts/history`).pipe(
       map(r => r.data.map(toAlerteHop)),
-      catchError(() => of([])),
     );
   }
 
@@ -114,7 +115,6 @@ export class HospitalService {
   dashboard(): Observable<ApiHospitalDashboard> {
     return this.http.get<{ data: ApiHospitalDashboard }>(`${this.base}/hospital/dashboard`).pipe(
       map(r => r.data ?? {}),
-      catchError(() => of({})),
     );
   }
 
@@ -122,7 +122,6 @@ export class HospitalService {
   praOrders(): Observable<ApiInstitutionalOrder[]> {
     return this.http.get<{ data: ApiInstitutionalOrder[] }>(`${this.base}/hospital/pra-orders`).pipe(
       map(r => r.data ?? []),
-      catchError(() => of([])),
     );
   }
 

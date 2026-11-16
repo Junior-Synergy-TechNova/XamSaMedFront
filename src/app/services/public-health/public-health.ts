@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, catchError, map, of } from 'rxjs';
+import { SharedRead } from '../shared-read/shared-read';
 import { environment } from '../../../environments/environment';
 import { ApiControlledMedicine, ApiOverview, ApiReport, ApiTension, ApiTrends, ApiZone } from '../../interfaces/api';
 import { Tension, ZoneInfo } from '../../interfaces/models';
@@ -18,33 +19,33 @@ export class PublicHealthService {
   overview(): Observable<ApiOverview> {
     return this.http.get<{ data: ApiOverview }>(`${this.base}/public-health/overview`).pipe(
       map(r => r.data ?? EMPTY_OVERVIEW),
-      catchError(() => of(EMPTY_OVERVIEW)),
     );
   }
 
   /** GET /public-health/zones */
-  zones(): Observable<ZoneInfo[]> {
-    return this.http.get<{ data: ApiZone[] }>(`${this.base}/public-health/zones`).pipe(
-      map(r => r.data.map(z => toZoneInfo(z.name, z.level, z.ruptures))),
-      catchError(() => of([])),
-    );
+  zones(maxAgeMs = 0): Observable<ZoneInfo[]> {
+    return this.zonesRead.get(maxAgeMs);
   }
+  private readonly zonesRead = new SharedRead<ZoneInfo[]>(() =>
+    this.http.get<{ data: ApiZone[] }>(`${this.base}/public-health/zones`).pipe(
+      map(r => (r.data ?? []).map(toZoneInfo)),
+    ));
 
   /** GET /public-health/tension */
   tension(): Observable<Tension[]> {
     return this.http.get<{ data: ApiTension[] }>(`${this.base}/public-health/tension`).pipe(
-      map(r => r.data.map(toTension)),
-      catchError(() => of([])),
+      map(r => (r.data ?? []).map(toTension)),
     );
   }
 
   /** GET /public-health/reports — liste des rapports générés. */
-  reports(): Observable<ApiReport[]> {
-    return this.http.get<{ data: ApiReport[] }>(`${this.base}/public-health/reports`).pipe(
-      map(r => r.data ?? []),
-      catchError(() => of([])),
-    );
+  reports(maxAgeMs = 0): Observable<ApiReport[]> {
+    return this.reportsRead.get(maxAgeMs);
   }
+  private readonly reportsRead = new SharedRead<ApiReport[]>(() =>
+    this.http.get<{ data: ApiReport[] }>(`${this.base}/public-health/reports`).pipe(
+      map(r => r.data ?? []),
+    ));
 
   /** POST /public-health/reports/generate — national / régional / par médicament, sur une période. */
   generateReport(payload: { period: string; type: string; region?: string; medicine_id?: number }): Observable<ApiReport> {
@@ -55,7 +56,6 @@ export class PublicHealthService {
   controlled(): Observable<ApiControlledMedicine[]> {
     return this.http.get<{ data: ApiControlledMedicine[] }>(`${this.base}/public-health/controlled`).pipe(
       map(r => r.data ?? []),
-      catchError(() => of([])),
     );
   }
 
@@ -86,7 +86,6 @@ export class PublicHealthService {
   trends(): Observable<ApiTrends | null> {
     return this.http.get<{ data: ApiTrends }>(`${this.base}/public-health/trends`).pipe(
       map(r => r.data ?? null),
-      catchError(() => of(null)),
     );
   }
 

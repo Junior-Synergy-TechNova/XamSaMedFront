@@ -1,8 +1,8 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, catchError, map, of } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { ApiAdminUser, ApiMedicine, ApiStructure } from '../../interfaces/api';
+import { ApiAdminUser, ApiMedicine, ApiMedicinePayload, ApiStructure } from '../../interfaces/api';
 
 /** Administration (réservé au rôle admin) : utilisateurs + structures. */
 @Injectable({ providedIn: 'root' })
@@ -15,7 +15,6 @@ export class AdminService {
   users(): Observable<ApiAdminUser[]> {
     return this.http.get<{ data: ApiAdminUser[] }>(`${this.base}/admin/users`).pipe(
       map(r => r.data ?? []),
-      catchError(() => of([])),
     );
   }
 
@@ -35,13 +34,17 @@ export class AdminService {
     const params = new HttpParams().set('per_page', '500');
     return this.http.get<{ data: ApiMedicine[] }>(`${this.base}/medicines`, { params }).pipe(
       map(r => r.data ?? []),
-      catchError(() => of([])),
     );
   }
 
   /** PUT /admin/medicines/{id} — ex. rendre un médicament « sur ordonnance » ou en vente libre. */
-  updateMedicine(id: number, payload: { requires_prescription?: boolean; category?: string; is_controlled?: boolean }): Observable<unknown> {
-    return this.http.put(`${this.base}/admin/medicines/${id}`, payload);
+  updateMedicine(id: number, payload: ApiMedicinePayload): Observable<{ data: ApiMedicine }> {
+    return this.http.put<{ data: ApiMedicine }>(`${this.base}/admin/medicines/${id}`, payload);
+  }
+
+  /** POST /admin/medicines — ajout au catalogue national (DCI demandée : sans elle, aucun équivalent n'est proposé). */
+  createMedicine(payload: ApiMedicinePayload): Observable<{ data: ApiMedicine }> {
+    return this.http.post<{ data: ApiMedicine }>(`${this.base}/admin/medicines`, payload);
   }
 
   // ── Structures ────────────────────────────────────────────────
@@ -49,7 +52,6 @@ export class AdminService {
   structures(): Observable<ApiStructure[]> {
     return this.http.get<{ data: ApiStructure[] }>(`${this.base}/structures`).pipe(
       map(r => r.data ?? []),
-      catchError(() => of([])),
     );
   }
 

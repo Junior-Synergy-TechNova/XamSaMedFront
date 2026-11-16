@@ -1,6 +1,7 @@
     <pf-card title="Livraisons attendues" sub="Confirmez la réception à l'arrivée : le stock est crédité et le bordereau généré">
       @if (expected().length) { <span right class="chip chip-blue">{{ expected().length }} en cours</span> }
       @if (loading()) { <div class="pf-note-sm"><span class="pf-spin pf-spin-sm"></span> Chargement…</div> }
+      @if (!loading() && loadError()) { <div class="pf-banner red" role="alert"><div class="pf-banner-body"><p>Les livraisons attendues n'ont pas pu être chargées.</p></div><button type="button" class="btn btn-white btn-sm" (click)="reload()"><nv-icon name="refresh" [size]="15"/> Réessayer</button></div> }
       @for (d of expected(); track d.id) {
         <div class="pf-li">
           <span class="pf-liic {{ d.status === 'in_transit' ? 'green' : '' }}"><nv-icon name="truck" [size]="18"/></span>
@@ -16,7 +17,7 @@
           </div>
         </div>
       }
-      @if (!loading() && expected().length === 0) { <div class="pf-note">Aucune livraison attendue.</div> }
+      @if (!loading() && !loadError() && expected().length === 0) { <div class="pf-note">Aucune livraison attendue.</div> }
     </pf-card>
 
     <pf-card title="Réceptions récentes" sub="30 derniers jours — bordereaux téléchargeables">
@@ -27,5 +28,5 @@
           <div class="pf-li-act"><button class="btn btn-ghost btn-sm" (click)="slip(d)"><nv-icon name="doc" [size]="15"/> Bordereau</button></div>
         </div>
       }
-      @if (!loading() && done().length === 0) { <div class="pf-note">Aucune réception sur la période.</div> }
+      @if (!loading() && !loadError() && done().length === 0) { <div class="pf-note">Aucune réception sur la période.</div> }
     </pf-card>

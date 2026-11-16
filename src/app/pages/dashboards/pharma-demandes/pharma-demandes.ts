@@ -39,6 +39,8 @@ export class PharmaDemandes {
    */
   readonly orientOptions = signal<AvailabilityRow[]>([]);
   readonly orientLoading = signal(false);
+  /** Stocks des autres officines non lus : « Réessayer », pas « aucune officine ne dispose… ». */
+  readonly orientError = signal(false);
   /** Demandes dont une action est en cours d'envoi : boutons désactivés, pas de double envoi sur réseau lent. */
   readonly busy = signal<ReadonlySet<number>>(new Set());
 
@@ -73,6 +75,7 @@ export class PharmaDemandes {
     this.orientOptions.set([]);
     if (!d.medId) { this.platform.notify('Médicament inconnu pour cette demande', 'alert'); return; }
     this.orientLoading.set(true);
+    this.orientError.set(false);
     const myId = this.auth.user()?.structure_id;
     // Référence des distances : l'officine connectée si elle est géolocalisée
     // (le patient part d'ici), sinon la position de référence par défaut.
@@ -83,7 +86,7 @@ export class PharmaDemandes {
         const eligible = rows.filter(r => r.structureId !== myId && r.available >= d.qty);
         this.orientOptions.set(rankByDistance(eligible, from));
       },
-      error: () => this.orientLoading.set(false),
+      error: () => { this.orientLoading.set(false); this.orientError.set(true); },
     });
   }
 

@@ -1,0 +1,6 @@
+<div class="pf-gm-wrap">
+  <div #box class="pf-gm-box" role="img" [attr.aria-label]="label()"></div>
+  @if (failed()) {
+    <div class="pf-gm-failed">La carte n'a pas pu être chargée. La liste reste à jour.</div>
+  }
+</div>

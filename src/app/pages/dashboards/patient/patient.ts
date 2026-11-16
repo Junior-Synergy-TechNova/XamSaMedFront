@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, model, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, model, signal } from '@angular/core';
 import { Icon } from '../../../components/icon/icon';
 import { Card } from '../../../components/card/card';
 import { PageHead } from '../../../components/page-head/page-head';
@@ -6,10 +6,12 @@ import { Tag } from '../../../components/tag/tag';
 import { PlatformState } from '../../../services/platform/platform';
 import { MedicineService } from '../../../services/medicines/medicines';
 import { OrderService } from '../../../services/orders/orders';
+import { SHARED_READ_MS } from '../../../services/shared-read/shared-read';
 import { StructureService } from '../../../services/structures/structures';
 import { AuthService } from '../../../services/auth/auth';
 import { Med, Pharmacy, ResaRow } from '../../../interfaces/models';
-import { ApiErrorBody, ApiGroupedSearch, ApiGroupedSearchStatus } from '../../../interfaces/api';
+import { ApiCabinetItem, ApiErrorBody, ApiGroupedSearch, ApiGroupedSearchStatus } from '../../../interfaces/api';
+import { CabinetService } from '../../../services/cabinet/cabinet';
 
 /** Taille maximale d'une ordonnance acceptée par l'API (5 Mo). */
 const PRESCRIPTION_MAX_BYTES = 5 * 1024 * 1024;
@@ -47,11 +49,23 @@ export class PatientDash {
   readonly active = signal<Med | null>(null);
   readonly results = signal<Med[]>([]);
   readonly searching = signal(false);
+  /** La recherche a échoué (serveur injoignable) : « Réessayer », jamais « aucun médicament trouvé ». */
+  readonly searchError = signal(false);
   readonly resas = signal<ResaRow[]>([]);
+  /** Réservations : chargement initial et échec de lecture (pas de « aucune réservation » à tort). */
+  readonly resasLoading = signal(true);
+  readonly resasError = signal(false);
+  /** Réservations qui attendent le patient : prêtes au retrait, ou équivalent proposé à accepter. */
+  readonly resasToHandle = computed(() => this.resas().filter(r =>
+    r.status === 'confirmed' || (r.lines ?? []).some(l => l.status === 'substitute_proposed')).length);
+  /** Armoire : médicaments périmés ou à J-7 (seuils domicile). Pastille seulement : un échec la laisse à 0. */
+  readonly cabinetToHandle = signal(0);
 
   // Ordonnance numérique
   readonly prescriptionModal = signal(false);
   readonly pharmacies = signal<Pharmacy[]>([]);
+  /** Liste des pharmacies (envoi d'ordonnance) non lue : le sélecteur propose « Réessayer ». */
+  readonly pharmaciesError = signal(false);
   readonly prescriptionFile = signal<File | null>(null);
   /** Pharmacie présélectionnée (réservation refusée faute d'ordonnance). */
   readonly prescriptionPharmacy = signal<number | null>(null);
@@ -80,24 +94,44 @@ export class PatientDash {
   });
 
   constructor() {
-    this.loadResas();
-    this.structures.pharmacies().subscribe({ next: p => this.pharmacies.set(p), error: () => { /* ignore */ } });
+    // Premier affichage : la cloche vient de lire les mêmes réservations, on partage sa requête.
+    this.loadResas(SHARED_READ_MS);
+    this.loadPharmacies();
+    inject(CabinetService).items().subscribe({ next: items => this.onCabinetItems(items), error: () => { /* pastille seulement */ } });
+    // Les pastilles de la sidebar comptent ce qui attend le patient — jamais les notifications lues ou non.
+    effect(() => this.platform.navCounts.set({ resa: this.resasToHandle(), cabinet: this.cabinetToHandle() }));
+    inject(DestroyRef).onDestroy(() => this.platform.navCounts.set(null));
   }
+
+  onCabinetItems(items: ApiCabinetItem[]): void {
+    this.cabinetToHandle.set(items.filter(i => i.expiry_level === 'expired' || i.expiry_level === 'crit').length);
+  }
+
+  loadPharmacies(): void {
+    this.pharmaciesError.set(false);
+    this.structures.pharmacies().subscribe({
+      next: p => this.pharmacies.set(p),
+      error: () => this.pharmaciesError.set(true),
+    });
+  }
+
+  retrySearch(): void { this.runSearch(this.q()); }
 
   onSearch(e: Event): void { this.runSearch((e.target as HTMLInputElement).value); }
   setQuery(s: string): void { this.runSearch(s); }
   plural(n: number, one: string, many: string): string { return `${n} ${n > 1 ? many : one}`; }
-  clear(): void { this.q.set(''); this.results.set([]); this.active.set(null); }
+  clear(): void { this.q.set(''); this.results.set([]); this.active.set(null); this.searchError.set(false); }
 
   private runSearch(term: string): void {
     this.q.set(term);
     this.active.set(null);
     const t = term.trim();
+    this.searchError.set(false);
     if (!t) { this.results.set([]); return; }
     this.searching.set(true);
     this.meds.search(t).subscribe({
-      next: list => { this.results.set(list); this.searching.set(false); },
-      error: () => { this.results.set([]); this.searching.set(false); },
+      next: list => { if (this.q().trim() !== t) return; this.results.set(list); this.searching.set(false); },
+      error: () => { if (this.q().trim() !== t) return; this.results.set([]); this.searching.set(false); this.searchError.set(true); },
     });
   }
 
@@ -214,10 +248,19 @@ export class PatientDash {
   refreshGroupedStatus(): void {
     const id = this.groupedSearchId();
     if (!id) return;
-    this.orders.groupedSearchStatus(id).subscribe({ next: s => this.groupedStatus.set(s), error: () => { /* ignore */ } });
+    this.orders.groupedSearchStatus(id).subscribe({
+      next: s => this.groupedStatus.set(s),
+      error: () => this.platform.notify('État de la recherche non actualisé — vérifiez la connexion', 'alert'),
+    });
   }
 
-  private loadResas(): void {
-    this.orders.list().subscribe({ next: r => this.resas.set(r), error: () => { /* ignore */ } });
+  /** `maxAgeMs` > 0 seulement au premier affichage ; après une action, toujours un nouvel appel. */
+  loadResas(maxAgeMs = 0): void {
+    this.resasError.set(false);
+    this.orders.list(maxAgeMs).subscribe({
+      next: r => { this.resas.set(r); this.resasLoading.set(false); },
+      // Une liste déjà affichée est gardée ; sans lecture réussie, écran « Réessayer ».
+      error: () => { this.resasLoading.set(false); this.resasError.set(true); },
+    });
   }
 }

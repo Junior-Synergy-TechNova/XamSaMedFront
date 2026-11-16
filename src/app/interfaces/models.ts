@@ -16,7 +16,8 @@ export interface StockItem { id: string; q: number; seuil: number; s: StockState
 export interface Demande { id: string; med: string; de: string; type: string; qte: string; urgence: string; quand: string; statut: string; }
 export interface DemandePharmacy { id: number; nom: string; adresse: string; tel: string; available: number; status: string; }
 export interface DemandeReg { id: string; zone: string; medId: number; med: string; controlled: boolean; need: number; tension: ZoneLevel; officines: number; pharmacies: DemandePharmacy[]; }
-export interface ZoneInfo { nom: string; x: number; y: number; niveau: ZoneLevel; ruptures: number; }
+/** Zone (ville) en tension. `point` = centre des structures concernées (null si aucune n'est géolocalisée). */
+export interface ZoneInfo { nom: string; point: { lat: number; lng: number } | null; niveau: ZoneLevel; ruptures: number; tensions?: number; }
 export interface Tension { nom: string; pct: number; variation: number; score: number; controlled: boolean; ruptures: number; }
 export interface AlerteHop {
   id: string; medId?: number | null; med: string; service: string; unit?: string | null;

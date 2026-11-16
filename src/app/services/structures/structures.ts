@@ -87,7 +87,10 @@ export function projectToBox(lat: number | string | null, lng: number | string |
 }
 
 /** Officine positionnée (coordonnées réelles, pas la projection de la mini-carte). */
-export interface PharmacyPoint { id: number; name: string; city: string; point: GeoPoint }
+export interface PharmacyPoint {
+  id: number; name: string; city: string; point: GeoPoint;
+  address?: string | null; phone?: string | null; hours?: string | null;
+}
 
 /** Accès aux structures (pharmacies / hôpitaux / distributeurs). */
 @Injectable({ providedIn: 'root' })
@@ -98,8 +101,7 @@ export class StructureService {
   /** GET /pharmacies → Pharmacy[] (lat/lng projetés en % pour la carte, dist = Haversine). */
   pharmacies(): Observable<Pharmacy[]> {
     return this.http.get<{ data: ApiStructure[] }>(`${this.base}/pharmacies`).pipe(
-      map(r => r.data.map(toPharmacy)),
-      catchError(() => of([])),
+      map(r => (r.data ?? []).map(toPharmacy)),
     );
   }
 
@@ -111,7 +113,7 @@ export class StructureService {
     return this.http.get<{ data: ApiStructure[] }>(`${this.base}/pharmacies`).pipe(
       map(r => (r.data ?? []).flatMap(s => {
         const point = toPoint(s.latitude, s.longitude);
-        return point ? [{ id: s.id, name: s.name, city: s.city ?? '', point }] : [];
+        return point ? [{ id: s.id, name: s.name, city: s.city ?? '', point, address: s.address, phone: s.phone, hours: s.hours }] : [];
       })),
     );
   }
@@ -122,11 +124,16 @@ export class StructureService {
    * flag partenaire. Sert au choix « à qui envoyer la demande ».
    */
   suppliers(medicineId?: number | null): Observable<ApiSupplier[]> {
+    return this.suppliersWithRule(medicineId).pipe(map(r => r.data));
+  }
+
+  /** Même appel, avec le message de règle (« PRA de votre région uniquement »…) affiché par la carte du réseau. */
+  suppliersWithRule(medicineId?: number | null): Observable<{ data: ApiSupplier[]; rule: string | null }> {
     let params = new HttpParams();
     if (medicineId) params = params.set('medicine_id', String(medicineId));
     // L'erreur remonte : la vue affiche « Réessayer » au lieu d'une liste vide trompeuse.
-    return this.http.get<{ data: ApiSupplier[] }>(`${this.base}/distributors`, { params }).pipe(
-      map(r => r.data ?? []),
+    return this.http.get<{ data: ApiSupplier[]; rule?: string | null }>(`${this.base}/distributors`, { params }).pipe(
+      map(r => ({ data: r.data ?? [], rule: r.rule ?? null })),
     );
   }
 }

@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, catchError, map, of } from 'rxjs';
+import { Observable, map } from 'rxjs';
+import { SharedRead } from '../shared-read/shared-read';
 import { environment } from '../../../environments/environment';
 import { ApiGroupedSearch, ApiGroupedSearchStatus, ApiOrder, ApiPrescriptionLine } from '../../interfaces/api';
 import { DispoState, ResaLine, ResaRow } from '../../interfaces/models';
@@ -12,12 +13,14 @@ export class OrderService {
   private readonly base = environment.apiUrl;
 
   /** GET /orders → réservations du patient courant. */
-  list(): Observable<ResaRow[]> {
-    return this.http.get<{ data: ApiOrder[] }>(`${this.base}/orders`).pipe(
-      map(r => r.data.map(toResa)),
-      catchError(() => of([])),
-    );
+  list(maxAgeMs = 0): Observable<ResaRow[]> {
+    return this.listRead.get(maxAgeMs);
   }
+  /** Partagé entre la cloche et le premier affichage (`maxAgeMs`, voir `SharedRead`). */
+  private readonly listRead = new SharedRead<ResaRow[]>(() =>
+    this.http.get<{ data: ApiOrder[] }>(`${this.base}/orders`).pipe(
+      map(r => (r.data ?? []).map(toResa)),
+    ));
 
   /** POST /orders → crée une réservation. */
   create(medicineId: number, structureId: number, qty = 1): Observable<unknown> {
@@ -50,15 +53,12 @@ export class OrderService {
     if (lat != null && lng != null) { body['latitude'] = lat; body['longitude'] = lng; }
     return this.http.post<{ data: ApiGroupedSearch | null }>(`${this.base}/grouped-search`, body).pipe(
       map(r => r.data ?? null),
-      catchError(() => of(null)),
     );
   }
 
   /** GET /grouped-search/{id}/status → état de la recherche groupée. */
   groupedSearchStatus(searchId: number): Observable<ApiGroupedSearchStatus | null> {
-    return this.http.get<ApiGroupedSearchStatus>(`${this.base}/grouped-search/${searchId}/status`).pipe(
-      catchError(() => of(null)),
-    );
+    return this.http.get<ApiGroupedSearchStatus>(`${this.base}/grouped-search/${searchId}/status`);
   }
 }
 
