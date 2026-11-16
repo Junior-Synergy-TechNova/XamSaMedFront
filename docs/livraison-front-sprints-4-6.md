@@ -149,6 +149,19 @@ Rôle `pharmacy_user`. Type côté front : `ApiPharmacyThermalStatus` dans `src/
   Le rouge reste réservé aux pertes et aux alertes.
 - **Cartes** : votre structure en bleu vif (plus grosse), fournisseurs en violet, officines en vert / orange / rouge selon le stock (gris ardoise sans médicament choisi), marqueur sélectionné cerclé de noir.
 
+### Prix de référence des médicaments
+Branche `feat/prix-catalogue-medicaments` (front et back).
+
+- **Base** : nouvelle colonne `medicines.price` (prix public de référence en FCFA). La migration `2026_11_16_100000_add_price_to_medicines_table` donne un prix indicatif aux médicaments de démo ; à corriger depuis le catalogue si on a les prix officiels.
+- **Santé publique → Catalogue** : champ obligatoire « Prix de référence (FCFA) * » à l'ajout et à la modification d'une fiche (« 1 500 » ou « 1500,50 » acceptés), nouvelle colonne « Prix de référence » (puce « À renseigner » si vide).
+- **Pharmacien → Ventes & comptabilité → Nouvelle vente** :
+  - le prix unitaire HT est repris automatiquement du catalogue ; le champ est en lecture seule, à titre indicatif ;
+  - le serveur applique toujours le prix du catalogue, quel que soit le prix envoyé ;
+  - si la fiche n'a pas de prix, le champ redevient obligatoire pour cette vente (sinon refus `price_required`) ;
+  - la TVA s'ajoute au prix HT, le total TTC reste affiché en bas du panier ;
+  - après « Ajouter », le formulaire revient à « Choisir un médicament… », quantité 1, pour enchaîner sur un autre médicament ;
+  - mise en page « caisse » : saisie, client, paiement, TVA et ordonnance à gauche ; à droite un ticket **Panier** de hauteur fixe (la liste défile à l'intérieur au lieu d'allonger la page), avec −/+ pour la quantité de chaque ligne (borné au disponible), × pour retirer, et les totaux HT / TVA / TTC + « Valider » toujours visibles en bas ; « Chiffre d'affaires » et « Top ventes » passent côte à côte en dessous.
+
 ## À vérifier à la main
 
 Non couvert par les tests automatiques ni par le test dans le navigateur :
@@ -157,6 +170,7 @@ Non couvert par les tests automatiques ni par le test dans le navigateur :
 - **Suggestions DCI** : en tapant une DCI (« lispro »), la liste de Chrome doit proposer « Insuline Humalog ».
 - **« Non renseignée au catalogue »** (DCI) : impossible à voir avec les données actuelles, tous les médicaments ont une DCI.
 - **Couleurs des réservations, livraisons expédiées et pertes** dans l'historique : absentes des données de démo, pas vues à l'écran.
+- **Prix de référence** : ajout d'une fiche avec prix au catalogue, puis vente de plusieurs médicaments à la suite (prix affiché, formulaire remis à vide, total TTC) — couvert par les tests, pas encore vu dans le navigateur.
 - **Tuiles OpenStreetMap** : avant une vraie mise en production, vérifier que leurs conditions d'usage couvrent notre trafic, ou passer par un fournisseur de tuiles.
 
 ## Lancer en local
@@ -171,6 +185,6 @@ Non couvert par les tests automatiques ni par le test dans le navigateur :
 
 ## Tests
 
-`ng test` : 57 tests (Vitest) dans 17 fichiers au 16 novembre. Les premiers de ce lot : `patient-cabinet.spec.ts`, `pharma-thermal.spec.ts`, `patient-floods.spec.ts`, `services/pharmacy/pharmacy.spec.ts` et `pages/dashboards/patient/patient.spec.ts` ; puis auth, guards, connexion, shell, tableaux de bord (distributeur, pharmacien, hôpital, santé publique), résultats patient et `shared-read`.
+`ng test` : 58 tests (Vitest) dans 17 fichiers au 16 novembre (dont le formulaire de vente et le prix exigé au catalogue). Les premiers de ce lot : `patient-cabinet.spec.ts`, `pharma-thermal.spec.ts`, `patient-floods.spec.ts`, `services/pharmacy/pharmacy.spec.ts` et `pages/dashboards/patient/patient.spec.ts` ; puis auth, guards, connexion, shell, tableaux de bord (distributeur, pharmacien, hôpital, santé publique), résultats patient et `shared-read`.
 
-Backend : `PharmacyThermalStatusTest` (6 tests) passe sur `develop`.
+Backend : `PharmacyThermalStatusTest` (6 tests) passe sur `develop` ; `SaleCatalogPriceTest` (2 tests, prix du catalogue imposé à la vente) passe sur la branche `feat/prix-catalogue-medicaments`.

@@ -288,6 +288,7 @@ export function toStockRow(s: ApiStockRow): StockRow {
     critical: s.critical_threshold ?? null,
     controlled: s.is_controlled,
     requiresRx: s.requires_prescription ?? s.is_controlled,
+    price: s.price == null || s.price === '' || !Number.isFinite(Number(s.price)) ? null : Number(s.price),
     batch: s.batch_number ?? null,
     expiry: s.expiry_date ?? null,
     expiryLevel: s.expiry_level ?? 'none',

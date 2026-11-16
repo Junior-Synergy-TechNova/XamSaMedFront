@@ -325,80 +325,106 @@
               <pf-stat icon="doc" tone="blue" label="Ventes ce mois" [value]="salesStats()?.month.count ?? 0"/>
             </div>
 
-            <div class="pf-cols">
-              <pf-card title="Nouvelle vente" sub="Le stock est décrémenté à la validation — reçu PDF généré">
-                <form class="pf-sale-line" (submit)="addToCart(cMed.value, cQty.value, cPrice.value); $event.preventDefault()">
-                  <div class="s-field"><label>Médicament</label>
-                    <select #cMed>
-                      @for (s of sellable(); track s.stockId) { <option [value]="s.stockId">{{ s.name }} · {{ s.sub }} ({{ s.q }} u.){{ s.requiresRx ? ' — ordonnance' : '' }}</option> }
-                    </select>
-                  </div>
-                  <div class="s-field pf-sale-qty"><label>Qté</label><input #cQty type="number" min="1" value="1"/></div>
-                  <div class="s-field pf-sale-price"><label>Prix unitaire HT</label><input #cPrice type="number" min="0" step="5" placeholder="FCFA"/></div>
-                  <button type="submit" class="btn btn-outline">Ajouter</button>
-                </form>
-
-                <table class="pf-table">
-                  <thead><tr><th>Article</th><th>Qté</th><th>PU HT</th><th>Total HT</th><th></th></tr></thead>
-                  <tbody>
-                    @for (l of cart(); track l.stockId) {
-                      <tr>
-                        <td><div class="pf-medname">{{ l.name }}</div>@if (l.requiresRx) { <span class="chip chip-blue chip-inline">Ordonnance</span> }</td>
-                        <td>{{ l.qty }}</td>
-                        <td class="muted">{{ fcfa(l.price) }}</td>
-                        <td><strong>{{ fcfa(l.qty * l.price) }}</strong></td>
-                        <td class="pf-td-right"><button class="btn btn-ghost btn-sm btn-danger" (click)="removeLine(l.stockId)"><nv-icon name="x" [size]="14"/></button></td>
-                      </tr>
-                    }
-                    @if (cart().length === 0) { <tr><td colspan="5" class="muted pf-td-empty">Panier vide.</td></tr> }
-                  </tbody>
-                </table>
-
-                <form (submit)="submitSale(sCustomer.value, sPay.value); $event.preventDefault()">
-                  <div class="pf-sale-meta">
-                    <div class="s-field"><label>Client</label><input #sCustomer placeholder="Optionnel"/></div>
-                    <div class="s-field"><label>Paiement</label>
-                      <select #sPay>
-                        @for (m of paymentMethods; track m.value) { <option [value]="m.value">{{ m.label }}</option> }
+            <pf-card title="Nouvelle vente" sub="Le stock est décrémenté à la validation — reçu PDF généré">
+              <div class="pf-pos">
+                <div class="pf-pos-entry">
+                  <p class="pf-sale-hint" [class.warn]="salePriceManual()" aria-live="polite">
+                    <nv-icon [name]="salePriceManual() ? 'alert' : 'lock'" [size]="15"/>
+                    {{ salePriceManual() ? 'Prix non renseigné au catalogue pour ce médicament : saisissez-le pour cette vente.' : 'Le prix unitaire est repris automatiquement du catalogue national, à titre indicatif.' }}
+                  </p>
+                  <form class="pf-sale-line" (submit)="addToCart(cMed.value, cQty.value, cPrice.value); $event.preventDefault()">
+                    <div class="s-field"><label>Médicament</label>
+                      <select #cMed (change)="saleStockId.set(cMed.value ? +cMed.value : null)">
+                        <option value="" disabled [selected]="!saleItem()">Choisir un médicament…</option>
+                        @for (s of sellable(); track s.stockId) { <option [value]="s.stockId" [selected]="s.stockId === saleItem()?.stockId">{{ s.name }} · {{ s.sub }} ({{ s.q }} u.){{ s.requiresRx ? ' — ordonnance' : '' }}</option> }
                       </select>
                     </div>
-                    <div class="s-field pf-sale-qty"><label>TVA %</label><input type="number" min="0" max="100" [value]="vatRate()" (input)="setVat($any($event.target).value)"/></div>
-                  </div>
-                  @if (cartNeedsRx()) {
-                    <div class="s-field pf-mt">
-                      <label>Référence de l'ordonnance *</label>
-                      <input [value]="rxRef()" (input)="rxRef.set($any($event.target).value)" placeholder="Ex : ORD-2026-0142 (médecin, date)"/>
-                      <span class="pf-hint">Exigée pour : {{ rxNames() }}. Les autres médicaments du panier sont en vente libre.</span>
-                    </div>
-                  }
-                  <div class="pf-sale-totals">
-                    <span>Total HT <strong>{{ fcfa(cartTotals().ht) }}</strong></span>
-                    <span>TVA <strong>{{ fcfa(cartTotals().vat) }}</strong></span>
-                    <span class="pf-sale-ttc">Total TTC <strong>{{ fcfa(cartTotals().ttc) }}</strong></span>
-                  </div>
-                  <button type="submit" class="btn btn-green btn-block pf-mt" [disabled]="savingSale() || cart().length === 0"><nv-icon name="checkC" [size]="16"/> Valider la vente et éditer le reçu</button>
-                </form>
-              </pf-card>
+                    <div class="s-field pf-sale-qty"><label>Qté</label><input #cQty type="number" min="1" [value]="saleQty()" (input)="saleQty.set(cQty.value)"/></div>
+                    <div class="s-field pf-sale-price"><label>Prix unitaire HT{{ salePriceManual() ? ' *' : ' (FCFA)' }}</label><input #cPrice type="number" min="0" step="any" [placeholder]="salePriceManual() ? 'FCFA' : 'Automatique'" [readonly]="!salePriceManual()" [attr.tabindex]="salePriceManual() ? null : -1" [value]="saleItem()?.price ?? salePriceInput()" (input)="salePriceInput.set(cPrice.value)" [title]="salePriceLocked() ? 'Prix de référence du catalogue national' : ''"/></div>
+                    <button type="submit" class="btn btn-outline"><nv-icon name="plus" [size]="16"/> Ajouter</button>
+                  </form>
 
-              <div>
-                <pf-card title="Chiffre d'affaires — 30 jours" sub="TTC, par jour">
-                  <div class="pf-spark" role="img" aria-label="Chiffre d'affaires quotidien sur 30 jours">
-                    @for (d of salesStats()?.daily ?? []; track d.date) {
-                      <span class="pf-spark-bar" [style.height.%]="barPct(d.revenue)" [title]="shortDate(d.date) + ' : ' + fcfa(d.revenue)"></span>
-                    }
-                  </div>
-                </pf-card>
-                <pf-card title="Top ventes" sub="Recettes par médicament (30 jours)">
-                  @for (t of salesStats()?.top ?? []; track t.medicine_id; let i = $index) {
-                    <div class="pf-li">
-                      <span class="pf-liic">{{ i + 1 }}</span>
-                      <div class="pf-libody"><strong>{{ t.medicine }}</strong><span>{{ t.quantity }} u. vendues</span></div>
-                      <strong class="pf-num-sm">{{ fcfa(t.revenue) }}</strong>
+                  <form id="pf-sale-form" class="pf-pos-meta" (submit)="submitSale(sCustomer.value, sPay.value); $event.preventDefault()">
+                    <div class="pf-sale-meta">
+                      <div class="s-field"><label>Client</label><input #sCustomer placeholder="Optionnel"/></div>
+                      <div class="s-field"><label>Paiement</label>
+                        <select #sPay>
+                          @for (m of paymentMethods; track m.value) { <option [value]="m.value">{{ m.label }}</option> }
+                        </select>
+                      </div>
+                      <div class="s-field pf-sale-qty"><label>TVA %</label><input type="number" min="0" max="100" [value]="vatRate()" (input)="setVat($any($event.target).value)"/></div>
                     </div>
+                    @if (cartNeedsRx()) {
+                      <div class="s-field pf-mt">
+                        <label>Référence de l'ordonnance *</label>
+                        <input [value]="rxRef()" (input)="rxRef.set($any($event.target).value)" placeholder="Ex : ORD-2026-0142 (médecin, date)"/>
+                        <span class="pf-hint">Exigée pour : {{ rxNames() }}. Les autres médicaments du panier sont en vente libre.</span>
+                      </div>
+                    }
+                  </form>
+                </div>
+
+                <aside class="pf-ticket" aria-label="Panier">
+                  <div class="pf-ticket-head">
+                    <h3><nv-icon name="cart" [size]="17"/> Panier</h3>
+                    <span class="muted">{{ plural(cartUnits(), 'article', 'articles') }}</span>
+                  </div>
+                  @if (cart().length === 0) {
+                    <div class="pf-ticket-empty">
+                      <nv-icon name="cart" [size]="26"/>
+                      <p>Panier vide</p>
+                      <span>Choisissez un médicament puis « Ajouter ».</span>
+                    </div>
+                  } @else {
+                    <ul class="pf-ticket-lines">
+                      @for (l of cart(); track l.stockId) {
+                        <li class="pf-ticket-line">
+                          <div class="pf-ticket-name">
+                            <strong>{{ l.name }}</strong>
+                            <span class="pf-ticket-sub">{{ fcfa(l.price) }} HT l'unité@if (l.requiresRx) { <span class="pf-ticket-rx">Ordonnance</span> }</span>
+                          </div>
+                          <div class="pf-ticket-qty" role="group" [attr.aria-label]="'Quantité de ' + l.name">
+                            <button type="button" (click)="changeLineQty(l.stockId, -1)" [disabled]="l.qty <= 1" [attr.aria-label]="'Retirer une unité de ' + l.name"><nv-icon name="minus" [size]="14"/></button>
+                            <span aria-live="polite">{{ l.qty }}</span>
+                            <button type="button" (click)="changeLineQty(l.stockId, 1)" [disabled]="l.qty >= l.available" [attr.aria-label]="'Ajouter une unité de ' + l.name"><nv-icon name="plus" [size]="14"/></button>
+                          </div>
+                          <strong class="pf-ticket-total">{{ fcfa(l.qty * l.price) }}</strong>
+                          <button type="button" class="pf-ticket-remove" (click)="removeLine(l.stockId)" [attr.aria-label]="'Retirer ' + l.name + ' du panier'"><nv-icon name="x" [size]="15"/></button>
+                        </li>
+                      }
+                    </ul>
                   }
-                  @if ((salesStats()?.top ?? []).length === 0) { <div class="pf-note">Aucune vente sur la période.</div> }
-                </pf-card>
+                  <div class="pf-ticket-foot">
+                    <dl class="pf-sale-totals">
+                      <dt>Total HT</dt><dd>{{ fcfa(cartTotals().ht) }}</dd>
+                      <dt>TVA ({{ vatRate() }} %)</dt><dd>{{ fcfa(cartTotals().vat) }}</dd>
+                      <div class="pf-sale-sep" aria-hidden="true"></div>
+                      <dt class="pf-sale-ttc">Total TTC</dt><dd class="pf-sale-ttc">{{ fcfa(cartTotals().ttc) }}</dd>
+                    </dl>
+                    <button type="submit" form="pf-sale-form" class="btn btn-green btn-block" [disabled]="savingSale() || cart().length === 0"><nv-icon name="checkC" [size]="16"/> Valider la vente et éditer le reçu</button>
+                  </div>
+                </aside>
               </div>
+            </pf-card>
+
+            <div class="pf-half">
+              <pf-card title="Chiffre d'affaires — 30 jours" sub="TTC, par jour">
+                <div class="pf-spark" role="img" aria-label="Chiffre d'affaires quotidien sur 30 jours">
+                  @for (d of salesStats()?.daily ?? []; track d.date) {
+                    <span class="pf-spark-bar" [style.height.%]="barPct(d.revenue)" [title]="shortDate(d.date) + ' : ' + fcfa(d.revenue)"></span>
+                  }
+                </div>
+              </pf-card>
+              <pf-card title="Top ventes" sub="Recettes par médicament (30 jours)">
+                @for (t of salesStats()?.top ?? []; track t.medicine_id; let i = $index) {
+                  <div class="pf-li">
+                    <span class="pf-liic">{{ i + 1 }}</span>
+                    <div class="pf-libody"><strong>{{ t.medicine }}</strong><span>{{ t.quantity }} u. vendues</span></div>
+                    <strong class="pf-num-sm">{{ fcfa(t.revenue) }}</strong>
+                  </div>
+                }
+                @if ((salesStats()?.top ?? []).length === 0) { <div class="pf-note">Aucune vente sur la période.</div> }
+              </pf-card>
             </div>
 
             <pf-card title="Journal des ventes" [sub]="'Du ' + (salesFrom() | date:'d MMM y') + ' au ' + (salesTo() | date:'d MMM y') + (salesError() ? '' : ' — ' + plural(salesTotal(), 'vente', 'ventes'))">

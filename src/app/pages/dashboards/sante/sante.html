@@ -180,12 +180,13 @@
           </div>
           <pf-card>
             <table class="pf-table">
-              <thead><tr><th>Médicament</th><th>DCI</th><th>Utilisation</th><th>Contrôlé</th><th>Délivrance</th><th></th></tr></thead>
+              <thead><tr><th>Médicament</th><th>DCI</th><th>Prix de référence</th><th>Utilisation</th><th>Contrôlé</th><th>Délivrance</th><th></th></tr></thead>
               <tbody>
                 @for (m of filteredCatalog(); track m.id) {
                   <tr>
                     <td><div class="pf-medname">{{ m.name }}</div><div class="pf-medsub">{{ m.form }} · {{ m.dosage }}</div></td>
                     <td>@if (m.dci?.trim()) { <span class="muted">{{ m.dci }}</span> } @else { <span class="chip chip-amber">À renseigner</span> }</td>
+                    <td>@if (medPrice(m); as p) { {{ p }} } @else { <span class="chip chip-amber">À renseigner</span> }</td>
                     <td class="muted">{{ categoryLabel(m.category) }}</td>
                     <td>@if (m.is_controlled) { <span class="chip chip-ctrl">Contrôlé</span> } @else { <span class="muted">—</span> }</td>
                     <td>
@@ -370,7 +371,7 @@
 
     @if (medModal()) {
       <div class="pf-modal-overlay" (click)="medModal.set(null)">
-        <form class="pf-modal" (click)="$event.stopPropagation()" (submit)="submitMedicine({ name: mName.value, dci: mDci.value, brand: mBrand.value, form: mForm.value, dosage: mDosage.value, atc: mAtc.value, category: mCat.value, rx: mRx.value, controlled: mCtrl.checked }); $event.preventDefault()">
+        <form class="pf-modal" (click)="$event.stopPropagation()" (submit)="submitMedicine({ name: mName.value, dci: mDci.value, brand: mBrand.value, form: mForm.value, dosage: mDosage.value, atc: mAtc.value, price: mPrice.value, category: mCat.value, rx: mRx.value, controlled: mCtrl.checked }); $event.preventDefault()">
           <div class="pf-modal-head">
             <h2>{{ medEditing() ? 'Modifier la fiche' : 'Ajouter un médicament' }}</h2>
             <button type="button" class="pf-modal-close" (click)="medModal.set(null)"><nv-icon name="x" [size]="20"/></button>
@@ -388,6 +389,9 @@
             <div class="pf-fieldrow">
               <div class="s-field"><label>Marque / laboratoire</label><input #mBrand maxlength="255" [value]="medEditing()?.brand ?? ''"/></div>
               <div class="s-field"><label>Code ATC</label><input #mAtc maxlength="50" [value]="medEditing()?.atc_code ?? ''" placeholder="N02BE01"/></div>
+            </div>
+            <div class="pf-fieldrow">
+              <div class="s-field"><label>Prix de référence (FCFA) *</label><input #mPrice type="number" required min="0" step="any" inputmode="decimal" [value]="medPriceInput(medEditing())" placeholder="Ex : 1500"/></div>
             </div>
             <div class="pf-fieldrow">
               <div class="s-field"><label>Utilisation</label>

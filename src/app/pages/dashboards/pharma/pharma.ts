@@ -463,6 +463,8 @@ export class PharmaDash {
   readonly cart = signal<CartLine[]>([]);
   readonly vatRate = signal(0);
   readonly savingSale = signal(false);
+  /** Nombre d'unités dans le panier (en-tête du ticket). */
+  readonly cartUnits = computed(() => this.cart().reduce((n, l) => n + l.qty, 0));
   readonly cartNeedsRx = computed(() => this.cart().some(l => l.requiresRx));
   /** Médicaments du panier qui exigent une ordonnance (les autres sont en vente libre). */
   readonly rxNames = computed(() => this.cart().filter(l => l.requiresRx).map(l => l.name.split(' · ')[0]).join(', '));
@@ -473,6 +475,19 @@ export class PharmaDash {
     return { ht, vat, ttc: ht + vat };
   });
   readonly sellable = computed(() => this.stock().filter(s => s.q > 0 && s.expiryLevel !== 'expired'));
+  /** Ligne choisie dans « Nouvelle vente » (null = rien de choisi : le formulaire repart à vide après « Ajouter »). */
+  readonly saleStockId = signal<number | null>(null);
+  readonly saleItem = computed<StockRow | null>(() => {
+    const id = this.saleStockId();
+    return id === null ? null : this.sellable().find(s => s.stockId === id) ?? null;
+  });
+  /** Quantité et prix saisis (le prix ne l'est que sans prix catalogue), remis à zéro après chaque ajout. */
+  readonly saleQty = signal('1');
+  readonly salePriceInput = signal('');
+  /** Prix repris du catalogue : champ en lecture seule, à titre indicatif. */
+  readonly salePriceLocked = computed(() => this.saleItem()?.price != null);
+  /** Saisie manuelle seulement pour un médicament choisi sans prix catalogue. */
+  readonly salePriceManual = computed(() => { const s = this.saleItem(); return !!s && s.price == null; });
   readonly revenueMax = computed(() => Math.max(1, ...(this.salesStats()?.daily ?? []).map(d => d.revenue)));
 
   readonly partnerTypes: readonly PartnerTypeOption[] = [
@@ -1215,18 +1230,33 @@ export class PharmaDash {
     });
   }
 
+  /**
+   * Le prix unitaire vient du catalogue national (`medicines.price`) — le champ
+   * n'est qu'indicatif et le serveur applique ce même prix. Il n'est saisi à la
+   * main que si la fiche n'a pas encore de prix de référence.
+   */
   addToCart(stockIdInput: string, qtyInput: string, priceInput: string): void {
     const s = this.stock().find(r => r.stockId === Number(stockIdInput));
     const qty = parseInt(qtyInput, 10);
-    const price = Number(priceInput);
-    if (!s || isNaN(qty) || qty <= 0 || isNaN(price) || price < 0) { this.platform.notify('Médicament, quantité et prix requis', 'alert'); return; }
+    const price = s?.price ?? (priceInput.trim() === '' ? NaN : Number(priceInput));
+    if (!s) { this.platform.notify('Choisissez un médicament', 'alert'); return; }
+    if (isNaN(qty) || qty <= 0) { this.platform.notify('Quantité requise', 'alert'); return; }
+    if (isNaN(price) || price < 0) { this.platform.notify(`Prix non renseigné au catalogue pour ${s.name} : saisissez le prix unitaire`, 'alert'); return; }
     const already = this.cart().find(l => l.stockId === s.stockId)?.qty ?? 0;
     if (qty + already > s.q) { this.platform.notify(`Stock insuffisant : ${this.plural(s.q, 'unité disponible', 'unités disponibles')}`, 'alert'); return; }
     this.cart.update(lines => already
       ? lines.map(l => l.stockId === s.stockId ? { ...l, qty: l.qty + qty, price } : l)
       : [...lines, { stockId: s.stockId, name: s.name + (s.sub ? ' · ' + s.sub : ''), qty, price, requiresRx: s.requiresRx, available: s.q }]);
+    // Formulaire remis à vide pour enchaîner sur un autre médicament.
+    this.saleStockId.set(null);
+    this.saleQty.set('1');
+    this.salePriceInput.set('');
   }
   removeLine(stockId: number): void { this.cart.update(lines => lines.filter(l => l.stockId !== stockId)); }
+  /** −/+ dans le panier : entre 1 et le disponible de la ligne. */
+  changeLineQty(stockId: number, delta: number): void {
+    this.cart.update(lines => lines.map(l => l.stockId === stockId ? { ...l, qty: Math.min(l.available, Math.max(1, l.qty + delta)) } : l));
+  }
   setVat(value: string): void { const v = Number(value); this.vatRate.set(isNaN(v) || v < 0 ? 0 : v); }
 
   submitSale(customer: string, payment: string): void {
@@ -1235,7 +1265,7 @@ export class PharmaDash {
     if (this.cartNeedsRx() && !rxRef.trim()) { this.platform.notify(`Référence d'ordonnance requise pour : ${this.rxNames()}`, 'alert'); return; }
     this.savingSale.set(true);
     this.pharmacy.createSale({
-      items: this.cart().map(l => ({ stock_id: l.stockId, quantity: l.qty, unit_price: l.price })),
+      items: this.cart().map(l => ({ stock_id: l.stockId, quantity: l.qty, unit_price: l.price })), // indicatif : le serveur applique le prix catalogue
       vat_rate: this.vatRate(),
       customer_name: customer.trim() || undefined,
       prescription_ref: rxRef.trim() || undefined,

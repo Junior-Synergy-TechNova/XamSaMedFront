@@ -96,6 +96,8 @@ export interface ApiMedicine {
   dosage: string | null;
   is_controlled: boolean;
   requires_prescription?: boolean;
+  /** Prix public de référence en FCFA (catalogue national) ; null sur les fiches anciennes. */
+  price?: number | string | null;
   /** pharmaceutical | hospital | both — séparation officine ↔ hôpital. */
   category?: string;
   atc_code?: string | null;
@@ -108,6 +110,8 @@ export interface ApiMedicinePayload {
   brand?: string | null;
   form?: string | null;
   dosage?: string | null;
+  /** Prix public de référence en FCFA. */
+  price?: number | null;
   atc_code?: string | null;
   category?: string;
   is_controlled?: boolean;
@@ -212,6 +216,8 @@ export interface ApiStockRow {
   medicine_name?: string | null;
   form: string | null;
   dosage: string | null;
+  /** Prix public de référence (FCFA) du catalogue national ; null si non renseigné. */
+  price?: number | string | null;
   is_controlled: boolean;
   quantity: number;
   reserved: number;
