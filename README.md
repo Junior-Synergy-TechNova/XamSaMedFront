@@ -29,6 +29,10 @@ npm run build
 
 Les fichiers de production sont générés dans `dist/`.
 
+## En ligne
+
+Site : https://xamsamed-wheat.vercel.app (Vercel), API : https://xamsamed-production.up.railway.app/api (Railway). Le déploiement est manuel (le projet Vercel n'est pas relié au dépôt) : procédure dans `docs/livraison-front-sprints-4-6.md`, section « En ligne ».
+
 ## Tests unitaires
 
 Les tests tournent avec **Vitest** :

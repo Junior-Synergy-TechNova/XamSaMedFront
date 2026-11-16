@@ -5,6 +5,8 @@ Testé dans le navigateur contre le backend `develop` en local (Docker), sauf le
 
 **Mise à jour du 16 novembre 2026** (PR #11 et #12) : conservation thermique pharmacien branchée sur le backend, mots de passe retirés de l'interface, couleurs de l'historique et des cartes. Voir [Mise à jour du 16 novembre](#mise-à-jour-du-16-novembre).
 
+**En ligne depuis le 16 novembre 2026** : https://xamsamed-wheat.vercel.app (Vercel), branché sur l'API Railway. Voir [En ligne](#en-ligne).
+
 ## En bref
 
 | Tâche (sprint) | État | Où le voir |
@@ -150,7 +152,7 @@ Rôle `pharmacy_user`. Type côté front : `ApiPharmacyThermalStatus` dans `src/
 - **Cartes** : votre structure en bleu vif (plus grosse), fournisseurs en violet, officines en vert / orange / rouge selon le stock (gris ardoise sans médicament choisi), marqueur sélectionné cerclé de noir.
 
 ### Prix de référence des médicaments
-Branche `feat/prix-catalogue-medicaments` (front et back).
+PR #14 (front) et XamSaMed#103 (back), fusionnées dans `develop` et en ligne le 16 novembre.
 
 - **Base** : nouvelle colonne `medicines.price` (prix public de référence en FCFA). La migration `2026_11_16_100000_add_price_to_medicines_table` donne un prix indicatif aux médicaments de démo ; à corriger depuis le catalogue si on a les prix officiels.
 - **Santé publique → Catalogue** : champ obligatoire « Prix de référence (FCFA) * » à l'ajout et à la modification d'une fiche (« 1 500 » ou « 1500,50 » acceptés), nouvelle colonne « Prix de référence » (puce « À renseigner » si vide).
@@ -170,8 +172,30 @@ Non couvert par les tests automatiques ni par le test dans le navigateur :
 - **Suggestions DCI** : en tapant une DCI (« lispro »), la liste de Chrome doit proposer « Insuline Humalog ».
 - **« Non renseignée au catalogue »** (DCI) : impossible à voir avec les données actuelles, tous les médicaments ont une DCI.
 - **Couleurs des réservations, livraisons expédiées et pertes** dans l'historique : absentes des données de démo, pas vues à l'écran.
-- **Prix de référence** : ajout d'une fiche avec prix au catalogue, puis vente de plusieurs médicaments à la suite (prix affiché, formulaire remis à vide, total TTC) — couvert par les tests, pas encore vu dans le navigateur.
+- **Prix de référence en ligne** : vu dans le navigateur en local (libellés, totaux, panier qui défile), sans valider de vente. À refaire sur le site en ligne : ajout d'une fiche avec prix au catalogue, puis une vente de plusieurs médicaments (prix repris, total TTC, reçu PDF).
 - **Tuiles OpenStreetMap** : avant une vraie mise en production, vérifier que leurs conditions d'usage couvrent notre trafic, ou passer par un fournisseur de tuiles.
+
+## En ligne
+
+| Partie | Adresse |
+|---|---|
+| Site web (Vercel, projet `xamsamed`) | https://xamsamed-wheat.vercel.app |
+| API (Railway, branche `develop`) | https://xamsamed-production.up.railway.app/api |
+
+On se connecte avec les mêmes comptes que l'API (mots de passe transmis séparément, jamais dans la doc).
+
+**Mettre à jour le site** : le projet Vercel n'est **pas relié au dépôt GitHub**, une fusion dans `develop` ne redéploie donc rien. Pour publier :
+
+1. Partir de `develop` à jour, sans modifications locales (une copie propre : `git worktree add ../front-deploy origin/develop`).
+2. Dans cette copie seulement, mettre `apiUrl: 'https://xamsamed-production.up.railway.app/api'` dans `src/environments/environment.ts`. **Ne jamais le commiter** : le dépôt garde `http://localhost/api` (Docker de l'équipe).
+3. `ng build` (Node 24), puis copier `dist/xamsamed/browser/` dans un dossier de déploiement.
+4. Y ajouter un `vercel.json` qui renvoie toutes les adresses vers l'application, sinon un lien direct comme `/app?s=ventes` donne une erreur 404 :
+   ```json
+   { "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }] }
+   ```
+5. Depuis ce dossier : `npx vercel link --project xamsamed`, supprimer le `.env.local` créé par la commande, puis `npx vercel deploy --prod`. Sans `--prod`, on obtient une préversion à part.
+
+Si l'API change d'adresse, refaire ces étapes avec la nouvelle adresse.
 
 ## Lancer en local
 
