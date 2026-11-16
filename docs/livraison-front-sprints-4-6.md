@@ -184,18 +184,15 @@ Non couvert par les tests automatiques ni par le test dans le navigateur :
 
 On se connecte avec les mêmes comptes que l'API (mots de passe transmis séparément, jamais dans la doc).
 
-**Mettre à jour le site** : le projet Vercel n'est **pas relié au dépôt GitHub**, une fusion dans `develop` ne redéploie donc rien. Pour publier :
+**Mise à jour automatique** : le projet Vercel `xamsamed` est relié au dépôt GitHub.
 
-1. Partir de `develop` à jour, sans modifications locales (une copie propre : `git worktree add ../front-deploy origin/develop`).
-2. Dans cette copie seulement, mettre `apiUrl: 'https://xamsamed-production.up.railway.app/api'` dans `src/environments/environment.ts`. **Ne jamais le commiter** : le dépôt garde `http://localhost/api` (Docker de l'équipe).
-3. `ng build` (Node 24), puis copier `dist/xamsamed/browser/` dans un dossier de déploiement.
-4. Y ajouter un `vercel.json` qui renvoie toutes les adresses vers l'application, sinon un lien direct comme `/app?s=ventes` donne une erreur 404 :
-   ```json
-   { "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }] }
-   ```
-5. Depuis ce dossier : `npx vercel link --project xamsamed`, supprimer le `.env.local` créé par la commande, puis `npx vercel deploy --prod`. Sans `--prod`, on obtient une préversion à part.
+- Chaque fusion dans **`develop`** redéploie le site principal en quelques minutes.
+- Chaque autre branche et chaque PR reçoit sa **préversion** (lien posté par Vercel sur la PR).
+- Le build Vercel lance `node scripts/vercel-build.mjs` (voir `vercel.json`) : il met l'adresse de l'API, lue dans la variable Vercel **`API_URL`**, dans `src/environments/environment.ts` **le temps du build seulement**, puis lance `ng build`. Le dépôt garde `http://localhost/api` ; ne jamais y commiter l'adresse de production.
+- Sans `API_URL`, le build Vercel s'arrête au lieu de publier un site branché sur `localhost`.
+- `vercel.json` renvoie toutes les adresses vers l'application, pour que les liens directs (`/app?s=ventes`) marchent.
 
-Si l'API change d'adresse, refaire ces étapes avec la nouvelle adresse.
+Si l'API change d'adresse : modifier `API_URL` dans les réglages du projet Vercel (Settings → Environment Variables), puis redéployer.
 
 ## Lancer en local
 
