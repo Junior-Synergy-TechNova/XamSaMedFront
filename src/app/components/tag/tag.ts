@@ -3,6 +3,9 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
 const TAG_CLASS: Record<string, string> = {
   ok: 'chip-green', low: 'chip-amber', crit: 'chip-red',
   out: 'chip-red', vue: 'chip-gray', new: 'chip-blue',
+  // Teintes de catégorie (ex. type de mouvement) — le point coloré reste le même langage.
+  green: 'chip-green', blue: 'chip-blue', amber: 'chip-amber', red: 'chip-red', gray: 'chip-gray',
+  violet: 'chip-violet', teal: 'chip-teal', sky: 'chip-sky', rose: 'chip-rose',
 };
 
 /* Chip d'état (statut de stock, urgence, tension…) */

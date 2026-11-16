@@ -35,7 +35,7 @@
                 label="Carte des fournisseurs et des officines" (select)="sel.set($event)"/>
     <div class="pf-gm-legend">
       <span><i class="blue"></i> {{ originName() }}</span>
-      <span><i class="dark"></i> Fournisseur{{ medId() ? ' (halo = en stock)' : '' }}</span>
+      <span><i class="violet"></i> Fournisseur{{ medId() ? ' (halo = en stock)' : '' }}</span>
       @if (medId()) {
         <span><i class="green"></i> Officine en stock</span>
         <span><i class="amber"></i> Stock bas</span>
