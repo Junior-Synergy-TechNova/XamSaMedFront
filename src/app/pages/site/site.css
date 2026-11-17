@@ -17,8 +17,65 @@
 .section-head p { @apply text-[18px] text-gray-text leading-relaxed; }
 .s-copy h2 { @apply text-[clamp(28px,3.2vw,40px)] font-semibold mt-4 mb-6 leading-[1.15]; }
 .s-copy .s-lead { @apply text-[18px] text-gray-text leading-relaxed; }
-/* Pas d'animation d'entrée section par section : le contenu est là, tout de suite. */
-.fade-up, .fade-up.in { @apply opacity-100 translate-y-0; }
+/* ---------- Animations ----------
+   Apparition au défilement (directive Reveal → classe .in), une seule fois par bloc ;
+   entrée échelonnée de l'accroche ; tout est neutralisé par « réduire les animations » (styles.css). */
+.fade-up, .fade-left, .fade-right, .zoom-in { @apply opacity-0 transition-[opacity,translate,scale] duration-700 ease-[cubic-bezier(.22,1,.36,1)]; }
+.fade-up { @apply translate-y-8; }
+.fade-left { @apply -translate-x-10; }
+.fade-right { @apply translate-x-10; }
+.zoom-in { @apply scale-90; }
+.fade-up.in, .fade-left.in, .fade-right.in, .zoom-in.in { @apply opacity-100 translate-x-0 translate-y-0 scale-100; }
+
+@keyframes s-rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+@keyframes s-slide { from { opacity: 0; transform: translateX(32px); } to { opacity: 1; transform: none; } }
+@keyframes s-pop { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: none; } }
+@keyframes s-live { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-green) 45%, transparent); } 70%, 100% { box-shadow: 0 0 0 8px transparent; } }
+@keyframes s-grow { to { transform: scaleX(1); } }
+.s-in { animation: s-rise .7s cubic-bezier(.22,1,.36,1) both; }
+.s-in-2 { animation-delay: .1s; }
+.s-in-3 { animation-delay: .2s; }
+.s-in-4 { animation-delay: .3s; }
+.s-in-art { animation: s-slide .8s cubic-bezier(.22,1,.36,1) .2s both; }
+.s-pop { animation: s-pop .5s cubic-bezier(.34,1.56,.64,1) .8s both; }
+.s-pop-2 { animation-delay: 1s; }
+/* Résultats de la carte de démonstration : arrivent l'un après l'autre */
+.s-hcline { animation: s-rise .5s cubic-bezier(.22,1,.36,1) both; }
+.s-hcline:nth-of-type(1) { animation-delay: .5s; }
+.s-hcline:nth-of-type(2) { animation-delay: .62s; }
+.s-hcline:nth-of-type(3) { animation-delay: .74s; }
+.s-hcline:nth-of-type(4) { animation-delay: .86s; }
+/* « Disponible » : point vert qui pulse doucement (donnée en temps réel) */
+.s-hcdot[data-s=ok] { animation: s-live 2s ease-out 1.2s infinite; }
+
+/* Barre de lecture sous l'en-tête (navigateurs avec scroll-timeline, sinon absente) */
+.s-progress { @apply absolute left-0 bottom-0 h-[3px] w-full bg-green origin-left pointer-events-none; transform: scaleX(0); }
+@supports (animation-timeline: scroll()) {
+  .s-progress { animation: s-grow linear both; animation-timeline: scroll(root); }
+}
+
+/* Bouton « remonter » */
+.s-totop { @apply fixed right-6 bottom-6 z-40 w-12 h-12 rounded-full bg-blue text-white grid place-items-center shadow-md transition-colors duration-150; animation: s-pop .3s cubic-bezier(.34,1.56,.64,1) both; }
+.s-totop:hover { @apply bg-blue-700; }
+
+/* Teintes des cases d'icône (catégorie, comme dans la plateforme) */
+.tn.red { @apply bg-red-soft text-red-text; }
+.tn.amber { @apply bg-amber-soft text-amber-text; }
+.tn.green { @apply bg-green-soft text-green; }
+.tn.blue { @apply bg-blue-soft text-blue; }
+.tn.teal { @apply bg-teal-soft text-teal; }
+.tn.violet { @apply bg-violet-soft text-violet; }
+.tn.sky { @apply bg-sky-soft text-sky-text; }
+.tn.rose { @apply bg-rose-soft text-rose-text; }
+.tx.blue { @apply text-blue; }
+.tx.teal { @apply text-teal; }
+.tx.violet { @apply text-violet; }
+.tx.sky { @apply text-sky; }
+.tx.rose { @apply text-rose; }
+/* Survol d'une carte : sa case d'icône grossit légèrement */
+.s-probicon, .s-featicon, .s-secicon, .s-howicon, .s-contacticon { @apply transition-[scale] duration-200 ease-out; }
+.s-probcard:hover .s-probicon, .s-featcard:hover .s-featicon, .s-secitem:hover .s-secicon,
+.s-howstep:hover .s-howicon, .s-contactline:hover .s-contacticon { @apply scale-110; }
 
 /* ---------- Visuels de remplacement (photos à venir) ---------- */
 .ph {
@@ -36,8 +93,10 @@
 .s-header.sc { @apply bg-white shadow-[0_1px_0_var(--color-gray-line)] py-3.5; }
 .s-headinner { @apply flex items-center justify-between gap-8; }
 .s-nav { @apply flex gap-8 ml-auto; }
-.s-nav a { @apply font-medium text-[15px] text-black whitespace-nowrap transition-colors duration-150; }
-.s-nav a:hover { @apply text-green-text; }
+.s-nav a { @apply relative font-medium text-[15px] text-black whitespace-nowrap transition-colors duration-150; }
+.s-nav a::after { content: ''; @apply absolute left-0 right-0 -bottom-1.5 h-0.5 rounded-full bg-green scale-x-0 origin-left transition-[scale] duration-300 ease-out; }
+.s-nav a:hover, .s-nav a.on { @apply text-green-text; }
+.s-nav a:hover::after, .s-nav a.on::after { @apply scale-x-100; }
 .s-headcta { @apply flex gap-3 items-center flex-none; }
 .s-burger { @apply hidden text-blue p-2; }
 .s-mobnav { @apply hidden flex-col gap-2 bg-white mt-3 mx-4 p-5 rounded-lg shadow-lg; }
@@ -56,7 +115,9 @@
 .s-herobtns { @apply flex gap-4 flex-wrap; }
 .s-herostats { @apply flex gap-14 mt-14 pt-10 border-t border-gray-line; }
 .s-herostats > div { @apply flex flex-col gap-1.5; }
-.s-herostats strong { @apply font-semibold text-[32px] text-blue leading-none; }
+.s-herostats strong { @apply font-semibold text-[32px] text-blue leading-none tabular-nums; }
+.s-herostats > div:nth-child(2) strong { @apply text-green-text; }
+.s-herostats > div:nth-child(3) strong { @apply text-teal; }
 .s-herostats span { @apply text-[14.5px] text-gray-text; }
 
 .s-heroart { @apply relative; }
@@ -108,8 +169,6 @@
 .s-featgrid { @apply grid grid-cols-4 gap-6; }
 .s-featcard { @apply px-7 py-8; }
 .s-featicon { @apply grid place-items-center w-11 h-11 rounded-[10px] mb-6; }
-.s-featicon.g { @apply bg-green-soft text-green; }
-.s-featicon.b { @apply bg-blue-soft text-blue; }
 .s-featcard strong { @apply block font-semibold text-black text-[17px] mb-2.5; }
 .s-featcard p { @apply text-[15px] text-gray-text leading-relaxed; }
 .s-featfoot { @apply text-center mt-16; }

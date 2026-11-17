@@ -54,13 +54,13 @@
       @for (p of suppliers(); track p.key) {
         <div class="pf-li pf-nm-li" [class.on]="sel() === p.key">
           <button type="button" class="pf-nm-row" [attr.aria-pressed]="sel() === p.key" (click)="toggle(p.key)">
-            <span class="pf-liic" [class.green]="medId() && p.s.has_stock" [class.red]="medId() && !p.s.has_stock"><nv-icon name="truck" [size]="18"/></span>
+            <span class="pf-liic" [class.violet]="!medId()" [class.green]="medId() && p.s.has_stock" [class.red]="medId() && !p.s.has_stock"><nv-icon name="truck" [size]="18"/></span>
             <span class="pf-libody">
               <strong>{{ p.s.name }}</strong>
-              <span>{{ p.s.kind }}{{ p.s.city ? ' · ' + p.s.city : '' }}{{ p.km !== null ? ' · ' + p.dist : '' }}{{ p.s.is_partner ? ' · partenaire' : '' }}</span>
+              <span><span class="pf-tx violet">{{ p.s.kind }}</span>@if (p.s.is_partner) { · <span class="pf-tx teal"><nv-icon name="link" [size]="13"/>Partenaire</span> }{{ p.s.city ? ' · ' + p.s.city : '' }}{{ p.km !== null ? ' · ' + p.dist : '' }}</span>
             </span>
             @if (medId()) {
-              <span class="chip" [class.chip-green]="p.s.has_stock" [class.chip-gray]="!p.s.has_stock">{{ p.s.has_stock ? p.s.available + ' dispo.' : 'Pas de stock' }}</span>
+              <span class="chip" [class.chip-green]="p.s.has_stock" [class.chip-red]="!p.s.has_stock">{{ p.s.has_stock ? p.s.available + ' dispo.' : 'Pas de stock' }}</span>
             }
           </button>
           @if (medId()) {

@@ -57,8 +57,8 @@
         </div>
       }
       @for (r of reports(); track r.id) {
-        <div class="pf-li pf-li-top pf-fl-row" [class.on]="selected() === r.id">
-          <span class="pf-liic {{ tone(r) }}"><nv-icon name="alert" [size]="18"/></span>
+        <div class="pf-li pf-fl-row" [class.on]="selected() === r.id">
+          <span class="pf-liic {{ r.status === 'confirmed' ? 'red' : 'amber' }}"><nv-icon name="alert" [size]="18"/></span>
           <div class="pf-libody">
             <strong>{{ r.severity_label }}</strong>
             <span>{{ distance(r) ? 'À ' + distance(r) + ' · ' : '' }}signalé à {{ r.reported_at | date:'HH:mm' }} · expire à {{ r.expires_at | date:'HH:mm' }}</span>
@@ -102,7 +102,7 @@
 
 <!-- ── Signaler ─────────────────────────────────────────────── -->
 @if (reportOpen()) {
-  <div class="pf-modal-overlay" (click)="reportOpen.set(false)">
+  <div class="pf-modal-overlay" animate.leave="pf-modal-out" (click)="reportOpen.set(false)">
     <div class="pf-modal" (click)="$event.stopPropagation()">
       <div class="pf-modal-head">
         <h2>Signaler une route inondée</h2>

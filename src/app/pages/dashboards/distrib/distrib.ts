@@ -525,6 +525,17 @@ export class DistribDash {
     });
   }
 
+  /** Couleur d'une demande terminée : livrée/prévue vert, refusée rouge, annulée violet, close (stock revenu) teal. */
+  pastTone(r: { status: string }): string {
+    return r.status === 'resolved' ? 'green' : r.status === 'rejected' ? 'red'
+      : r.status === 'cancelled' ? 'violet' : r.status === 'closed' ? 'teal' : 'gray';
+  }
+
+  /** Stock restant du demandeur : rouge à zéro, ambre sinon (il est sous son seuil), gris si inconnu. */
+  restTone(v: string | number | null | undefined): string {
+    const n = typeof v === 'number' ? v : parseFloat(v ?? '');
+    return isNaN(n) ? 'gray' : n <= 0 ? 'red' : 'amber';
+  }
   requestStatusLabel(r: ApiIncomingRequest): string {
     const day = (iso: string) => new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
     return r.status === 'resolved' ? 'Livraison prévue' + (r.delivery_date ? ' le ' + day(r.delivery_date) : '')
@@ -740,7 +751,7 @@ export class DistribDash {
   ztag(n: string): string { return n === 'crit' ? 'crit' : n === 'haute' ? 'low' : 'ok'; }
   /** Mêmes libellés que la légende de la carte. */
   zoneLabel(n: string): string { return n === 'crit' ? 'Critique' : n === 'haute' ? 'Tension haute' : n === 'moyenne' ? 'Modérée' : 'Faible'; }
-  zoneTile(n: string): string { return n === 'crit' ? 'red' : n === 'haute' ? 'amber' : ''; }
+  zoneTile(n: string): string { return n === 'crit' ? 'red' : n === 'haute' ? 'amber' : 'green'; }
   tone(pct: number): BarTone { return pct > 70 ? 'red' : pct > 40 ? 'amber' : 'green'; }
 
   /** Délai réel de réappro. (delivery_plans livrés) ou absence d'historique. */

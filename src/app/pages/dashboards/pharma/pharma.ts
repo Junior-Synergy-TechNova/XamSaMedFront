@@ -673,8 +673,14 @@ export class PharmaDash {
   movementTag(m: ApiStockMovement): string {
     return MOVEMENT_TONE[m.type] ?? (m.direction === 'entrée' ? 'green' : 'gray');
   }
+  /** Moyen de paiement : espèces vert, mobile money violet, carte bleu ciel, assurance teal. */
+  paymentTone(method: string | null | undefined): string {
+    return method === 'cash' ? 'green' : method === 'mobile_money' ? 'violet' : method === 'card' ? 'sky' : method === 'insurance' ? 'teal' : 'gray';
+  }
   /** Ordonnance : à traiter (orange), prête ou retirée (vert), refusée (neutre — ce n'est pas une alerte). */
-  ordoTile(status: string): string { return status === 'pending' ? 'amber' : status === 'cancelled' ? '' : 'green'; }
+  ordoTile(status: string): string { return status === 'pending' ? 'amber' : status === 'cancelled' ? 'rose' : status === 'oriented' ? 'violet' : status === 'collected' ? 'teal' : 'green'; }
+  /** Pastille d'état d'une ordonnance terminée : retirée teal, orientée violet, refusée / expirée rose (pas une alerte). */
+  ordoTag(status: string): string { return status === 'collected' ? 'teal' : status === 'oriented' ? 'violet' : status === 'cancelled' ? 'rose' : 'amber'; }
   signedQty(m: ApiStockMovement): string {
     return m.direction === 'entrée' ? '+' + m.quantity : m.direction === 'sortie' ? '−' + m.quantity : '—';
   }
@@ -892,9 +898,14 @@ export class PharmaDash {
   }
   dayMonth(iso: string): string { return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }); }
   requestTag(r: ApiRestockRequest): string {
-    if (r.status === 'cancelled' || r.status === 'closed') return 'vue';
+    if (r.status === 'cancelled' || r.status === 'closed') return this.pastTone(r);
     if (r.delivery_late || (r.status === 'pending' && r.stale)) return 'low';
     return r.status === 'resolved' ? 'ok' : r.status === 'rejected' ? 'crit' : 'new';
+  }
+  /** Couleur d'une demande terminée : livrée/prévue vert, refusée rouge, annulée violet, close (stock revenu) teal. */
+  pastTone(r: { status: string }): string {
+    return r.status === 'resolved' ? 'green' : r.status === 'rejected' ? 'red'
+      : r.status === 'cancelled' ? 'violet' : r.status === 'closed' ? 'teal' : 'gray';
   }
   /** Demande terminée, plus rien à suivre : elle passe dans l'historique (un refus récent reste visible). */
   isPastRequest(r: ApiRestockRequest): boolean {
@@ -902,7 +913,7 @@ export class PharmaDash {
     return r.status !== 'resolved' || r.delivery_status === 'delivered';
   }
   requestTile(r: ApiRestockRequest): string {
-    if (r.status === 'cancelled' || r.status === 'closed') return '';
+    if (r.status === 'cancelled' || r.status === 'closed') return this.pastTone(r);
     if (r.delivery_late || (r.status === 'pending' && r.stale)) return 'amber';
     return r.status === 'resolved' ? 'green' : r.status === 'rejected' ? 'red' : 'blue';
   }
@@ -1115,6 +1126,12 @@ export class PharmaDash {
   ordoLineTone(status: string): string {
     return status === 'reserved' || status === 'substitute_accepted' || status === 'collected' || status === 'legacy_debited' ? 'ok'
       : status === 'substitute_refused' || status === 'expired' ? 'crit' : status === 'cancelled' ? 'vue' : 'low';
+  }
+
+  /** Texte « où retirer » d'une ligne, même code couleur que sa pastille. */
+  ordoLineText(status: string): string {
+    const t = this.ordoLineTone(status);
+    return t === 'ok' ? 'green' : t === 'crit' ? 'red' : t === 'vue' ? 'gray' : 'amber';
   }
 
   /** Page suivante des ordonnances (les plus anciennes). */

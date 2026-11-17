@@ -90,4 +90,33 @@ describe('AppShell — navigation', { timeout: 20_000 }, () => {
     http.expectOne(r => r.url === `${api}/search`).flush({ data: [] });
     expect(shell.searchError()).toBe(false);
   });
+
+  it('Échap ferme le panneau ouvert et rend le focus à son bouton, avant le tiroir', async () => {
+    const { shell, harness } = await open('/app');
+    const el = harness.fixture.nativeElement as HTMLElement;
+    const escape = () => el.querySelector('.pf-app')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    const bell = el.querySelector<HTMLElement>('.pf-notifwrap .pf-iconbtn')!;
+
+    bell.click();
+    await harness.fixture.whenStable();
+    expect(shell.notifOpen()).toBe(true);
+    escape();
+    expect(shell.notifOpen()).toBe(false);
+    expect(document.activeElement).toBe(bell);
+
+    el.querySelector<HTMLElement>('.pf-roleswbtn')!.click();
+    await harness.fixture.whenStable();
+    expect(shell.profileOpen()).toBe(true);
+    escape();
+    expect(shell.profileOpen()).toBe(false);
+
+    // Panneau et tiroir ouverts : un appui ferme le panneau, le suivant le tiroir.
+    shell.drawerOpen.set(true);
+    shell.notifOpen.set(true);
+    escape();
+    expect(shell.notifOpen()).toBe(false);
+    expect(shell.drawerOpen()).toBe(true);
+    escape();
+    expect(shell.drawerOpen()).toBe(false);
+  });
 });

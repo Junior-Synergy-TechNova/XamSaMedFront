@@ -8,3 +8,10 @@
 
 .pf-th-note { @apply mb-5; }
 .pf-th-foot { @apply text-[13.5px] leading-relaxed mt-2; }
+
+/* Un point d'état devant le nom (pas de fond de ligne) */
+.pf-th-med { @apply inline-flex items-center gap-2.5; }
+.pf-th-dot { @apply w-2.5 h-2.5 rounded-full flex-none bg-gray-line; }
+.pf-th-dot.red { @apply bg-red; }
+.pf-th-dot.amber { @apply bg-amber; }
+.pf-th-dot.green { @apply bg-green; }

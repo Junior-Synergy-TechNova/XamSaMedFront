@@ -69,6 +69,20 @@ export class PatientResults {
   readonly positionSource = signal<'gps' | 'home' | null>(null);
   /** L'API a renvoyé des scores : la liste est classée par accessibilité, pas seulement par distance. */
   readonly ranked = computed(() => this.rows().some(r => r.score !== null));
+  /**
+   * Sans position (ni GPS ni domicile), l'API ne calcule aucune distance : celle du
+   * service partirait d'un point fixe du centre de Dakar, donc on ne l'affiche pas.
+   */
+  readonly hasPosition = computed(() => this.positionSource() !== null);
+  /** Dit d'où partent les distances : le domicile enregistré n'est pas forcément là où l'on est. */
+  readonly geoHint = computed(() => {
+    const from = this.positionSource() === 'gps' ? 'votre position actuelle' : 'votre domicile enregistré';
+    if (this.positionSource() === null) return "Partagez votre position pour voir les distances réelles et classer les pharmacies selon l'accès : distance, stock à jour, routes inondées.";
+    const base = this.ranked()
+      ? `Classées par accessibilité depuis ${from} : stock disponible, mise à jour récente du stock, distance et inondations confirmées à proximité.`
+      : `Distances calculées depuis ${from}.`;
+    return this.positionSource() === 'home' ? `${base} Vous n'êtes pas chez vous ? Utilisez votre position actuelle.` : base;
+  });
   readonly isFloodReason = isFloodReason;
 
   readonly best = computed(() => this.rows().find(r => r.s !== 'out'));

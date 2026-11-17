@@ -107,7 +107,7 @@
       </pf-card>
     } @else {
       @for (r of visibleRows(); track r.item.id) {
-        <div class="pf-li pf-li-top pf-cab-row">
+        <div class="pf-li pf-cab-row">
           <span class="pf-liic {{ r.tone }}"><nv-icon [name]="r.heat ? 'thermo' : 'pill'" [size]="20"/></span>
           <div class="pf-libody">
             <strong>{{ r.label }} @if (r.item.medicine.is_controlled) { <span class="chip chip-ctrl chip-inline">Contrôlé</span> }</strong>
@@ -145,7 +145,7 @@
 
 <!-- ── Ajouter / modifier un médicament ─────────────────────── -->
 @if (form(); as f) {
-  <div class="pf-modal-overlay" (click)="form.set(null)">
+  <div class="pf-modal-overlay" animate.leave="pf-modal-out" (click)="form.set(null)">
     <form class="pf-modal" (click)="$event.stopPropagation()" (submit)="saveItem(); $event.preventDefault()">
       <div class="pf-modal-head">
         <h2>{{ f.id === null ? 'Ajouter un médicament' : 'Modifier le médicament' }}</h2>
@@ -196,7 +196,7 @@
 
 <!-- ── Retirer un médicament ────────────────────────────────── -->
 @if (toDelete(); as d) {
-  <div class="pf-modal-overlay" (click)="toDelete.set(null)">
+  <div class="pf-modal-overlay" animate.leave="pf-modal-out" (click)="toDelete.set(null)">
     <div class="pf-modal" (click)="$event.stopPropagation()">
       <div class="pf-modal-head">
         <h2>Retirer {{ d.medicine.name }} ?</h2>
@@ -215,7 +215,7 @@
 
 <!-- ── Proches ──────────────────────────────────────────────── -->
 @if (membersOpen()) {
-  <div class="pf-modal-overlay" (click)="membersOpen.set(false)">
+  <div class="pf-modal-overlay" animate.leave="pf-modal-out" (click)="membersOpen.set(false)">
     <div class="pf-modal" (click)="$event.stopPropagation()">
       <div class="pf-modal-head">
         <h2>Mes proches</h2>
@@ -270,7 +270,7 @@
 
 <!-- ── Localiser le domicile ────────────────────────────────── -->
 @if (locationOpen()) {
-  <div class="pf-modal-overlay" (click)="locationOpen.set(false)">
+  <div class="pf-modal-overlay" animate.leave="pf-modal-out" (click)="locationOpen.set(false)">
     <div class="pf-modal" (click)="$event.stopPropagation()">
       <div class="pf-modal-head">
         <h2>Où se trouve votre domicile ?</h2>
@@ -281,8 +281,8 @@
         <button type="button" class="btn btn-primary pf-cab-locate" (click)="useMyPosition()" [disabled]="locating()">
           <nv-icon name="pin" [size]="16"/> {{ locating() ? 'Localisation…' : 'Utiliser ma position actuelle' }}
         </button>
-        <div class="s-field"><label>Ou choisissez votre ville</label>
-          <select #city [disabled]="locating()" (change)="useCity(city.value)">
+        <div class="s-field" [attr.data-tip]="locating() ? cityTip : null"><label>Ou choisissez votre ville</label>
+          <select #city [disabled]="locating()" (change)="useCity(city.value)" [attr.aria-description]="locating() ? cityTip : null">
             <option value="">Sélectionnez une ville</option>
             @for (c of cities; track c.name) { <option [value]="c.name">{{ c.name }}</option> }
           </select>

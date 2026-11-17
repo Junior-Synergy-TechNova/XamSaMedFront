@@ -123,6 +123,7 @@ export class PatientCabinet {
   readonly busy = signal<ReadonlySet<number>>(new Set());
   readonly saving = signal(false);
   readonly locating = signal(false);
+  readonly cityTip = 'Localisation en cours… la liste se réactive ensuite.';
 
   // ── Modales ───────────────────────────────────────────────────
   readonly form = signal<ItemForm | null>(null);

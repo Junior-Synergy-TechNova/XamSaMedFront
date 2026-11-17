@@ -48,6 +48,7 @@ export class GeoMap {
   private map: Leaflet.Map | null = null;
   private layer: Leaflet.LayerGroup | null = null;
   private lastFrame = '';
+  private lastSet = '';
   private lastSelected: string | null = null;
   private resize: ResizeObserver | null = null;
 
@@ -87,20 +88,35 @@ export class GeoMap {
     const layer = this.layer!;
     const map = this.map!;
     layer.clearLayers();
+    // Nouvel ensemble de points (pas une simple sélection) : ils « tombent » sur la carte en cascade.
+    const setKey = markers.map(m => m.id).join('|');
+    const fresh = setKey !== this.lastSet;
+    this.lastSet = setKey;
+    const pop = (el: Element | undefined, i: number) => {
+      if (!fresh || !el) return;
+      el.classList.add('pf-gm-pop');
+      (el as SVGElement).style.animationDelay = Math.min(i, 24) * 25 + 'ms';
+    };
 
     // Halos d'abord, pour que les points restent cliquables au-dessus.
     for (const m of markers) {
       if (!m.size) continue;
-      L.circleMarker([m.point.lat, m.point.lng], { radius: m.size, className: `pf-gm-halo pf-gm-${m.tone}`, interactive: false }).addTo(layer);
+      const halo = L.circleMarker([m.point.lat, m.point.lng], { radius: m.size, className: `pf-gm-halo pf-gm-${m.tone}`, interactive: false }).addTo(layer);
+      pop(halo.getElement(), markers.indexOf(m));
     }
-    for (const m of markers) {
+    markers.forEach((m, i) => {
       const on = m.id === selected;
-      L.circleMarker([m.point.lat, m.point.lng], { radius: on ? 10 : 7, className: `pf-gm-dot pf-gm-${m.tone}${on ? ' pf-gm-on' : ''}` })
+      const dot = L.circleMarker([m.point.lat, m.point.lng], { radius: on ? 10 : 7, className: `pf-gm-dot pf-gm-${m.tone}${on ? ' pf-gm-on' : ''}` })
         .bindTooltip(m.label, { direction: 'top', offset: [0, -6] })
         .on('click', () => this.select.emit(m.id))
         .addTo(layer);
+      pop(dot.getElement(), i);
+    });
+    if (me) {
+      // Position : un anneau qui s'élargit en continu (repère « vous êtes ici »)
+      L.circleMarker([me.lat, me.lng], { radius: 9, className: 'pf-gm-me-ring', interactive: false }).addTo(layer);
+      L.circleMarker([me.lat, me.lng], { radius: 9, className: 'pf-gm-me', interactive: false }).bindTooltip('Votre position').addTo(layer);
     }
-    if (me) L.circleMarker([me.lat, me.lng], { radius: 9, className: 'pf-gm-me', interactive: false }).bindTooltip('Votre position').addTo(layer);
 
     // Recadre seulement quand l'ensemble des points change (pas à chaque sélection).
     const framed = fitIds ? markers.filter(m => fitIds.includes(m.id)) : markers;

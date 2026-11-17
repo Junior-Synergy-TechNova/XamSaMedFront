@@ -5,9 +5,10 @@ import {
 import { Router } from '@angular/router';
 import { Icon } from '../../components/icon/icon';
 import { Logo } from '../../components/logo/logo';
-import { FEATURES } from '../../data/mock-data';
+import { FEATURES, ICON_TONE } from '../../data/mock-data';
 
 import { FieldLabel } from '../../directives/field-label/field-label';
+import { Reveal } from '../../directives/reveal/reveal';
 interface ContactForm { nom: string; email: string; tel: string; profil: string; message: string; }
 const EMPTY_FORM: ContactForm = { nom: '', email: '', tel: '', profil: 'Patient / Accompagnant', message: '' };
 
@@ -19,7 +20,7 @@ const EMPTY_FORM: ContactForm = { nom: '', email: '', tel: '', profil: 'Patient 
 @Component({
   selector: 'app-site',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FieldLabel, Icon, Logo],
+  imports: [FieldLabel, Reveal, Icon, Logo],
   templateUrl: './site.html',
   styleUrl: './site.css',
   host: { '(window:scroll)': 'onScroll()' },
@@ -30,6 +31,10 @@ export class SiteVitrine {
   private readonly destroyRef = inject(DestroyRef);
 
   readonly scrolled = signal(false);
+  /** Bouton « remonter » : visible une fois le haut de page dépassé. */
+  readonly showTop = signal(false);
+  /** Section visible (lien du menu surligné), ex. « #features ». */
+  readonly active = signal('');
   readonly menuOpen = signal(false);
   readonly tab = signal(0);
   readonly faqOpen = signal(0);
@@ -49,6 +54,12 @@ export class SiteVitrine {
     ['À propos', '#about'], ['FAQ', '#faq'], ['Contact', '#contact'],
   ];
   readonly heroStats: [string, string][] = [['1 200+', 'Officines connectées'], ['48 s', "Délai moyen d'alerte"], ['32', 'Zones suivies en temps réel']];
+  /** Valeurs affichées des chiffres clés (comptent de 0 à la valeur au chargement). */
+  readonly statVals = signal(this.heroStats.map(s => s[0]));
+  /** Teintes des cases d'icône, dans l'ordre des listes. */
+  readonly probTones = ['red', 'amber', 'violet'];
+  readonly secTones = ['green', 'teal', 'blue', 'sky', 'violet', 'amber'];
+  readonly contactTones = ['blue', 'green', 'rose'];
   readonly heroLines: [string, string, string][] = [
     ['Pharmacie de la Gare', '2,1 km · 24h/24', 'ok'],
     ['Grande Pharmacie', '3,6 km · sur commande', 'low'],
@@ -99,20 +110,56 @@ export class SiteVitrine {
   readonly profilOptions = ['Patient / Accompagnant', 'Pharmacien', 'Distributeur / Grossiste', 'Hôpital', 'Responsable santé publique', 'Autre'];
 
   constructor() {
-    // Animation d'apparition au défilement : purement visuelle, hors cycle de
-    // détection (l'observer ajoute la classe `in` puis se désabonne).
+    // Apparition au défilement : directive Reveal (.fade-up, .fade-left…).
     afterNextRender(() => {
-      const io = new IntersectionObserver(entries => {
-        for (const e of entries) {
-          if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
-        }
-      }, { threshold: 0.12 });
-      this.host.nativeElement.querySelectorAll<HTMLElement>('.fade-up').forEach(el => io.observe(el));
-      this.destroyRef.onDestroy(() => io.disconnect());
+      this.spySections();
+      this.countUp();
     });
   }
 
-  onScroll(): void { this.scrolled.set(window.scrollY > 20); }
+  onScroll(): void {
+    this.scrolled.set(window.scrollY > 20);
+    this.showTop.set(window.scrollY > 900);
+  }
+
+  /** Surligne dans le menu la section au milieu de l'écran. */
+  private spySections(): void {
+    if (typeof IntersectionObserver === 'undefined') return;
+    const spy = new IntersectionObserver(entries => {
+      for (const e of entries) if (e.isIntersecting) this.active.set('#' + e.target.id);
+    }, { rootMargin: '-45% 0px -50% 0px' });
+    for (const hash of ['#top', ...this.navLinks.map(l => l[1])]) {
+      const el = this.host.nativeElement.querySelector(hash);
+      if (el) spy.observe(el);
+    }
+    this.destroyRef.onDestroy(() => spy.disconnect());
+  }
+
+  /** Chiffres clés : comptent jusqu'à leur valeur (1,4 s, décélération). Rien si « réduire les animations ». */
+  private countUp(): void {
+    if (typeof matchMedia !== 'function' || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const finals = this.heroStats.map(s => s[0]);
+    const parts = finals.map(v => {
+      const m = /^(\d[\d\s\u202f\u00a0]*\d|\d)(.*)$/.exec(v);
+      return m ? { n: parseInt(m[1].replace(/\D/g, ''), 10), suffix: m[2] } : null;
+    });
+    const start = performance.now();
+    const duration = 1400;
+    let raf = 0;
+    const step = (t: number) => {
+      const p = Math.min(1, (t - start) / duration);
+      const eased = 1 - Math.pow(1 - p, 3);
+      this.statVals.set(p >= 1 ? finals : finals.map((v, i) => {
+        const part = parts[i];
+        return part ? Math.round(part.n * eased).toLocaleString('fr-FR') + part.suffix : v;
+      }));
+      if (p < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    this.destroyRef.onDestroy(() => cancelAnimationFrame(raf));
+  }
+
+  tone(icon: string): string { return ICON_TONE[icon] ?? 'blue'; }
 
   go(hash: string): void {
     if (hash === '#top') { window.scrollTo({ top: 0, behavior: 'smooth' }); }

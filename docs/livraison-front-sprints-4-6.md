@@ -59,6 +59,7 @@ Fichiers : `pages/dashboards/patient-floods/`, `components/flood-map/`, `service
 - **Je confirme** : la position est relue à l'instant (le backend exige d'être à moins de 200 m). Les refus du backend (trop loin, déjà confirmé, trop de signalements dans l'heure) s'affichent tels quels.
 - Liste des pharmacies dont l'accès est gêné.
 - **Score d'accessibilité** dans les résultats de recherche : pharmacies classées par accessibilité, bannière « Pharmacie la plus accessible », raisons du classement en pastilles (« Stock mis à jour il y a 2 h », « À 0,8 km », « Inondation signalée à proximité » en orange). Le score chiffré n'est jamais affiché, comme le demande la doc du backend.
+- **D'où partent les distances** (16 novembre) : les résultats disent si elles sont calculées depuis la position actuelle ou depuis le **domicile enregistré** ; dans ce second cas le bouton « Utiliser ma position actuelle » reste proposé. Sans aucune position, aucune distance n'est affichée (plus de distance calculée depuis un point fixe de Dakar) et la bannière dit « Pharmacie disponible ». Les officines de démo avaient en plus des coordonnées en double (deux pharmacies à « 0 m ») : corrigé côté backend par la migration `2026_11_16_200000_fix_demo_structure_coordinates`.
 - Endpoints : `GET/POST /flood-reports`, `POST /flood-reports/{id}/confirm`, `GET /pharmacies`, `GET /medicines/{id}/availability?sort=score&qty=1[&lat&lng]`.
 - Nouvelle dépendance : **leaflet 1.9.4**, chargée seulement sur la page des inondations (fichier à part, environ 37 kB compressés).
 
@@ -164,6 +165,45 @@ PR #14 (front) et XamSaMed#103 (back), fusionnées dans `develop` et en ligne le
   - après « Ajouter », le formulaire revient à « Choisir un médicament… », quantité 1, pour enchaîner sur un autre médicament ;
   - mise en page « caisse » : saisie, client, paiement, TVA et ordonnance à gauche ; à droite un ticket **Panier** de hauteur fixe (la liste défile à l'intérieur au lieu d'allonger la page), avec −/+ pour la quantité de chaque ligne (borné au disponible), × pour retirer, et les totaux HT / TVA / TTC + « Valider » toujours visibles en bas ; « Chiffre d'affaires » et « Top ventes » passent côte à côte en dessous.
 
+## Mise à jour du 17 novembre
+
+Tout ce qui suit était encore en local et n'apparaissait pas sur le site en ligne : Vercel ne construit que ce qui est poussé sur GitHub.
+
+### Animations
+Toutes désactivées si l'utilisateur a demandé « réduire les animations » dans son système (`prefers-reduced-motion`).
+
+- **Site vitrine** : apparition des sections au défilement (directive `directives/reveal/`, classes `.fade-up`, `.fade-left`, `.fade-right`, `.zoom-in` ; la page doit importer `Reveal`), entrée du haut de page en cascade, chiffres clés qui comptent jusqu'à leur valeur, menu qui suit la section affichée, barre de progression de lecture, bouton « retour en haut ».
+- **Connexion** : entrée en cascade, fondu au changement de mode, le formulaire « tremble » sur une erreur.
+- **Plateforme** :
+  - les chiffres des indicateurs comptent jusqu'à leur valeur (depuis l'ancienne valeur après une actualisation) ;
+  - les fenêtres s'ouvrent (fond flouté, fenêtre qui monte) et **se ferment** en animation. Toute nouvelle fenêtre doit garder `animate.leave="pf-modal-out"` sur `.pf-modal-overlay` ;
+  - fondu du contenu au changement de section, menus, cloche et badges animés ;
+  - lignes de tableaux et de listes qui entrent en léger décalé : seules les nouvelles lignes s'animent, d'où l'obligation de garder `track` sur un id ;
+  - barres de progression et histogrammes qui se remplissent ;
+  - cartes : marqueurs qui apparaissent en décalé quand la liste de points change, halo qui « respire » sur les ruptures et inondations confirmées, anneau autour de « vous êtes ici ».
+
+### Couleurs par catégorie
+Une couleur = une catégorie, appliquée partout pareil ; le rouge reste réservé aux alertes et aux pertes.
+
+| Catégorie | Couleur |
+|---|---|
+| Patient | bleu |
+| Officine | turquoise |
+| Hôpital | bleu ciel |
+| Distributeur privé | violet (comme sur les cartes) |
+| PNA / PRA | rose |
+
+- **État d'une réservation ou d'une demande**, même code chez le patient, le pharmacien et dans la cloche : en préparation / en attente = bleu ciel, prête = vert, retirée = turquoise, orientée = violet, refusée / annulée = rose, délai dépassé = gris.
+- **Urgence d'une demande** (pharmacien) : critique = rouge, élevée = orange, normale = bleu.
+- **Livraisons entrantes** : planifiée = bleu, en transit = turquoise, reçue = vert ; le fournisseur prend sa couleur de catégorie.
+- **Cloche** : chaque notification prend la couleur de son type d'événement (`notifTone` dans `services/notifications/`), puisque le backend n'envoie que `ok` / `alert` / `info`. Les réservations déjà retirées n'y apparaissent plus.
+- **Partenaires** et **profils** : couleur de la catégorie de la structure.
+
+### Distances dans la recherche patient
+- La page dit d'où partent les distances. Si c'est le **domicile enregistré**, elle propose « Utiliser ma position actuelle ».
+- Sans aucune position, plus aucune distance n'est affichée : elle aurait été calculée depuis un point fixe de Dakar.
+- Backend (#105, en ligne) : chaque structure de démo a des coordonnées réelles. Avant, la Pharmacie Centrale et la Pharmacie de l'Indépendance étaient sur le même point, d'où les « 0 m ».
+
 ## À vérifier à la main
 
 Non couvert par les tests automatiques ni par le test dans le navigateur :
@@ -173,6 +213,7 @@ Non couvert par les tests automatiques ni par le test dans le navigateur :
 - **« Non renseignée au catalogue »** (DCI) : impossible à voir avec les données actuelles, tous les médicaments ont une DCI.
 - **Couleurs des réservations, livraisons expédiées et pertes** dans l'historique : absentes des données de démo, pas vues à l'écran.
 - **Prix de référence en ligne** : vu dans le navigateur en local (libellés, totaux, panier qui défile), sans valider de vente. À refaire sur le site en ligne : ajout d'une fiche avec prix au catalogue, puis une vente de plusieurs médicaments (prix repris, total TTC, reçu PDF).
+- **Animations** : sur le site en ligne, vérifier la page d'accueil (défilement), l'ouverture / fermeture d'une fenêtre et un téléphone avec « réduire les animations » activé (tout doit être immobile).
 - **Tuiles OpenStreetMap** : avant une vraie mise en production, vérifier que leurs conditions d'usage couvrent notre trafic, ou passer par un fournisseur de tuiles.
 
 ## En ligne
@@ -180,9 +221,11 @@ Non couvert par les tests automatiques ni par le test dans le navigateur :
 | Partie | Adresse |
 |---|---|
 | Site web (Vercel, projet `xamsamed`) | https://xamsamed-wheat.vercel.app |
-| API (Railway, branche `develop`) | https://xamsamed-production.up.railway.app/api |
+| API (Railway, branche **`main`** du backend) | https://xamsamed-production.up.railway.app/api |
 
 On se connecte avec les mêmes comptes que l'API (mots de passe transmis séparément, jamais dans la doc).
+
+**Backend** : Railway déploie la branche **`main`** du dépôt `XamSaMed`, pas `develop`. Une fonctionnalité fusionnée dans `develop` n'est en ligne qu'après une PR « develop → main » (ex. #106). Railway **ne lance pas les migrations** : après chaque mise en ligne qui en ajoute, le propriétaire du projet Railway lance `php artisan migrate --force` dans le shell du service. Fait pour le prix des médicaments et les coordonnées des structures (vérifié sur l'API en ligne le 17 novembre).
 
 **Mise à jour automatique** : le projet Vercel `xamsamed` est relié au dépôt GitHub.
 
@@ -206,6 +249,6 @@ Si l'API change d'adresse : modifier `API_URL` dans les réglages du projet Verc
 
 ## Tests
 
-`ng test` : 58 tests (Vitest) dans 17 fichiers au 16 novembre (dont le formulaire de vente et le prix exigé au catalogue). Les premiers de ce lot : `patient-cabinet.spec.ts`, `pharma-thermal.spec.ts`, `patient-floods.spec.ts`, `services/pharmacy/pharmacy.spec.ts` et `pages/dashboards/patient/patient.spec.ts` ; puis auth, guards, connexion, shell, tableaux de bord (distributeur, pharmacien, hôpital, santé publique), résultats patient et `shared-read`.
+`ng test` : 61 tests (Vitest) dans 17 fichiers au 16 novembre (dont le formulaire de vente, le prix exigé au catalogue et l'origine des distances dans les résultats patient). Les premiers de ce lot : `patient-cabinet.spec.ts`, `pharma-thermal.spec.ts`, `patient-floods.spec.ts`, `services/pharmacy/pharmacy.spec.ts` et `pages/dashboards/patient/patient.spec.ts` ; puis auth, guards, connexion, shell, tableaux de bord (distributeur, pharmacien, hôpital, santé publique), résultats patient et `shared-read`.
 
 Backend : `PharmacyThermalStatusTest` (6 tests) passe sur `develop` ; `SaleCatalogPriceTest` (2 tests, prix du catalogue imposé à la vente) passe sur la branche `feat/prix-catalogue-medicaments`.

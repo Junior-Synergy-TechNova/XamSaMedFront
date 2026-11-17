@@ -118,3 +118,9 @@ export const FEATURES: Feature[] = [
     ],
   },
 ];
+
+/** Teinte de catégorie d'un profil, d'après son icône : patient bleu, officine teal,
+ *  distributeur violet, hôpital bleu ciel, santé publique rose (mêmes teintes que la plateforme). */
+export const ICON_TONE: Readonly<Record<string, string>> = {
+  user: 'blue', pill: 'teal', truck: 'violet', hospital: 'sky', chart: 'rose',
+};

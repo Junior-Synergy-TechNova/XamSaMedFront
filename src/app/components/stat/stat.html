@@ -1,6 +1,6 @@
     <div class="card pf-stat" [class.is-alert]="attention()" [attr.data-tone]="tone()">
       <span class="pf-statlabel"><nv-icon [name]="icon()" [size]="15"/>{{ label() }}</span>
-      <strong class="pf-statval">{{ value() }}</strong>
+      <strong class="pf-statval"><span aria-hidden="true">{{ shown() }}</span><span class="pf-sr">{{ value() }}</span></strong>
       @if (delta()) {
         <span class="pf-statdelta {{ deltaUp() ? 'up' : 'down' }}">{{ deltaUp() ? '▲' : '▼' }} {{ delta() }}</span>
       }

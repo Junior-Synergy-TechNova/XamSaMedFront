@@ -1,10 +1,11 @@
 <div class="s-site">
   <!-- Header -->
   <header class="s-header" [class.sc]="scrolled()">
+    <div class="s-progress" aria-hidden="true"></div>
     <div class="container s-headinner">
       <nv-logo (clicked)="go('#top')"/>
       <nav class="s-nav">
-        @for (l of navLinks; track l[1]) { <a [href]="l[1]">{{ l[0] }}</a> }
+        @for (l of navLinks; track l[1]) { <a [href]="l[1]" [class.on]="active() === l[1]" [attr.aria-current]="active() === l[1] ? 'location' : null">{{ l[0] }}</a> }
       </nav>
       <div class="s-headcta">
         <button class="btn btn-green btn-sm" (click)="launch()">Se connecter <nv-icon name="arrow" [size]="16"/></button>
@@ -25,18 +26,18 @@
   <section class="s-hero" id="top">
     <div class="container s-herogrid">
       <div class="s-herocopy">
-        <h1>Trouvez le bon médicament, au bon endroit, au bon moment.</h1>
-        <p class="s-herosub">XamSaMed connecte patients, pharmaciens, distributeurs et hôpitaux pour anticiper les ruptures de stock et orienter chaque demande vers l'officine qui dispose du traitement — partout, y compris en zones rurales.</p>
-        <div class="s-herobtns">
+        <h1 class="s-in">Trouvez le bon médicament, au bon endroit, au bon moment.</h1>
+        <p class="s-herosub s-in s-in-2">XamSaMed connecte patients, pharmaciens, distributeurs et hôpitaux pour anticiper les ruptures de stock et orienter chaque demande vers l'officine qui dispose du traitement — partout, y compris en zones rurales.</p>
+        <div class="s-herobtns s-in s-in-3">
           <button class="btn btn-primary btn-lg" (click)="launch()">Rechercher un médicament <nv-icon name="search" [size]="18"/></button>
           <button class="btn btn-outline btn-lg" (click)="go('#how')">Comment ça marche</button>
         </div>
-        <div class="s-herostats">
-          @for (s of heroStats; track s[1]) { <div><strong>{{ s[0] }}</strong><span>{{ s[1] }}</span></div> }
+        <div class="s-herostats s-in s-in-4">
+          @for (s of heroStats; track s[1]; let i = $index) { <div><strong [attr.aria-label]="s[0]">{{ statVals()[i] }}</strong><span>{{ s[1] }}</span></div> }
         </div>
         <p class="s-example">Chiffres illustratifs, en attendant les premiers déploiements.</p>
       </div>
-      <div class="s-heroart">
+      <div class="s-heroart s-in-art">
         <div class="s-herocard card">
           <div class="s-hcrow">
             <span class="chip chip-blue"><nv-icon name="pin" [size]="14"/> Pharmacie la plus proche</span>
@@ -52,11 +53,11 @@
           }
           <button class="btn btn-green s-hcbtn">Réserver maintenant</button>
         </div>
-        <div class="s-herobadge card">
+        <div class="s-herobadge card s-pop">
           <span class="s-badgeic g"><nv-icon name="qr" [size]="19"/></span>
           <div><strong>Accès QR · bientôt</strong><span>Scannez pour accéder en 1 s</span></div>
         </div>
-        <div class="s-herobadge2 card">
+        <div class="s-herobadge2 card s-pop s-pop-2">
           <span class="s-badgeic r"><nv-icon name="bell" [size]="18"/></span>
           <div><strong>Alerte rupture</strong><span>Orientée vers une autre officine</span></div>
         </div>
@@ -65,7 +66,7 @@
     <div class="s-logos container">
       <span>Conçu pour s'intégrer avec <span class="s-example-inline">(exemples de partenaires visés)</span></span>
       <div class="s-logorow">
-        @for (l of heroLogos; track l) { <span class="s-logoitem">{{ l }}</span> }
+        @for (l of heroLogos; track l; let i = $index) { <span class="s-logoitem fade-up" [style.transition-delay.ms]="i * 70">{{ l }}</span> }
       </div>
     </div>
   </section>
@@ -74,14 +75,14 @@
   <section class="section s-problem">
     <div class="container">
       <div class="s-prob-grid">
-        <div class="s-copy fade-up">
+        <div class="s-copy fade-left">
           <h2>Les ruptures de médicaments coûtent du temps — et parfois des vies.</h2>
           <p class="s-lead">Faute d'information partagée, un patient peut parcourir plusieurs officines avant de trouver son traitement, pendant qu'une pharmacie voisine l'a en stock. XamSaMed rend cette information visible, sécurisée et actionnable.</p>
         </div>
         <div class="s-prob-cards">
           @for (c of problemCards; track c[1]; let i = $index) {
             <div class="card s-probcard fade-up" [style.transition-delay.ms]="i * 80">
-              <span class="s-probicon"><nv-icon [name]="c[0]" [size]="22"/></span>
+              <span class="s-probicon tn {{ probTones[i % probTones.length] }}"><nv-icon [name]="c[0]" [size]="22"/></span>
               <div><strong>{{ c[1] }}</strong><p class="muted">{{ c[2] }}</p></div>
             </div>
           }
@@ -100,14 +101,14 @@
       <div class="s-feattabs fade-up">
         @for (ff of features; track ff.role; let i = $index) {
           <button class="s-feattab" [class.on]="i === tab()" (click)="tab.set(i)">
-            <span class="s-feattabic"><nv-icon [name]="ff.icon" [size]="18"/></span>{{ ff.role }}
+            <span class="s-feattabic tx {{ tone(ff.icon) }}"><nv-icon [name]="ff.icon" [size]="18"/></span>{{ ff.role }}
           </button>
         }
       </div>
       <div class="s-featgrid">
         @for (it of currentFeature().items; track it[1]; let i = $index) {
           <div class="card s-featcard fade-up" [style.transition-delay.ms]="i * 60">
-            <span class="s-featicon" [class.g]="currentFeature().color === 'green'" [class.b]="currentFeature().color !== 'green'"><nv-icon [name]="it[0]" [size]="22"/></span>
+            <span class="s-featicon tn {{ tone(currentFeature().icon) }}"><nv-icon [name]="it[0]" [size]="22"/></span>
             <strong>{{ it[1] }}</strong>
             <p class="muted">{{ it[2] }}</p>
           </div>
@@ -142,15 +143,15 @@
   <!-- Sécurité -->
   <section class="section s-sec">
     <div class="container s-secgrid">
-      <div class="s-seccopy s-copy fade-up">
+      <div class="s-seccopy s-copy fade-left">
         <h2>La confiance, au cœur du dispositif</h2>
         <p class="s-lead">La santé exige le plus haut niveau de rigueur. XamSaMed protège les données, respecte la confidentialité des acteurs et reste simple à utiliser pour tous.</p>
         <div class="ph ph-blue ph-sec">[ photo — équipe technique / data center · à fournir ]</div>
       </div>
       <div class="s-seclist">
         @for (p of secPts; track p[1]; let i = $index) {
-          <div class="s-secitem fade-up" [style.transition-delay.ms]="i * 50">
-            <span class="s-secicon"><nv-icon [name]="p[0]" [size]="20"/></span>
+          <div class="s-secitem fade-up" [style.transition-delay.ms]="i * 70">
+            <span class="s-secicon tn {{ secTones[i % secTones.length] }}"><nv-icon [name]="p[0]" [size]="20"/></span>
             <div><strong>{{ p[1] }}</strong><p class="muted">{{ p[2] }}</p></div>
           </div>
         }
@@ -173,7 +174,7 @@
             </div>
             <p class="s-testq">{{ t[0] }}</p>
             <div class="s-testwho">
-              <span class="s-testav"><nv-icon [name]="t[3]" [size]="18"/></span>
+              <span class="s-testav tn {{ tone(t[3]) }}"><nv-icon [name]="t[3]" [size]="18"/></span>
               <div><strong>{{ t[1] }}</strong><span>{{ t[2] }}</span></div>
             </div>
           </div>
@@ -185,16 +186,16 @@
   <!-- À propos -->
   <section class="section s-about" id="about">
     <div class="container s-aboutgrid">
-      <div class="s-aboutart fade-up">
+      <div class="s-aboutart fade-left">
         <div class="ph ph-green ph-about">[ photo — équipe jeune XamSaMed · à fournir ]</div>
-        <div class="s-aboutbadge card"><strong>2024</strong><span>Startup DevTech</span></div>
+        <div class="s-aboutbadge card zoom-in"><strong>2024</strong><span>Startup DevTech</span></div>
       </div>
-      <div class="s-aboutcopy s-copy fade-up">
+      <div class="s-aboutcopy s-copy fade-right">
         <h2>Une startup au service de l'accès aux soins</h2>
         <p class="s-lead">XamSaMed est née d'un constat de terrain : l'information sur la disponibilité des médicaments est fragmentée. Notre mission est de la rendre fluide, fiable et accessible à tous les acteurs de la chaîne du soin.</p>
         <div class="s-aboutvals">
-          @for (v of aboutVals; track v[0]) {
-            <div class="s-aboutval">
+          @for (v of aboutVals; track v[0]; let i = $index) {
+            <div class="s-aboutval fade-up" [style.transition-delay.ms]="150 + i * 90">
               <nv-icon name="checkC" [size]="22" color="var(--color-green)"/>
               <div><strong>{{ v[0] }}</strong><p class="muted">{{ v[1] }}</p></div>
             </div>
@@ -226,20 +227,20 @@
   <!-- Contact -->
   <section class="section s-contact" id="contact">
     <div class="container s-contactgrid">
-      <div class="s-contactinfo s-copy fade-up">
+      <div class="s-contactinfo s-copy fade-left">
         <h2>Parlons de votre besoin</h2>
         <p class="s-lead">Demande de démo, intégration ou partenariat : notre équipe vous répond rapidement.</p>
         <div class="s-contactlist">
-          @for (c of contactList; track c[1]) {
+          @for (c of contactList; track c[1]; let i = $index) {
             <div class="s-contactline">
-              <span class="s-contacticon"><nv-icon [name]="c[0]" [size]="19"/></span>
+              <span class="s-contacticon tn {{ contactTones[i % contactTones.length] }}"><nv-icon [name]="c[0]" [size]="19"/></span>
               <div><span>{{ c[1] }}</span><strong>{{ c[2] }}</strong></div>
             </div>
           }
         </div>
         <div class="ph ph-contact">[ carte Google Maps — emplacement à intégrer ]</div>
       </div>
-      <form class="card s-form fade-up" (submit)="submitContact($event)">
+      <form class="card s-form fade-right" (submit)="submitContact($event)">
         @if (sent()) {
           <div class="s-formok">
             <span class="s-formokic"><nv-icon name="checkC" [size]="34"/></span>
@@ -267,10 +268,14 @@
     </div>
   </section>
 
+  @if (showTop()) {
+    <button type="button" class="s-totop" (click)="go('#top')" aria-label="Revenir en haut de la page" title="Revenir en haut"><nv-icon name="arrow" [size]="20" [rotate]="-90"/></button>
+  }
+
   <!-- Newsletter + Footer -->
   <footer class="s-footer">
     <div class="container">
-      <div class="s-newsletter card">
+      <div class="s-newsletter card fade-up">
         <div>
           <h3>Restez informé des nouveautés</h3>
           <p>Conseils, actualités santé et améliorations de la plateforme — une fois par mois.</p>

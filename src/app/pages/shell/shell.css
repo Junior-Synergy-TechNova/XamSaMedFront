@@ -16,15 +16,22 @@
 /* Identité de la structure connectée : on sait toujours où l'on travaille */
 .pf-rolepill { @apply flex items-center gap-3 bg-white/[.06] rounded-[10px] px-3.5 py-3.5 mb-6; }
 .pf-rolepillic { @apply w-9 h-9 rounded-[8px] bg-green text-white grid place-items-center flex-none; }
+/* Case de l'espace : teinte du profil, en aplat (fond sombre de la sidebar) */
+.pf-rolepillic.blue { @apply bg-white text-blue; }
+.pf-rolepillic.teal { @apply bg-teal text-white; }
+.pf-rolepillic.violet { @apply bg-violet text-white; }
+.pf-rolepillic.sky { @apply bg-sky text-white; }
+.pf-rolepillic.rose { @apply bg-rose text-white; }
 .pf-rolepilltxt strong { @apply block font-semibold text-[14.5px] text-white leading-tight truncate; }
 .pf-rolepilltxt span { @apply block text-[13px] text-white/65 leading-tight mt-1 truncate; }
 .pf-nav { @apply flex flex-col gap-1 flex-1; }
-.pf-navitem { @apply flex items-center gap-3 w-full text-left text-white/75 font-medium text-[15px] px-3.5 h-12 rounded-[10px] transition-colors duration-150 relative; }
+.pf-navitem { @apply flex items-center gap-3 w-full text-left text-white/75 font-medium text-[15px] px-3.5 h-12 rounded-[10px] transition-[background-color,color,box-shadow] duration-200 relative; }
 .pf-navitem:hover { @apply bg-white/[.07] text-white; }
 /* Entrée active : fond léger + repère vert, le texte reste lisible */
 .pf-navitem.on { @apply bg-white/[.12] text-white shadow-[inset_3px_0_0_var(--color-green)]; }
 .pf-navitem.on .pf-navic { @apply text-green-light; }
-.pf-navic { @apply grid place-items-center flex-none; }
+.pf-navic { @apply grid place-items-center flex-none transition-[translate,color] duration-200 ease-out; }
+.pf-navitem:hover .pf-navic { @apply translate-x-0.5; }
 /* Intitulé de groupe : petit, discret, plus d'air au-dessus qu'en dessous (il annonce ce qui suit) */
 .pf-navgroup { @apply px-3.5 pt-5 pb-1.5 text-[12.5px] font-medium text-white/65 leading-none; }
 .pf-navgroup:first-child { @apply pt-1; }
@@ -49,9 +56,16 @@
 .pf-topsearch { @apply relative flex items-center gap-2.5 bg-gray-bg border border-gray-line rounded-[10px] px-4 h-11 flex-1 max-w-[420px] focus-within:bg-white focus-within:border-green; }
 .pf-topsearch input { @apply border-0 bg-transparent outline-none font-body text-[15px] w-full text-black; }
 .pf-global-results { @apply absolute top-[calc(100%+6px)] left-0 right-0 z-20 bg-white border border-gray-line rounded-[8px] shadow-md overflow-hidden; }
-.pf-global-results button { @apply flex flex-col gap-[3px] w-full px-3 py-2.5 text-left border-0 bg-white cursor-pointer; }
+.pf-global-results button { @apply flex items-center gap-3 w-full px-3 py-2.5 text-left border-0 bg-white cursor-pointer; }
 .pf-global-results button:hover { @apply bg-gray-bg; }
-.pf-global-results span { @apply text-gray-text text-[12px]; }
+/* Résultat : case teintée par type (médicament bleu, officine teal) + type en texte coloré */
+.pf-gric { @apply w-8 h-8 rounded-[8px] grid place-items-center flex-none; }
+.pf-gric.blue { @apply bg-blue-soft text-blue; }
+.pf-gric.teal { @apply bg-teal-soft text-teal; }
+.pf-grtxt { @apply flex flex-col gap-[3px] min-w-0; }
+.pf-grtype { @apply text-[12px] font-medium; }
+.pf-grtype.blue { @apply text-blue; }
+.pf-grtype.teal { @apply text-teal-text; }
 .pf-global-state { @apply px-3 py-3.5 text-gray-text text-[13px] text-center; }
 .pf-topright { @apply ml-auto flex items-center gap-3; }
 .pf-iconbtn { @apply relative w-11 h-11 rounded-[10px] grid place-items-center text-gray-text bg-white border border-gray-line transition-colors duration-150; }
@@ -67,12 +81,27 @@
 .pf-notificon.ok { @apply text-green; }
 .pf-notificon.alert { @apply text-red; }
 .pf-notificon.info { @apply text-blue; }
+/* Une teinte par type d'événement (fond teinté + icône colorée, comme .pf-liic). */
+.pf-notificon.red { @apply bg-red-soft text-red; }
+.pf-notificon.amber { @apply bg-amber-soft text-amber-text; }
+.pf-notificon.green { @apply bg-green-soft text-green; }
+.pf-notificon.blue { @apply bg-blue-soft text-blue; }
+.pf-notificon.violet { @apply bg-violet-soft text-violet; }
+.pf-notificon.teal { @apply bg-teal-soft text-teal; }
+.pf-notificon.sky { @apply bg-sky-soft text-sky-text; }
+.pf-notificon.rose { @apply bg-rose-soft text-rose-text; }
 .pf-notifitem strong { @apply block font-medium text-[13.5px] text-black; }
 .pf-notifitem span { @apply text-[12.5px] text-gray-text; }
 .pf-notifempty { @apply p-3.5 text-[13px]; }
 .pf-roleswbtn { @apply flex items-center gap-2.5 bg-white border border-gray-line rounded-[10px] pl-1.5 pr-3 h-11 transition-colors duration-150; }
 .pf-roleswbtn:hover, .pf-roleswbtn.on { @apply bg-gray-bg; }
 .pf-avatar { @apply w-8 h-8 rounded-[8px] bg-blue text-white grid place-items-center flex-none; }
+/* Avatar : teinte de l'espace (fond teinté + icône colorée, comme les cases de la plateforme) */
+.pf-avatar.blue { @apply bg-blue-soft text-blue; }
+.pf-avatar.teal { @apply bg-teal-soft text-teal; }
+.pf-avatar.violet { @apply bg-violet-soft text-violet; }
+.pf-avatar.sky { @apply bg-sky-soft text-sky-text; }
+.pf-avatar.rose { @apply bg-rose-soft text-rose-text; }
 .pf-rolesname { @apply font-medium text-[14.5px] text-black max-w-[180px] truncate; }
 .pf-rolemenu { @apply absolute top-[54px] right-0 w-[280px] p-1.5 z-40 shadow-lg; }
 .pf-rolemenuh { @apply px-2.5 py-2 mb-1 border-b border-gray-line; }
@@ -82,6 +111,9 @@
 .pf-rolemenuit:hover { @apply bg-gray-bg; }
 .pf-rolemenuit.on { @apply text-blue; }
 .pf-rolemenuic { @apply grid place-items-center flex-none text-gray-text; }
+.pf-rolemenuic.red { @apply text-red-text; }
+.pf-rolemenuit:hover .pf-rolemenuic.red { @apply translate-x-0.5; }
+.pf-rolemenuic { @apply transition-[translate] duration-150; }
 .pf-content { @apply px-12 py-10 max-w-[1360px] w-full mx-auto; }
 
 /* ---- Responsive ---- */
@@ -95,6 +127,7 @@
 /* Bouton menu : n'existe que sur téléphone */
 .pf-burger { @apply hidden; }
 .pf-scrim { @apply hidden; }
+.pf-drawerclose { @apply hidden; }
 
 /* ---- Téléphone : la sidebar devient un tiroir (libellés complets), le contenu prend toute la largeur ---- */
 @media (max-width: 760px) {
@@ -108,6 +141,11 @@
   /* Ouverture : visible immédiatement, sinon le focus ne peut pas y entrer à la première frame */
   .pf-app.drawer .pf-side { @apply translate-x-0 visible shadow-lg; transition: transform .2s ease-out, visibility 0s; }
   .pf-scrim { @apply block fixed inset-0 z-[110] bg-blue-700/35 animate-fadein; }
+  /* Bouton « fermer » en haut du tiroir, aligné sur le logo */
+  .pf-sidetop { @apply flex items-center justify-between gap-3 pt-0 pb-5; }
+  .pf-drawerclose { @apply grid place-items-center w-11 h-11 -mr-2 flex-none rounded-[10px] text-white/80 transition-colors duration-150; }
+  .pf-drawerclose:hover { @apply bg-white/10 text-white; }
+  .pf-drawerclose:focus-visible { @apply outline-2 outline-white outline-offset-2; }
   /* « Réduire » n'a pas de sens dans un tiroir : le pied de la barre est vide */
   .pf-sidefoot { @apply hidden; }
   .pf-burger { @apply grid place-items-center w-11 h-11 -ml-1.5 flex-none rounded-[10px] text-blue transition-colors duration-150; }
@@ -119,4 +157,43 @@
   .pf-content { @apply px-4 pt-6 pb-10; }
   /* Panneaux déroulants : pleine largeur sous la barre haute au lieu de déborder à droite */
   .pf-notifpanel, .pf-rolemenu { @apply fixed top-[68px] left-3 right-3 w-auto; }
+  /* Résultats de recherche : le champ est étroit sur téléphone → pleine largeur sous la barre, liste défilante */
+  .pf-global-results { @apply fixed top-[68px] left-3 right-3 max-h-[calc(100dvh-84px)] overflow-y-auto; }
 }
+
+/* ---------- Animations (neutralisées par « réduire les animations », styles.css) ---------- */
+@keyframes sh-drop { from { opacity: 0; transform: translateY(-6px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes sh-item { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@keyframes sh-pop { 0% { transform: scale(0); } 70% { transform: scale(1.2); } 100% { transform: none; } }
+@keyframes sh-ring { 0%, 100% { transform: none; } 15% { transform: rotate(14deg); } 30% { transform: rotate(-12deg); } 45% { transform: rotate(8deg); } 60% { transform: rotate(-5deg); } 75% { transform: rotate(2deg); } }
+@keyframes sh-side { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: none; } }
+/* Panneaux déroulants (notifications, profil, résultats de recherche) : descendent depuis leur bouton */
+.pf-notifpanel { transform-origin: top right; animation: sh-drop .18s cubic-bezier(.22,1,.36,1) both; }
+.pf-rolemenu { transform-origin: top right; animation: sh-drop .18s cubic-bezier(.22,1,.36,1) both; }
+.pf-global-results { transform-origin: top left; animation: sh-drop .16s cubic-bezier(.22,1,.36,1) both; }
+/* Notifications : arrivent l'une après l'autre */
+.pf-notifitem { animation: sh-item .25s ease-out both; }
+.pf-notifitem:nth-of-type(2) { animation-delay: .03s; }
+.pf-notifitem:nth-of-type(3) { animation-delay: .06s; }
+.pf-notifitem:nth-of-type(4) { animation-delay: .09s; }
+.pf-notifitem:nth-of-type(n+5) { animation-delay: .12s; }
+/* Cloche : sonne une fois quand il y a des notifications ; pastilles : petit rebond à l'apparition */
+.pf-iconbtn.has svg { transform-origin: 50% 10%; animation: sh-ring .9s ease-in-out .6s 1 both; }
+.pf-notifdot, .pf-navbadge { animation: sh-pop .3s cubic-bezier(.34,1.56,.64,1) both; }
+/* Sidebar : identité puis entrées se posent en cascade à l'ouverture de l'espace */
+.pf-rolepill { animation: sh-side .4s cubic-bezier(.22,1,.36,1) both; }
+.pf-nav > * { animation: sh-side .4s cubic-bezier(.22,1,.36,1) both; }
+.pf-nav > :nth-child(1) { animation-delay: .04s; }
+.pf-nav > :nth-child(2) { animation-delay: .07s; }
+.pf-nav > :nth-child(3) { animation-delay: .1s; }
+.pf-nav > :nth-child(4) { animation-delay: .13s; }
+.pf-nav > :nth-child(5) { animation-delay: .16s; }
+.pf-nav > :nth-child(6) { animation-delay: .19s; }
+.pf-nav > :nth-child(7) { animation-delay: .22s; }
+.pf-nav > :nth-child(8) { animation-delay: .25s; }
+.pf-nav > :nth-child(n+9) { animation-delay: .28s; }
+/* Chevrons (Réduire, menu profil) : tournent au lieu de sauter */
+.pf-sidefoot svg, .pf-roleswbtn svg { transition: transform .2s ease-out; }
+/* Recherche : la bordure passe au vert en douceur */
+.pf-topsearch { @apply transition-[background-color,border-color] duration-150; }
+

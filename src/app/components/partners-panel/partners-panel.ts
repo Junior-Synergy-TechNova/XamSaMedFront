@@ -109,6 +109,10 @@ export class PartnersPanel {
     });
   }
 
+  /** Teinte de catégorie par type de structure : officine teal, hôpital sky, PNA / PRA rose, distributeur violet. */
+  tone(type: string | null): string {
+    return type === 'pharmacy' ? 'teal' : type === 'hospital' ? 'sky' : type === 'pna' || type === 'pra' ? 'rose' : 'violet';
+  }
   icon(type: string | null): string {
     return type === 'pharmacy' ? 'pill' : type === 'hospital' ? 'hospital' : 'truck';
   }

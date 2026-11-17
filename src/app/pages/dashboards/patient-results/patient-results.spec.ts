@@ -80,4 +80,37 @@ describe('PatientResults — équivalents', () => {
     expect(c.loadError()).toBe(false);
     expect(c.availableCount()).toBe(1);
   });
+
+  it('distances depuis le domicile : le dit et propose « Utiliser ma position actuelle »', async () => {
+    const fixture = TestBed.createComponent(PatientResults);
+    fixture.componentRef.setInput('med', { id: '7', nom: 'Doliprane 500 mg', dci: 'Paracétamol', forme: 'comprimé', crit: false, cat: '' });
+    await fixture.whenStable();
+    http.expectOne(r => r.url === `${api}/medicines/7/availability`).flush({
+      position_source: 'home',
+      data: [{ structure_id: 3, pharmacy_name: 'Pharmacie du Port', available: 4, status: 'available', distance_metres: 1500, distance_label: '1.5 km' }],
+    });
+    await fixture.whenStable();
+
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('depuis votre domicile enregistré');
+    expect(text).toContain('Utiliser ma position actuelle');
+    expect(text).toContain('1.5 km');
+  });
+
+  it('sans aucune position : pas de distance inventée', async () => {
+    const fixture = TestBed.createComponent(PatientResults);
+    fixture.componentRef.setInput('med', { id: '7', nom: 'Doliprane 500 mg', dci: 'Paracétamol', forme: 'comprimé', crit: false, cat: '' });
+    await fixture.whenStable();
+    http.expectOne(r => r.url === `${api}/medicines/7/availability`).flush({
+      position_source: null,
+      data: [{ structure_id: 3, pharmacy_name: 'Pharmacie Centrale', available: 4, status: 'available', latitude: 14.6928, longitude: -17.4467, distance_metres: null }],
+    });
+    await fixture.whenStable();
+
+    const el = fixture.nativeElement as HTMLElement;
+    const text = el.textContent ?? '';
+    expect(text).toContain('Utiliser ma position');
+    expect(el.querySelector('.pf-libody .pf-tx')).toBeNull(); // aucune distance affichée sur la ligne
+    expect(text).toContain('Pharmacie disponible');
+  });
 });

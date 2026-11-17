@@ -73,6 +73,8 @@ export class HopitalDash {
 
   readonly signalModal = signal(false);
   readonly signalSeverity = signal<HospitalSeverity>('tension');
+  /** Infobulle du champ « Quantité restante », désactivé en rupture. */
+  readonly qtyTip = 'En rupture, la quantité restante est 0 : rien à saisir.';
   /** Premier chargement seulement : les rafraîchissements après une action gardent l'écran affiché. */
   readonly loading = signal(true);
   /** Les alertes n'ont pas pu être lues : écran « Réessayer » (« aucune alerte » serait trompeur). */
@@ -434,6 +436,11 @@ export class HopitalDash {
     return d === null ? '' : d === 0 ? 'aujourd\'hui' : 'il y a ' + this.plural(d, 'jour', 'jours');
   }
   dayMonth(iso: string): string { return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }); }
+  /** Couleur d'une demande terminée : livrée/prévue vert, refusée rouge, annulée violet, close (stock revenu) teal. */
+  pastTone(r: { status: string }): string {
+    return r.status === 'resolved' ? 'green' : r.status === 'rejected' ? 'red'
+      : r.status === 'cancelled' ? 'violet' : r.status === 'closed' ? 'teal' : 'gray';
+  }
   /** Demande terminée, plus rien à suivre : elle passe dans l'historique (un refus récent reste visible). */
   isPastRequest(r: ApiRestockRequest): boolean {
     if (r.status === 'pending' || r.delivery_late || r.recently_rejected) return false;

@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { forkJoin, Observable, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
-import { RoleId, Notif, NotifKind } from '../../interfaces/models';
+import { RoleId, Notif, NotifKind, NotifTone } from '../../interfaces/models';
 import { ApiNotification } from '../../interfaces/api';
 import { OrderService } from '../orders/orders';
 import { PharmacyService } from '../pharmacy/pharmacy';
@@ -15,6 +15,28 @@ import { PublicHealthService } from '../public-health/public-health';
 /** Libellés français des rapports (notifications « Rapport disponible »). */
 const REPORT_TYPES: Record<string, string> = { national: 'National', regional: 'Régional', medicine: 'Par médicament', tensions: 'Tensions critiques' };
 const REPORT_PERIODS: Record<string, string> = { week: 'semaine', month: 'mois', quarter: 'trimestre' };
+/**
+ * Couleur d'une notification d'après son titre (le backend n'envoie que ok / alert / info).
+ * L'ordre compte : « Ordonnance orientée vers vous » est une orientation (violet),
+ * « Ordonnance préparée » à accepter (tone alert) passe en ambre.
+ */
+const TONE_RULES: [RegExp, NotifTone][] = [
+  [/rupture|tension|seuil|alerte|p[ée]rim[ée]|aujourd|chaleur|zone critique/i, 'red'],
+  [/orient/i, 'violet'],
+  [/annul|refus/i, 'rose'],
+];
+const LATER_RULES: [RegExp, NotifTone][] = [
+  [/expire|expir[ée]e|renouveler|non trait|relanc|retard/i, 'amber'],
+  [/ordonnance/i, 'teal'],
+  [/confirm|pr[êe]te|retir|finalis|livr|accept|bonne nouvelle|trouv|disponible/i, 'green'],
+  [/pr[ée]paration|planifi|rapport/i, 'sky'],
+  [/demande/i, 'blue'],
+];
+export function notifTone(n: Notif): NotifTone {
+  const hit = (rules: [RegExp, NotifTone][]) => rules.find(([re]) => re.test(n.t))?.[1];
+  return hit(TONE_RULES) ?? (n.s === 'alert' ? 'amber' : undefined) ?? hit(LATER_RULES) ?? (n.s === 'ok' ? 'green' : 'blue');
+}
+
 const plural = (n: number, one: string, many: string): string => `${n} ${n > 1 ? many : one}`;
 
 /**
@@ -65,16 +87,18 @@ export class NotificationService {
     return forkJoin({ persisted: this.persisted(), derived: this.derived(role) }).pipe(
       map(({ persisted, derived }) => [...persisted, ...derived]),
       catchError(() => this.derived(role)),
+      map(list => list.map(n => ({ ...n, tone: n.tone ?? notifTone(n) }))),
     );
   }
 
   private derived(role: RoleId): Observable<Notif[]> {
     switch (role) {
       case 'patient':
-        return this.orders.list(SHARED_READ_MS).pipe(map(rows => rows.filter(row => row.s !== 'out').slice(0, 5).map(row => ({
-          icon: row.s === 'ok' ? 'checkC' : 'clock', s: row.s === 'ok' ? 'ok' : 'info',
-          t: row.s === 'ok' ? 'Réservation confirmée' : 'Réservation en préparation',
-          d: `${row.medName} · ${row.pharmacyName}`, target: 'resa',
+        // Réservations encore en cours (ni retirées, ni refusées / annulées) : titre et couleur = leur état réel.
+        return this.orders.list(SHARED_READ_MS).pipe(map(rows => rows.filter(row => row.s !== 'out' && row.status !== 'collected').slice(0, 5).map(row => ({
+          icon: row.status === 'confirmed' ? 'checkC' : row.status === 'oriented' ? 'pin' : 'clock', s: row.status === 'confirmed' ? 'ok' : 'info',
+          t: `Réservation ${row.statut.charAt(0).toLowerCase()}${row.statut.slice(1)}`,
+          d: `${row.medName} · ${row.pharmacyName}`, target: 'resa', tone: row.tone as NotifTone,
         } as Notif))), catchError(() => of([])));
       case 'pharma':
         return forkJoin({ alerts: this.pharmacy.alerts(), demandes: this.pharmacy.demandes(SHARED_READ_MS).pipe(catchError(() => of([]))) }).pipe(
