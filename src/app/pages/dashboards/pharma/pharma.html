@@ -245,12 +245,12 @@
                 <summary>Historique · {{ plural(pastRequests().length, 'demande terminée', 'demandes terminées') }} <nv-icon name="chevD" [size]="14"/></summary>
                 @for (r of pastRequests(); track r.id) {
                   <div class="pf-li pf-li-sm">
-                    <span class="pf-liic"><nv-icon name="truck" [size]="18"/></span>
+                    <span class="pf-liic {{ pastTone(r) }}"><nv-icon name="truck" [size]="18"/></span>
                     <div class="pf-libody">
                       <strong>{{ r.medicine ?? 'Médicament non précisé' }}</strong>
                       <span>{{ requestTarget(r) }}{{ r.created_at ? ' · envoyée le ' + dayMonth(r.created_at) : '' }}{{ r.rejection_reason ? ' — motif : ' + r.rejection_reason : '' }}@if (r.outside_rules && !r.rejection_reason) { — ancien circuit, non autorisé depuis les règles actuelles }</span>
                     </div>
-                    <div class="pf-li-act"><pf-tag [s]="r.status === 'resolved' ? 'ok' : 'vue'">{{ requestStatusLabel(r) }}</pf-tag></div>
+                    <div class="pf-li-act"><pf-tag [s]="pastTone(r)">{{ requestStatusLabel(r) }}</pf-tag></div>
                   </div>
                 }
               </details>
@@ -410,17 +410,17 @@
             <div class="pf-half">
               <pf-card title="Chiffre d'affaires — 30 jours" sub="TTC, par jour">
                 <div class="pf-spark" role="img" aria-label="Chiffre d'affaires quotidien sur 30 jours">
-                  @for (d of salesStats()?.daily ?? []; track d.date) {
-                    <span class="pf-spark-bar" [style.height.%]="barPct(d.revenue)" [title]="shortDate(d.date) + ' : ' + fcfa(d.revenue)"></span>
+                  @for (d of salesStats()?.daily ?? []; track d.date; let i = $index) {
+                    <span class="pf-spark-bar" [style.height.%]="barPct(d.revenue)" [style.animation-delay.ms]="100 + i * 18" [title]="shortDate(d.date) + ' : ' + fcfa(d.revenue)"></span>
                   }
                 </div>
               </pf-card>
               <pf-card title="Top ventes" sub="Recettes par médicament (30 jours)">
                 @for (t of salesStats()?.top ?? []; track t.medicine_id; let i = $index) {
                   <div class="pf-li">
-                    <span class="pf-liic">{{ i + 1 }}</span>
+                    <span class="pf-liic {{ i === 0 ? 'green' : 'teal' }}">{{ i + 1 }}</span>
                     <div class="pf-libody"><strong>{{ t.medicine }}</strong><span>{{ t.quantity }} u. vendues</span></div>
-                    <strong class="pf-num-sm">{{ fcfa(t.revenue) }}</strong>
+                    <strong class="pf-num-sm pf-in">{{ fcfa(t.revenue) }}</strong>
                   </div>
                 }
                 @if ((salesStats()?.top ?? []).length === 0) { <div class="pf-note">Aucune vente sur la période.</div> }
@@ -453,11 +453,11 @@
                   <tbody>
                     @for (v of sales(); track v.id) {
                       <tr>
-                        <td><strong>{{ v.receipt_number }}</strong><div class="pf-medsub">{{ v.customer_name || '—' }}{{ v.prescription_ref ? ' · ord. ' + v.prescription_ref : '' }}</div></td>
+                        <td><strong>{{ v.receipt_number }}</strong><div class="pf-medsub">{{ v.customer_name || '—' }}@if (v.prescription_ref) { · <span class="pf-tx violet"><nv-icon name="doc" [size]="13"/>ord. {{ v.prescription_ref }}</span> }</div></td>
                         <td class="muted">{{ v.created_at | date:'d MMM, HH:mm' }}</td>
                         <td>@for (i of v.items; track i.medicine_id) { <div class="pf-medsub">{{ i.quantity }} × {{ i.medicine }}</div> }</td>
-                        <td class="muted">{{ v.payment_label }}</td>
-                        <td><strong>{{ fcfa(v.total_ttc) }}</strong></td>
+                        <td><span class="pf-tx {{ paymentTone(v.payment_method) }}">{{ v.payment_label }}</span></td>
+                        <td><strong class="pf-in">{{ fcfa(v.total_ttc) }}</strong></td>
                         <td class="pf-td-right"><button class="btn btn-ghost btn-sm" (click)="downloadReceipt(v)"><nv-icon name="doc" [size]="15"/> Reçu</button></td>
                       </tr>
                     }
@@ -519,8 +519,8 @@
                     <td class="muted">{{ h.created_at | date:'d MMM, HH:mm' }}</td>
                     <td><pf-tag [s]="movementTag(h)">{{ h.type_label || h.type }}</pf-tag></td>
                     <td><strong>{{ h.medicine }}</strong></td>
-                    <td><span class="pf-num-sm" [class.pf-in]="h.direction === 'entrée'">{{ signedQty(h) }}</span></td>
-                    <td>{{ h.new_quantity }}</td>
+                    <td><span class="pf-num-sm pf-tx {{ h.direction === 'entrée' ? 'green' : h.direction === 'sortie' ? 'rose' : 'gray' }}">{{ signedQty(h) }}</span></td>
+                    <td><span [class.pf-out]="h.new_quantity <= 0">{{ h.new_quantity }}</span></td>
                     <td class="muted pf-td-wrap">{{ h.reason || '—' }}</td>
                     <td class="muted">{{ h.user }}</td>
                   </tr>
@@ -552,7 +552,7 @@
                 <span class="pf-liic {{ ordoTile(o.status) }}"><nv-icon name="doc" [size]="18"/></span>
                 <div class="pf-row-body">
                   <div class="pf-medname">{{ o.patient || 'Patient' }}</div>
-                  <p class="muted pf-row-sub">{{ o.phone || 'Téléphone non communiqué' }}{{ o.submitted_at ? ' · reçue le ' + dayMonth(o.submitted_at) : '' }}</p>
+                  <p class="muted pf-row-sub">@if (o.phone) { <span class="pf-tx blue"><nv-icon name="phone" [size]="13"/>{{ o.phone }}</span> } @else { Téléphone non communiqué }{{ o.submitted_at ? ' · reçue le ' + dayMonth(o.submitted_at) : '' }}</p>
                   <p class="pf-row-sub pf-patientnote">{{ patientNote(o) }}</p>
                   @if ((o.photo_deja_envoyee ?? 0) > 0 && (o.status === 'pending' || o.status === 'confirmed')) {
                     <div class="pf-ordo-reuse" role="note">
@@ -563,12 +563,12 @@
                   @if (o.lines?.length) {
                     <ul class="pf-ordo-done">
                       @for (l of o.lines; track l.id) {
-                        <li><pf-tag [s]="ordoLineTone(l.status)">{{ l.medicine }} × {{ l.qty }}</pf-tag> <span class="muted">{{ ordoLineLabel(l) }}</span></li>
+                        <li><pf-tag [s]="ordoLineTone(l.status)">{{ l.medicine }} × {{ l.qty }}</pf-tag> <span class="pf-tx {{ ordoLineText(l.status) }}">{{ ordoLineLabel(l) }}</span></li>
                       }
                     </ul>
                   }
-                  @if (o.status === 'cancelled' && o.rejection_reason) { <p class="pf-row-sub muted">Motif envoyé au patient : {{ o.rejection_reason }}</p> }
-                  @if (o.status === 'confirmed' && o.expires_at) { <p class="pf-row-sub muted">À retirer avant le {{ o.expires_at | date:'d MMMM, HH:mm' }} — demandez l'ordonnance originale.</p> }
+                  @if (o.status === 'cancelled' && o.rejection_reason) { <p class="pf-row-sub muted">Motif envoyé au patient : <span class="pf-tx rose">{{ o.rejection_reason }}</span></p> }
+                  @if (o.status === 'confirmed' && o.expires_at) { <p class="pf-row-sub muted"><span class="pf-tx amber"><nv-icon name="clock" [size]="13"/>À retirer avant le {{ o.expires_at | date:'d MMMM, HH:mm' }}</span> — demandez l'ordonnance originale.</p> }
                 </div>
                 <div class="pf-li-act">
                   @if (o.status === 'pending') {
@@ -576,10 +576,10 @@
                     <button class="btn btn-outline btn-sm" (click)="rejectModal.set(o)">Rejeter</button>
                     <button class="btn btn-green btn-sm" (click)="openProcess(o)">Traiter</button>
                   } @else if (o.status === 'confirmed') {
-                    <span class="chip chip-green">{{ ordoLabel(o.status) }}</span>
+                    <pf-tag s="green">{{ ordoLabel(o.status) }}</pf-tag>
                     <button class="btn btn-green btn-sm" (click)="collectOrdo(o)" [disabled]="collectingOrdo() === o.id"><nv-icon name="checkC" [size]="15"/> Marquer retiré</button>
                   } @else {
-                    <span class="chip" [class.chip-green]="o.status === 'collected'" [class.chip-gray]="o.status !== 'collected'">{{ ordoLabel(o.status) }}</span>
+                    <pf-tag [s]="ordoTag(o.status)">{{ ordoLabel(o.status) }}</pf-tag>
                   }
                 </div>
               </div>
@@ -599,7 +599,7 @@
 
     <!-- Modals -->
     @if (addRefModal()) {
-      <div class="pf-modal-overlay" (click)="addRefModal.set(false)">
+      <div class="pf-modal-overlay" animate.leave="pf-modal-out" (click)="addRefModal.set(false)">
         <form class="pf-modal" (click)="$event.stopPropagation()" (submit)="submitAddRef(medName.value, medQty.value, medSeuil.value, medBatch.value, medExp.value); $event.preventDefault()">
           <div class="pf-modal-head">
             <h2>Ajouter une référence</h2>
@@ -608,7 +608,15 @@
           <div class="pf-modal-body">
             <div class="pf-fieldrow">
               <div class="s-field"><label>Médicament *</label><input #medName required list="pf-catalogue" autocomplete="off" placeholder="Nom ou DCI" (input)="onAddRefMedicine(medName.value)"/></div>
-              <div class="s-field"><label>DCI <span class="muted">(catalogue national)</span></label><input readonly [value]="addRefMedicine()?.dci ?? ''" [placeholder]="addRefMedicine() ? 'Non renseignée au catalogue' : 'Choisissez un médicament'"/></div>
+              <div class="s-field">
+                <label>DCI <span class="muted">(indicatif)</span></label>
+                <div class="pf-readonly" [class.empty]="!addRefMedicine()?.dci" tabindex="0" aria-live="polite"
+                     data-tip="Remplie automatiquement depuis le catalogue national, non modifiable."
+                     aria-description="Remplie automatiquement depuis le catalogue national, non modifiable.">
+                  <nv-icon name="lock" [size]="16"/>
+                  <span>{{ addRefMedicine()?.dci ?? (addRefMedicine() ? 'Non renseignée au catalogue' : 'Choisissez un médicament') }}</span>
+                </div>
+              </div>
             </div>
             <div class="pf-fieldrow">
               <div class="s-field"><label>Quantité initiale *</label><input #medQty required type="number" min="0" placeholder="0"/></div>
@@ -628,7 +636,7 @@
     }
 
     @if (restockModal(); as s) {
-      <div class="pf-modal-overlay" (click)="restockModal.set(null)">
+      <div class="pf-modal-overlay" animate.leave="pf-modal-out" (click)="restockModal.set(null)">
         <form class="pf-modal" (click)="$event.stopPropagation()" (submit)="submitRestock(rQty.value); $event.preventDefault()">
           <div class="pf-modal-head">
             <h2>Entrée manuelle de stock</h2>
@@ -651,7 +659,7 @@
     }
 
     @if (sellModal(); as s) {
-      <div class="pf-modal-overlay" (click)="sellModal.set(null)">
+      <div class="pf-modal-overlay" animate.leave="pf-modal-out" (click)="sellModal.set(null)">
         <form class="pf-modal" (click)="$event.stopPropagation()" (submit)="submitSell(vQty.value); $event.preventDefault()">
           <div class="pf-modal-head">
             <h2>Vente hors plateforme</h2>
@@ -677,7 +685,7 @@
     }
 
     @if (adjustModal(); as s) {
-      <div class="pf-modal-overlay" (click)="adjustModal.set(null)">
+      <div class="pf-modal-overlay" animate.leave="pf-modal-out" (click)="adjustModal.set(null)">
         <form class="pf-modal" (click)="$event.stopPropagation()" (submit)="submitAdjust(aQty.value, aMotif.value); $event.preventDefault()">
           <div class="pf-modal-head">
             <h2>Correction après inventaire</h2>
@@ -689,7 +697,7 @@
               <div class="pf-libody"><strong>{{ s.name }}</strong><span>Stock système disponible : {{ s.q }} u. {{ s.reserved ? '(+ ' + plural(s.reserved, 'réservée', 'réservées') + ' pour des patients)' : '' }}</span></div>
             </div>
             <div class="pf-fieldrow">
-              <div class="s-field"><label>Stock réel compté (hors réservations) *</label><input #aQty required type="number" min="0" [value]="s.q"/></div>
+              <div class="s-field"><label>Stock réel compté *</label><input #aQty required type="number" min="0" [value]="s.q"/></div>
               <div class="s-field"><label>Motif *</label>
                 <select #aMotif required>
                   <option value="Écart d'inventaire">Erreur d'inventaire</option>
@@ -699,7 +707,7 @@
                 </select>
               </div>
             </div>
-            <p class="muted pf-intro">L'écart est calculé automatiquement et tracé dans l'historique.</p>
+            <p class="muted pf-intro">Comptez les boîtes en rayon, hors réservations. L'écart est calculé automatiquement et tracé dans l'historique.</p>
           </div>
           <div class="pf-modal-foot">
             <button type="button" class="btn btn-ghost btn-sm" (click)="adjustModal.set(null)">Annuler</button>
@@ -710,7 +718,7 @@
     }
 
     @if (expireModal(); as s) {
-      <div class="pf-modal-overlay" (click)="expireModal.set(null)">
+      <div class="pf-modal-overlay" animate.leave="pf-modal-out" (click)="expireModal.set(null)">
         <form class="pf-modal" (click)="$event.stopPropagation()" (submit)="submitExpire(xQty.value, xReason.value); $event.preventDefault()">
           <div class="pf-modal-head">
             <h2>Retirer un lot périmé</h2>
@@ -735,7 +743,7 @@
     }
 
     @if (supplierModal(); as s) {
-      <div class="pf-modal-overlay" (click)="supplierModal.set(null)">
+      <div class="pf-modal-overlay" animate.leave="pf-modal-out" (click)="supplierModal.set(null)">
         <form class="pf-modal" (click)="$event.stopPropagation()" (submit)="submitSupplierRequest(dQty.value, dMsg.value); $event.preventDefault()">
           <div class="pf-modal-head">
             <h2>Demander un réapprovisionnement</h2>
@@ -806,7 +814,7 @@
     }
 
     @if (processModal(); as o) {
-      <div class="pf-modal-overlay" (click)="closeProcess()">
+      <div class="pf-modal-overlay" animate.leave="pf-modal-out" (click)="closeProcess()">
         <form class="pf-modal pf-modal-wide" (click)="$event.stopPropagation()" (submit)="submitProcess(); $event.preventDefault()">
           <div class="pf-modal-head">
             <h2>Traiter l'ordonnance de {{ o.patient || 'ce patient' }}</h2>
@@ -925,7 +933,7 @@
     }
 
     @if (editModal(); as s) {
-      <div class="pf-modal-overlay" (click)="editModal.set(null)">
+      <div class="pf-modal-overlay" animate.leave="pf-modal-out" (click)="editModal.set(null)">
         <form class="pf-modal" (click)="$event.stopPropagation()" (submit)="submitEdit(eTh.value, eCrit.value, eBatch.value, eExp.value); $event.preventDefault()">
           <div class="pf-modal-head">
             <h2>Modifier la fiche</h2>
@@ -955,7 +963,7 @@
     }
 
     @if (rejectModal(); as o) {
-      <div class="pf-modal-overlay" (click)="rejectModal.set(null)">
+      <div class="pf-modal-overlay" animate.leave="pf-modal-out" (click)="rejectModal.set(null)">
         <form class="pf-modal" (click)="$event.stopPropagation()" (submit)="submitReject(rReason.value, rDetail.value); $event.preventDefault()">
           <div class="pf-modal-head">
             <h2>Rejeter l'ordonnance</h2>

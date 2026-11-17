@@ -62,17 +62,21 @@ export class OrderService {
   }
 }
 
-const STATUS: Record<string, { statut: string; s: DispoState }> = {
-  pending: { statut: 'En préparation', s: 'low' },
-  confirmed: { statut: 'Prête au retrait', s: 'ok' },
-  collected: { statut: 'Retirée', s: 'ok' },
-  oriented: { statut: 'Orientée vers une autre officine', s: 'low' },
-  rejected: { statut: 'Refusée', s: 'out' },
-  cancelled: { statut: 'Annulée', s: 'out' },
+/* Même code couleur que les demandes ciblées du pharmacien et la cloche :
+   en préparation = bleu ciel, prête = vert, retirée = turquoise, orientée = violet,
+   refusée / annulée = rose, expirée = gris. */
+const STATUS: Record<string, { statut: string; s: DispoState; tone: string }> = {
+  pending: { statut: 'En préparation', s: 'low', tone: 'sky' },
+  confirmed: { statut: 'Prête au retrait', s: 'ok', tone: 'green' },
+  collected: { statut: 'Retirée', s: 'ok', tone: 'teal' },
+  oriented: { statut: 'Orientée vers une autre officine', s: 'low', tone: 'violet' },
+  rejected: { statut: 'Refusée', s: 'out', tone: 'rose' },
+  cancelled: { statut: 'Annulée', s: 'out', tone: 'rose' },
+  expired: { statut: 'Délai de retrait dépassé', s: 'out', tone: 'gray' },
 };
 
 function toResa(o: ApiOrder): ResaRow {
-  const m = STATUS[o.status] ?? { statut: o.status, s: 'low' as DispoState };
+  const m = STATUS[o.status] ?? { statut: o.status, s: 'low' as DispoState, tone: 'gray' };
   const lines = (o.lines ?? []).map(l => toResaLine(l, o.pharmacy));
   return {
     orderId: o.id,
@@ -81,6 +85,7 @@ function toResa(o: ApiOrder): ResaRow {
     statut: m.statut,
     quand: formatWhen(o.created_at),
     s: m.s,
+    tone: m.tone,
     status: o.status,
     lines: lines.length ? lines : undefined,
     expiresAt: o.expires_at ?? null,
@@ -90,20 +95,20 @@ function toResa(o: ApiOrder): ResaRow {
 /** Ce que le patient doit comprendre d'une ligne : où la retirer, ou quoi décider. */
 function toResaLine(l: ApiPrescriptionLine, pharmacy: string | null): ResaLine {
   const here = pharmacy ?? 'votre officine';
-  const labels: Record<string, [string, DispoState]> = {
-    reserved: [`Prêt chez ${here}`, 'ok'],
-    legacy_debited: [`Prêt chez ${here}`, 'ok'],
-    oriented: [`À retirer chez ${l.target ?? 'une autre officine'}`, 'low'],
-    substitute_proposed: ['Équivalent proposé : votre accord est nécessaire', 'low'],
-    substitute_accepted: [`Équivalent accepté — prêt chez ${here}`, 'ok'],
-    substitute_refused: ['Équivalent refusé — demandez conseil à votre pharmacien', 'out'],
-    collected: ['Retiré', 'ok'],
-    expired: ['Délai de retrait dépassé', 'out'],
-    cancelled: ['Non délivré', 'out'],
+  const labels: Record<string, [string, DispoState, string]> = {
+    reserved: [`Prêt chez ${here}`, 'ok', 'green'],
+    legacy_debited: [`Prêt chez ${here}`, 'ok', 'green'],
+    oriented: [`À retirer chez ${l.target ?? 'une autre officine'}`, 'low', 'violet'],
+    substitute_proposed: ['Équivalent proposé : votre accord est nécessaire', 'low', 'amber'],
+    substitute_accepted: [`Équivalent accepté — prêt chez ${here}`, 'ok', 'green'],
+    substitute_refused: ['Équivalent refusé — demandez conseil à votre pharmacien', 'out', 'rose'],
+    collected: ['Retiré', 'ok', 'teal'],
+    expired: ['Délai de retrait dépassé', 'out', 'gray'],
+    cancelled: ['Non délivré', 'out', 'rose'],
   };
-  const [label, s] = labels[l.status] ?? [l.status, 'low' as DispoState];
+  const [label, s, tone] = labels[l.status] ?? [l.status, 'low' as DispoState, 'gray'];
   return {
-    id: l.id, name: l.medicine ?? 'Médicament', qty: l.qty, status: l.status, label, s,
+    id: l.id, name: l.medicine ?? 'Médicament', qty: l.qty, status: l.status, label, s, tone,
     prescribed: l.prescribed_medicine, target: l.target, targetAddress: l.target_address, targetPhone: l.target_phone,
     originalRequired: l.original_required,
   };

@@ -37,7 +37,9 @@ export interface NavItem {
   /** Restreint l'entrée à un secteur (ex. « Commandes PRA » : hôpitaux publics). */
   sector?: 'public' | 'private';
 }
-export interface Notif { icon: string; s: NotifKind; t: string; d: string; target?: string; id?: number; read?: boolean; }
+/** Teinte affichée dans la cloche : une couleur par type d'événement (rouge réservé aux alertes). */
+export type NotifTone = 'red' | 'amber' | 'green' | 'blue' | 'violet' | 'teal' | 'sky' | 'rose';
+export interface Notif { icon: string; s: NotifKind; t: string; d: string; target?: string; id?: number; read?: boolean; tone?: NotifTone; }
 export interface Feature { role: string; icon: string; color: 'green' | 'blue'; items: [string, string, string][]; }
 
 /* ---- Vues mappées depuis l'API (consommées par les dashboards) ---- */
@@ -54,6 +56,8 @@ export interface AvailabilityRow { structureId: number; pharmacy: string; city: 
   reasons: string[]; }
 export interface ResaRow {
   orderId: number; medName: string; pharmacyName: string; statut: string; quand: string; s: DispoState; status: string;
+  /** Teinte affichée (clé `pf-tag` / `.pf-liic`) : une couleur par état, `s` reste l'état logique. */
+  tone: string;
   /** Ordonnance multi-lignes : ce qui est prêt ici, orienté ailleurs, ou à accepter. */
   lines?: ResaLine[];
   /** Fin du délai de retrait (48 h après préparation). */
@@ -63,6 +67,8 @@ export interface ResaLine {
   id: number; name: string; qty: number; status: string;
   /** Texte de l'état pour le patient (« Prêt ici », « À retirer à Pharmacie du Port »…). */
   label: string; s: DispoState;
+  /** Teinte affichée (clé `pf-tag`). */
+  tone: string;
   prescribed: string | null; target: string | null; targetAddress: string | null; targetPhone: string | null;
   originalRequired: boolean;
 }

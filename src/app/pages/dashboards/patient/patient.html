@@ -86,10 +86,10 @@
             <div class="pf-resalist">
               @for (r of resas(); track r.orderId) {
                 <div class="card pf-li pf-resa">
-                  <span class="pf-liic {{ r.s === 'ok' ? 'green' : r.s === 'out' ? 'red' : 'amber' }}"><nv-icon name="pill" [size]="20"/></span>
+                  <span class="pf-liic {{ r.tone }}"><nv-icon name="pill" [size]="20"/></span>
                   <div class="pf-libody">
                     <strong>{{ r.medName }}</strong>
-                    <span>{{ r.pharmacyName }}@if (r.status === 'confirmed' && r.expiresAt) { · à retirer avant le {{ r.expiresAt | date:'d MMMM, HH:mm' }} }</span>
+                    <span><span class="pf-tx teal"><nv-icon name="pin" [size]="13"/>{{ r.pharmacyName }}</span>@if (r.status === 'confirmed' && r.expiresAt) { · <span class="pf-tx amber"><nv-icon name="clock" [size]="13"/>à retirer avant le {{ r.expiresAt | date:'d MMMM, HH:mm' }}</span> }</span>
                     <!-- Ordonnance : où retirer chaque médicament, et ce qu'il reste à décider -->
                     @if (r.lines?.length) {
                       <ul class="pf-resalines">
@@ -97,11 +97,11 @@
                           <li class="pf-resaline">
                             <div class="pf-resaline-head">
                               <strong>{{ l.name }} × {{ l.qty }}</strong>
-                              <pf-tag [s]="l.s">{{ l.label }}</pf-tag>
+                              <pf-tag [s]="l.tone">{{ l.label }}</pf-tag>
                             </div>
                             @if (l.prescribed) { <p class="pf-resaline-sub">À la place de {{ l.prescribed }} (même substance, même dosage).</p> }
                             @if (l.status === 'oriented' && l.target) {
-                              <p class="pf-resaline-sub">{{ l.target }}{{ l.targetAddress ? ' · ' + l.targetAddress : '' }}{{ l.targetPhone ? ' · ' + l.targetPhone : '' }}</p>
+                              <p class="pf-resaline-sub"><span class="pf-tx teal"><nv-icon name="pin" [size]="13"/>{{ l.target }}</span>{{ l.targetAddress ? ' · ' + l.targetAddress : '' }}@if (l.targetPhone) { · <span class="pf-tx blue"><nv-icon name="phone" [size]="13"/>{{ l.targetPhone }}</span> }</p>
                               @if (l.originalRequired) { <p class="pf-resaline-sub pf-resaline-warn">Médicament contrôlé : présentez l'original papier de l'ordonnance.</p> }
                             }
                             @if (l.status === 'substitute_proposed') {
@@ -116,7 +116,7 @@
                     }
                   </div>
                   <div class="pf-resa-side">
-                    <pf-tag [s]="r.s">{{ r.statut }}</pf-tag>
+                    <pf-tag [s]="r.tone">{{ r.statut }}</pf-tag>
                     <div class="pf-medsub pf-resa-when">{{ r.quand }}</div>
                     @if (r.status === 'pending') {
                       <button class="btn btn-ghost btn-sm btn-danger pf-resa-cancel" (click)="cancelResa(r.orderId)">Annuler</button>
@@ -141,7 +141,7 @@
     }
 
     @if (prescriptionModal()) {
-      <div class="pf-modal-overlay" (click)="prescriptionModal.set(false)">
+      <div class="pf-modal-overlay" animate.leave="pf-modal-out" (click)="prescriptionModal.set(false)">
         <form class="pf-modal" (click)="$event.stopPropagation()" (submit)="submitPrescription(oPharm.value, oNotes.value); $event.preventDefault()">
           <div class="pf-modal-head">
             <h2>Envoyer une ordonnance</h2>
@@ -182,7 +182,7 @@
     }
 
     @if (groupedModal()) {
-      <div class="pf-modal-overlay" (click)="groupedModal.set(false)">
+      <div class="pf-modal-overlay" animate.leave="pf-modal-out" (click)="groupedModal.set(false)">
         <div class="pf-modal" (click)="$event.stopPropagation()">
           <div class="pf-modal-head">
             <h2>Recherche groupée</h2>
@@ -199,7 +199,7 @@
                 @for (p of st.available; track p.structure_id) {
                   <div class="pf-li">
                     <span class="pf-liic green"><nv-icon name="pin" [size]="16"/></span>
-                    <div class="pf-libody"><strong>{{ p.name }}</strong><span>{{ p.address }} · {{ p.phone }}</span></div>
+                    <div class="pf-libody"><strong>{{ p.name }}</strong><span>{{ p.address }}@if (p.phone) { · <span class="pf-tx blue"><nv-icon name="phone" [size]="13"/>{{ p.phone }}</span> }</span></div>
                     <button class="btn btn-green btn-sm" (click)="reserve(active()!, p.structure_id); groupedModal.set(false)">Réserver</button>
                   </div>
                 }
@@ -210,8 +210,8 @@
                 <span class="pf-caption">Équivalents suggérés</span>
                 @for (e of st.equivalents; track e.id) {
                   <div class="pf-li">
-                    <span class="pf-liic amber"><nv-icon name="pill" [size]="16"/></span>
-                    <div class="pf-libody"><strong>{{ e.name }} {{ e.dosage }}</strong><span>{{ e.note || e.form }} · {{ plural(e.available_pharmacies ?? 0, 'pharmacie disponible', 'pharmacies disponibles') }}</span></div>
+                    <span class="pf-liic {{ (e.available_pharmacies ?? 0) > 0 ? 'green' : 'amber' }}"><nv-icon name="pill" [size]="16"/></span>
+                    <div class="pf-libody"><strong>{{ e.name }} {{ e.dosage }}</strong><span>{{ e.note || e.form }} · <span class="pf-tx {{ (e.available_pharmacies ?? 0) > 0 ? 'green' : 'amber' }}">{{ plural(e.available_pharmacies ?? 0, 'pharmacie disponible', 'pharmacies disponibles') }}</span></span></div>
                     @if (e.score) { <span class="chip chip-blue">{{ e.score }}/100</span> }
                   </div>
                 }

@@ -38,6 +38,7 @@ export class FloodMap {
   private map: Leaflet.Map | null = null;
   private layer: Leaflet.LayerGroup | null = null;
   private lastView = '';
+  private lastSet = '';
   private resize: ResizeObserver | null = null;
 
   constructor() {
@@ -83,31 +84,44 @@ export class FloodMap {
   ): void {
     const layer = this.layer!;
     layer.clearLayers();
+    // Nouvel ensemble (signalements / officines), pas une simple sélection : les points apparaissent en cascade.
+    const setKey = reports.map(r => r.id + ':' + r.status).join('|') + '/' + pharmacies.map(p => p.id).join('|');
+    const fresh = setKey !== this.lastSet;
+    this.lastSet = setKey;
+    let rank = 0;
+    const pop = (el: Element | undefined) => {
+      if (!fresh || !el) return;
+      el.classList.add('pf-fm-pop');
+      (el as SVGElement).style.animationDelay = Math.min(rank++, 24) * 25 + 'ms';
+    };
 
     L.circle([center.lat, center.lng], { radius, className: 'pf-fm-area', interactive: false }).addTo(layer);
 
     // Zones pénalisantes autour des inondations confirmées, sous les points.
     for (const r of reports) {
       if (r.status !== 'confirmed') continue;
-      L.circle([r.latitude, r.longitude], { radius: FLOOD_ZONE_RADIUS_M, className: 'pf-fm-zone', interactive: false }).addTo(layer);
+      pop(L.circle([r.latitude, r.longitude], { radius: FLOOD_ZONE_RADIUS_M, className: 'pf-fm-zone', interactive: false }).addTo(layer).getElement());
     }
 
     for (const p of pharmacies) {
       const hit = flooded.has(p.id);
-      L.circleMarker([p.point.lat, p.point.lng], { radius: 6, className: hit ? 'pf-fm-pharm pf-fm-pharm-hit' : 'pf-fm-pharm' })
+      pop(L.circleMarker([p.point.lat, p.point.lng], { radius: 6, className: hit ? 'pf-fm-pharm pf-fm-pharm-hit' : 'pf-fm-pharm' })
         .bindTooltip(hit ? `${p.name} — accès gêné par une inondation` : p.name, { direction: 'top' })
-        .addTo(layer);
+        .addTo(layer).getElement());
     }
 
     for (const r of reports) {
       const cls = `pf-fm-flood pf-fm-${r.severity}${r.status === 'confirmed' ? '' : ' pf-fm-unconfirmed'}${r.id === selected ? ' pf-fm-selected' : ''}`;
-      L.circleMarker([r.latitude, r.longitude], { radius: r.id === selected ? 13 : 10, className: cls })
+      pop(L.circleMarker([r.latitude, r.longitude], { radius: r.id === selected ? 13 : 10, className: cls })
         .bindTooltip(`${r.severity_label} · ${r.status_label} (${r.confirmations}/${r.confirmations_required})`, { direction: 'top' })
         .on('click', () => this.selectReport.emit(r.id))
-        .addTo(layer);
+        .addTo(layer).getElement());
     }
 
-    if (me) L.circleMarker([me.lat, me.lng], { radius: 7, className: 'pf-fm-me', interactive: false }).addTo(layer);
+    if (me) {
+      L.circleMarker([me.lat, me.lng], { radius: 7, className: 'pf-fm-me-ring', interactive: false }).addTo(layer);
+      L.circleMarker([me.lat, me.lng], { radius: 7, className: 'pf-fm-me', interactive: false }).addTo(layer);
+    }
 
     const view = `${center.lat},${center.lng},${radius}`;
     if (view !== this.lastView) {

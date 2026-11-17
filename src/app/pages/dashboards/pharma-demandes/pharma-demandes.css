@@ -5,6 +5,7 @@
 .pf-orient-title { @apply font-semibold text-black text-[14px] mb-2; }
 .pf-orient-cancel { @apply mt-1.5; }
 .pf-orient-sort { @apply font-body font-normal text-[12.5px]; }
-.pf-orient-near { @apply flex-none gap-1; }
+.pf-orient-near { @apply flex-none; }
 /* L'officine la plus proche est mise en avant : c'est l'orientation à privilégier. */
-.pf-li-near { @apply bg-green-soft-2; }
+.pf-li-near { @apply border-green; }
+.pf-dm-qty { @apply font-medium text-black; }

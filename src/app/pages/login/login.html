@@ -23,7 +23,7 @@
             <div class="pf-roles">
               @for (x of roles; track x.id) {
                 <button class="pf-role" [class.on]="role() === x.id" (click)="pick(x.id)">
-                  <span class="pf-roleic"><nv-icon [name]="x.icon" [size]="22"/></span>
+                  <span class="pf-roleic {{ tone(x.icon) }}"><nv-icon [name]="x.icon" [size]="22"/></span>
                   <span class="pf-roletxt"><strong>{{ x.label }}</strong><span>{{ x.desc }}</span></span>
                   <span class="pf-roleradio">@if (role() === x.id) { <nv-icon name="check" [size]="14"/> }</span>
                 </button>

@@ -40,10 +40,10 @@
               <button class="btn btn-sm" [class.btn-primary]="trendRange() === 30" [class.btn-outline]="trendRange() !== 30" (click)="trendRange.set(30)">30 jours</button>
             </div>
             <div class="pf-spark pf-trend" role="img" [attr.aria-label]="'Ruptures et tensions quotidiennes sur ' + trendRange() + ' jours'">
-              @for (p of trendPoints(); track p.date) {
+              @for (p of trendPoints(); track p.date; let i = $index) {
                 <div class="pf-trend-col" [title]="day(p.date) + ' : ' + plural(p.ruptures, 'rupture', 'ruptures') + ', ' + plural(p.low, 'tension', 'tensions')">
-                  <span class="pf-spark-bar amber" [style.height.%]="barPct(p.low)"></span>
-                  <span class="pf-spark-bar red" [style.height.%]="barPct(p.ruptures)"></span>
+                  <span class="pf-spark-bar amber" [style.height.%]="barPct(p.low)" [style.animation-delay.ms]="100 + i * 18"></span>
+                  <span class="pf-spark-bar red" [style.height.%]="barPct(p.ruptures)" [style.animation-delay.ms]="100 + i * 18"></span>
                 </div>
               }
             </div>
@@ -89,7 +89,7 @@
             <pf-card title="Classement des zones">
               @for (z of sortedZones(); track z.nom; let i = $index) {
                 <div class="pf-li">
-                  <span class="pf-liic pf-rank">{{ i + 1 }}</span>
+                  <span class="pf-liic pf-rank {{ zoneTile(z.niveau) }}">{{ i + 1 }}</span>
                   <div class="pf-libody"><strong>{{ z.nom }}</strong><span>{{ plural(z.ruptures, 'rupture signalée', 'ruptures signalées') }}</span></div>
                   <pf-tag [s]="ztag(z.niveau)">{{ zoneLabel(z.niveau) }}</pf-tag>
                 </div>
@@ -137,10 +137,10 @@
                 @for (c of controlled(); track c.medicine_id) {
                   <tr>
                     <td><div class="pf-medname">{{ c.medicine }}</div><div class="pf-medsub">{{ c.form }} {{ c.dosage }} · {{ plural(c.structures, 'structure', 'structures') }}</div></td>
-                    <td><strong class="pf-num">{{ c.available_units }}</strong><span class="muted"> u.</span></td>
+                    <td><strong class="pf-num pf-tx {{ c.structures === 0 ? 'gray' : tileOf(ztag(c.level)) }}">{{ c.available_units }}</strong><span class="muted"> u.</span></td>
                     <td><strong [class.pf-out]="c.ruptures > 0">{{ c.ruptures }}</strong>@if (c.hospitals_in_rupture.length) { <div class="pf-medsub">{{ c.hospitals_in_rupture.join(', ') }}</div> }</td>
-                    <td>{{ c.tensions }}</td>
-                    <td class="muted pf-td-wrap">{{ c.cities.join(', ') || '—' }}</td>
+                    <td><strong class="pf-tx" [class.amber]="c.tensions > 0" [class.gray]="c.tensions === 0">{{ c.tensions }}</strong></td>
+                    <td class="pf-td-wrap">@if (c.cities.length) { <span class="pf-tx blue"><nv-icon name="pin" [size]="13"/>{{ c.cities.join(', ') }}</span> } @else { <span class="muted">—</span> }</td>
                     <td>{{ c.issued_30d }}</td>
                     <td>
                       @if (c.structures === 0) { <pf-tag s="vue">Non référencé</pf-tag> }
@@ -187,7 +187,7 @@
                     <td><div class="pf-medname">{{ m.name }}</div><div class="pf-medsub">{{ m.form }} · {{ m.dosage }}</div></td>
                     <td>@if (m.dci?.trim()) { <span class="muted">{{ m.dci }}</span> } @else { <span class="chip chip-amber">À renseigner</span> }</td>
                     <td>@if (medPrice(m); as p) { {{ p }} } @else { <span class="chip chip-amber">À renseigner</span> }</td>
-                    <td class="muted">{{ categoryLabel(m.category) }}</td>
+                    <td><span class="pf-tx {{ categoryTone(m.category) }}">{{ categoryLabel(m.category) }}</span></td>
                     <td>@if (m.is_controlled) { <span class="chip chip-ctrl">Contrôlé</span> } @else { <span class="muted">—</span> }</td>
                     <td>
                       @if (m.requires_prescription) { <pf-tag s="new">Sur ordonnance</pf-tag> }
@@ -214,8 +214,8 @@
           <pf-card>
             @for (r of reports(); track r.id) {
               <div class="pf-li">
-                <span class="pf-liic"><nv-icon name="doc" [size]="18"/></span>
-                <div class="pf-libody"><strong>{{ reportTitle(r) }}</strong><span>{{ periodLabel(r.period) }}{{ r.generated_at ? ' · ' + longDate(r.generated_at) : '' }}</span></div>
+                <span class="pf-liic {{ tileOf(r.s) }}"><nv-icon name="doc" [size]="18"/></span>
+                <div class="pf-libody"><strong>{{ reportTitle(r) }}</strong><span><span class="pf-tx blue"><nv-icon name="clock" [size]="13"/>{{ periodLabel(r.period) }}</span>{{ r.generated_at ? ' · ' + longDate(r.generated_at) : '' }}</span></div>
                 <div class="pf-li-act">
                   <pf-tag [s]="r.s">{{ r.statusLabel }}</pf-tag>
                   <button class="btn btn-outline btn-sm" [disabled]="r.status !== 'completed'" (click)="exportReport(r.id)"><nv-icon name="doc" [size]="15"/> Consulter</button>
@@ -240,7 +240,7 @@
                   <tr>
                     <td><div class="pf-medname">{{ u.name }}</div></td>
                     <td class="muted">{{ u.email }}</td>
-                    <td>{{ roleLabel(u.role) }}</td>
+                    <td><span class="pf-tx {{ roleTone(u.role) }}">{{ roleLabel(u.role) }}</span></td>
                     <td class="muted">{{ u.structure?.name || '—' }}</td>
                     <td class="pf-td-right"><button class="btn btn-ghost btn-sm btn-danger" (click)="deleteUser(u.id)">Désactiver</button></td>
                   </tr>
@@ -264,8 +264,8 @@
                 @for (s of structures(); track s.id) {
                   <tr>
                     <td><div class="pf-medname">{{ s.name }}</div></td>
-                    <td>{{ typeLabel(s.type) }}</td>
-                    <td><span class="chip" [class.chip-blue]="s.sector === 'public'" [class.chip-gray]="s.sector !== 'public'">{{ sectorLabel(s) }}</span></td>
+                    <td><span class="pf-tx {{ typeTone(s.type) }}">{{ typeLabel(s.type) }}</span></td>
+                    <td><span class="pf-tx" [class.sky]="s.sector === 'public'" [class.violet]="s.sector === 'private'" [class.gray]="s.sector !== 'public' && s.sector !== 'private'">{{ sectorLabel(s) }}</span></td>
                     <td>
                       @if (s.type === 'pharmacy') {
                         <button class="btn btn-sm" [class.btn-green]="s.plan === 'pro'" [class.btn-outline]="s.plan !== 'pro'" (click)="togglePlan(s)" title="Basculer Starter / Pro">{{ planLabel(s.plan) }}</button>
@@ -287,7 +287,7 @@
 
     <!-- Modals -->
     @if (generateModal()) {
-      <div class="pf-modal-overlay" (click)="generateModal.set(false)">
+      <div class="pf-modal-overlay" animate.leave="pf-modal-out" (click)="generateModal.set(false)">
         <form class="pf-modal" (click)="$event.stopPropagation()" (submit)="submitGenerate(gPeriod.value, gType.value, gRegion.value, gMed.value); $event.preventDefault()">
           <div class="pf-modal-head">
             <h2>Générer un rapport</h2>
@@ -311,14 +311,14 @@
                 </select>
               </div>
             </div>
-            <div class="s-field" [class.pf-field-off]="reportType() !== 'regional'"><label>Région</label>
-              <select #gRegion [disabled]="reportType() !== 'regional'">
+            <div class="s-field" [class.pf-field-off]="reportType() !== 'regional'" [attr.data-tip]="reportType() !== 'regional' ? regionTip : null"><label>Région</label>
+              <select #gRegion [disabled]="reportType() !== 'regional'" [attr.aria-description]="reportType() !== 'regional' ? regionTip : null">
                 <option value="">—</option>
                 @for (r of regions(); track r) { <option [value]="r">{{ r }}</option> }
               </select>
             </div>
-            <div class="s-field" [class.pf-field-off]="reportType() !== 'medicine'"><label>Médicament</label>
-              <select #gMed [disabled]="reportType() !== 'medicine'">
+            <div class="s-field" [class.pf-field-off]="reportType() !== 'medicine'" [attr.data-tip]="reportType() !== 'medicine' ? medicineTip : null"><label>Médicament</label>
+              <select #gMed [disabled]="reportType() !== 'medicine'" [attr.aria-description]="reportType() !== 'medicine' ? medicineTip : null">
                 <option value="">—</option>
                 @for (m of catalog(); track m.id) { <option [value]="m.id">{{ m.label }}</option> }
               </select>
@@ -333,7 +333,7 @@
     }
 
     @if (userModal()) {
-      <div class="pf-modal-overlay" (click)="userModal.set(false)">
+      <div class="pf-modal-overlay" animate.leave="pf-modal-out" (click)="userModal.set(false)">
         <form class="pf-modal" (click)="$event.stopPropagation()" (submit)="submitUser(uName.value, uEmail.value, uRole.value, uPhone.value, uStruct.value); $event.preventDefault()">
           <div class="pf-modal-head">
             <h2>Nouvel utilisateur</h2>
@@ -370,7 +370,7 @@
     }
 
     @if (medModal()) {
-      <div class="pf-modal-overlay" (click)="medModal.set(null)">
+      <div class="pf-modal-overlay" animate.leave="pf-modal-out" (click)="medModal.set(null)">
         <form class="pf-modal" (click)="$event.stopPropagation()" (submit)="submitMedicine({ name: mName.value, dci: mDci.value, brand: mBrand.value, form: mForm.value, dosage: mDosage.value, atc: mAtc.value, price: mPrice.value, category: mCat.value, rx: mRx.value, controlled: mCtrl.checked }); $event.preventDefault()">
           <div class="pf-modal-head">
             <h2>{{ medEditing() ? 'Modifier la fiche' : 'Ajouter un médicament' }}</h2>
@@ -424,7 +424,7 @@
     }
 
     @if (structureModal()) {
-      <div class="pf-modal-overlay" (click)="structureModal.set(false)">
+      <div class="pf-modal-overlay" animate.leave="pf-modal-out" (click)="structureModal.set(false)">
         <form class="pf-modal" (click)="$event.stopPropagation()" (submit)="submitStructure(stName.value, stType.value, stSector.value, stPlan.value, stCity.value, stRegion.value, stPhone.value); $event.preventDefault()">
           <div class="pf-modal-head">
             <h2>Nouvelle structure</h2>

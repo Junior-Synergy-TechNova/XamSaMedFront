@@ -69,8 +69,13 @@ tr:nth-last-child(-n+2):not(:nth-child(-n+2)) .pf-moremenu { @apply top-auto bot
 .pf-moremenu button:hover, .pf-moremenu button:focus-visible { @apply bg-gray-bg; }
 .pf-moremenu strong { @apply font-semibold text-[14px] text-black; }
 .pf-moremenu span { @apply text-[13px] text-gray-text; }
+/* La ligne ouverte passe devant les suivantes (chaque <tr> animé crée son propre contexte d'empilement) */
+tr:has(> td .pf-more[open]) { @apply relative z-30; }
 @media (max-width: 640px) {
-  .pf-moremenu { @apply left-0 right-auto; }
+  /* Fiche téléphone : « Plus » peut être n'importe où dans la rangée d'actions → le menu s'ancre sur la rangée, pleine largeur, sous les boutons */
+  td:has(> .pf-li-act > .pf-more), td:has(> .pf-more) { @apply relative; }
+  .pf-more { @apply static; }
+  .pf-moremenu, tr:nth-last-child(-n+2):not(:nth-child(-n+2)) .pf-moremenu { @apply left-0 right-0 w-auto top-[calc(100%-4px)] bottom-auto; }
 }
 
 /* Recherche dans le stock : même gabarit que les champs (48 px), pleine largeur sur téléphone */

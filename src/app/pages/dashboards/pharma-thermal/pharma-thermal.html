@@ -63,10 +63,10 @@
             <tbody>
               @for (r of roomRows(); track r.item.stock_id) {
                 <tr>
-                  <td><span class="pf-medname">{{ r.label }}</span></td>
+                  <td><span class="pf-th-med"><span class="pf-th-dot {{ r.item.at_risk ? 'red' : r.near ? 'amber' : r.gap === null ? '' : 'green' }}"></span><span class="pf-medname">{{ r.label }}</span></span></td>
                   <td class="pf-num pf-num-sm">{{ r.item.quantity }}</td>
-                  <td>{{ r.item.max_temp_c | number:'1.0-1' }} °C</td>
-                  <td [class.pf-out]="r.item.at_risk" [class.pf-th-near]="r.near">{{ gapLabel(r.gap) }}</td>
+                  <td><span class="pf-tx sky"><nv-icon name="thermo" [size]="14"/>{{ r.item.max_temp_c | number:'1.0-1' }} °C</span></td>
+                  <td [class.pf-out]="r.item.at_risk" [class.pf-th-near]="r.near" [class.pf-in]="!r.item.at_risk && !r.near && r.gap !== null">{{ gapLabel(r.gap) }}</td>
                   <td>
                     @if (r.item.at_risk) { <pf-tag s="crit">Trop chaud</pf-tag> }
                     @else if (r.near) { <pf-tag s="low">Proche du seuil</pf-tag> }
@@ -92,9 +92,12 @@
             <span class="pf-liic blue"><nv-icon name="thermo" [size]="18"/></span>
             <div class="pf-libody">
               <strong>{{ r.label }}</strong>
-              <span>{{ plural(r.item.quantity, 'unité', 'unités') }} · entre {{ (r.item.min_temp_c ?? 2) | number:'1.0-1' }} et {{ r.item.max_temp_c | number:'1.0-1' }} °C@if (r.source) { · source {{ r.source }} }</span>
+              <span>{{ plural(r.item.quantity, 'unité', 'unités') }}@if (r.source) { · source {{ r.source }} }</span>
             </div>
-            @if (!r.item.validated) { <span class="chip chip-amber">Seuil à valider</span> }
+            <div class="pf-li-act">
+              <span class="pf-tx sky"><nv-icon name="thermo" [size]="14"/>{{ (r.item.min_temp_c ?? 2) | number:'1.0-1' }} – {{ r.item.max_temp_c | number:'1.0-1' }} °C</span>
+              @if (!r.item.validated) { <span class="chip chip-amber">Seuil à valider</span> }
+            </div>
           </div>
         }
       }

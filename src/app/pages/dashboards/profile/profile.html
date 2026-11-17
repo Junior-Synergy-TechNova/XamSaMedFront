@@ -29,7 +29,7 @@
       </div>
 
       @if (editModal()) {
-        <div class="pf-modal-overlay" (click)="editModal.set(false)">
+        <div class="pf-modal-overlay" animate.leave="pf-modal-out" (click)="editModal.set(false)">
           <form class="pf-modal" (click)="$event.stopPropagation()" (submit)="submitProfile(eName.value, ePhone.value, eEmail.value); $event.preventDefault()">
             <div class="pf-modal-head">
               <h2>Modifier mon profil</h2>
@@ -49,7 +49,7 @@
       }
 
       @if (pwdModal()) {
-        <div class="pf-modal-overlay" (click)="pwdModal.set(false)">
+        <div class="pf-modal-overlay" animate.leave="pf-modal-out" (click)="pwdModal.set(false)">
           <form class="pf-modal" (click)="$event.stopPropagation()" (submit)="submitPassword(pCur.value, pNew.value, pConf.value); $event.preventDefault()">
             <div class="pf-modal-head">
               <h2>Changer le mot de passe</h2>

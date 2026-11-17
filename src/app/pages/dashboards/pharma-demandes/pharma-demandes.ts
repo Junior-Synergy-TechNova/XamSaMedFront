@@ -13,6 +13,27 @@ import { rankByDistance, structurePoint } from '../../../services/structures/str
 import { ApiErrorBody } from '../../../interfaces/api';
 import { Observable, finalize } from 'rxjs';
 
+type UrgencyKey = 'crit' | 'high' | 'normal';
+const URGENCY: Record<UrgencyKey, { label: string; tone: string }> = {
+  crit: { label: 'Critique', tone: 'red' },
+  high: { label: 'Élevée', tone: 'amber' },
+  normal: { label: 'Normale', tone: 'blue' },
+};
+/** Le backend envoie « Critique », « Élevé » ou « Normal » (meta.urgency), casse et accents variables. */
+function urgKey(u: string): UrgencyKey {
+  const k = u.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  return k.startsWith('crit') ? 'crit' : k.startsWith('elev') || k.startsWith('haut') || k === 'high' ? 'high' : 'normal';
+}
+const STATUS: Record<string, { label: string; tone: string }> = {
+  pending: { label: 'En attente', tone: 'sky' },
+  confirmed: { label: 'Confirmée — à retirer', tone: 'green' },
+  oriented: { label: 'Orientée', tone: 'violet' },
+  collected: { label: 'Retirée', tone: 'teal' },
+  cancelled: { label: 'Annulée', tone: 'rose' },
+  expired: { label: 'Expirée', tone: 'gray' },
+  rejected: { label: 'Refusée', tone: 'rose' },
+};
+
 /* Demandes ciblées reçues par le pharmacien : accepter / orienter / retirer (API réelle). */
 @Component({
   selector: 'app-pharma-demandes',
@@ -60,11 +81,15 @@ export class PharmaDemandes {
     return (e.error as ApiErrorBody | null)?.message ?? fallback;
   }
 
+  /** Type de demandeur en texte coloré : patient bleu ciel, hôpital rose, officine teal. */
+  typeTone(type: string): string { return type === 'Hôpital' ? 'rose' : type === 'Patient' ? 'sky' : 'teal'; }
   typeIcon(type: string): string { return type === 'Hôpital' ? 'hospital' : type === 'Patient' ? 'user' : 'pill'; }
-  urg(u: string): string { return u === 'Critique' ? 'crit' : u === 'Élevé' ? 'low' : 'new'; }
-  statusLabel(s: string): string {
-    return s === 'oriented' ? 'Orientée' : s === 'collected' ? 'Retirée' : s === 'cancelled' ? 'Annulée' : s;
-  }
+  /** Urgence : critique = rouge, élevée = ambre, normale = bleu (clé `pf-tag` / `.pf-liic`). */
+  urgTone(u: string): string { return URGENCY[urgKey(u)].tone; }
+  urgLabel(u: string): string { return URGENCY[urgKey(u)].label; }
+  /** État d'une demande traitée : chaque issue a sa teinte (rouge réservé à l'urgence critique). */
+  statusTone(s: string): string { return STATUS[s]?.tone ?? 'gray'; }
+  statusLabel(s: string): string { return STATUS[s]?.label ?? s; }
 
   accept(id: number): void {
     this.run(id, this.pharmacy.acceptDemande(id), () => { this.platform.notify('Demande acceptée et confirmée', 'ok'); this.changed.emit(); }, 'Échec de l’acceptation');

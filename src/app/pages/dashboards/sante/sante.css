@@ -1,7 +1,7 @@
 @reference "../../../../styles.css";
 /* ===================== SANTÉ PUBLIQUE — vue nationale & administration ===================== */
 :host { @apply contents; }
-.pf-rank { @apply bg-blue-soft text-blue font-semibold; }
+.pf-rank { @apply font-semibold; }
 /* Tendance des ruptures : colonnes empilées tensions (orange) + ruptures (rouge) */
 .pf-trend { @apply gap-1.5 h-[140px]; }
 .pf-trend-col { @apply flex-1 h-full flex flex-col justify-end gap-[2px]; }

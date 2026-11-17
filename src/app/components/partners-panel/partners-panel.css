@@ -6,3 +6,4 @@
 .pf-partners-ruleic { @apply flex flex-none mt-[3px]; }
 .pf-partners-inline { @apply flex gap-2 items-center; }
 .pf-partners-inline input { @apply flex-1; }
+

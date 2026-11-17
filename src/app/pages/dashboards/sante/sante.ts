@@ -97,6 +97,9 @@ export class SanteDash {
 
   readonly generateModal = signal(false);
   readonly reportType = signal('national');
+  /** Infobulles des filtres désactivés selon le type de rapport. */
+  readonly regionTip = 'Utilisé seulement pour un rapport régional.';
+  readonly medicineTip = 'Utilisé seulement pour un rapport par médicament.';
   readonly catalog = signal<{ id: number; name: string; label: string }[]>([]);
   readonly regions = computed(() => [...new Set(this.structures().map(s => s.region ?? s.city).filter((c): c is string => !!c))].sort());
 
@@ -325,6 +328,20 @@ export class SanteDash {
   barPct(v: number): number { return Math.round((v / this.trendMax()) * 100); }
   day(iso: string): string { return iso.slice(8, 10) + '/' + iso.slice(5, 7); }
   ztag(n: string): string { return n === 'crit' ? 'crit' : n === 'haute' ? 'low' : 'ok'; }
+  /** Case d'icône d'une zone : même couleur que sa pastille. */
+  zoneTile(n: string): string { return this.tileOf(this.ztag(n)); }
+  /** Clé de pastille → teinte de case / de texte (ok vert, low ambre, crit rouge, new bleu, vue gris). */
+  tileOf(tag: string): string {
+    return tag === 'ok' ? 'green' : tag === 'low' ? 'amber' : tag === 'crit' || tag === 'out' ? 'red' : tag === 'new' ? 'blue' : tag === 'vue' ? 'gray' : tag;
+  }
+  /** Teintes de catégorie : officine teal, hôpital sky, distributeur violet, PNA / PRA rose. */
+  typeTone(type: string): string {
+    return type === 'pharmacy' ? 'teal' : type === 'hospital' ? 'sky' : type === 'pna' || type === 'pra' ? 'rose' : type === 'distributor' ? 'violet' : 'gray';
+  }
+  roleTone(role: string): string {
+    return role === 'pharmacy_user' ? 'teal' : role === 'hospital_user' ? 'sky' : role === 'distributor_user' ? 'violet' : role === 'admin' ? 'blue' : 'gray';
+  }
+  categoryTone(c: string | undefined): string { return c === 'hospital' ? 'sky' : c === 'pharmaceutical' ? 'teal' : 'violet'; }
   ttag(pct: number): string { return pct > 70 ? 'crit' : pct > 40 ? 'low' : 'ok'; }
   tlabel(pct: number): string { return pct > 70 ? 'Critique' : pct > 40 ? 'Élevée' : 'Modérée'; }
 

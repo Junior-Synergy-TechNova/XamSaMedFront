@@ -31,3 +31,19 @@ pf-geo-map { @apply block; }
 .pf-gm-legend i.blue { @apply bg-map-blue; }
 .pf-gm-legend i.gray { @apply bg-map-gray; }
 .pf-gm-legend i.violet { @apply bg-map-violet; }
+
+/* ---------- Animations (neutralisées par « réduire les animations ») ---------- */
+/* Points d'un nouvel ensemble : apparaissent en grossissant, en cascade (retard posé par geo-map.ts) */
+@keyframes pf-gm-pop { from { opacity: 0; transform: scale(.2); } }
+.pf-gm-pop { transform-box: fill-box; transform-origin: center; animation: pf-gm-pop .5s cubic-bezier(.34,1.56,.64,1) both; }
+/* Halo rouge (zone critique, rupture) : respire doucement pour attirer l'œil */
+@keyframes pf-gm-breathe { 50% { fill-opacity: .4; } }
+.pf-gm-halo.pf-gm-red { animation: pf-gm-breathe 2.4s ease-in-out infinite; }
+.pf-gm-halo.pf-gm-red.pf-gm-pop { animation: pf-gm-pop .5s cubic-bezier(.34,1.56,.64,1) both, pf-gm-breathe 2.4s ease-in-out .6s infinite; }
+/* Votre position : anneau qui s'élargit et s'efface */
+@keyframes pf-gm-ring { from { opacity: .6; transform: scale(1); } to { opacity: 0; transform: scale(2.6); } }
+.pf-gm-me-ring { @apply fill-map-blue [stroke-width:0]; transform-box: fill-box; transform-origin: center; animation: pf-gm-ring 2s ease-out infinite; pointer-events: none; }
+/* Survol d'un point : il grossit un peu */
+.pf-gm-dot { transform-box: fill-box; transform-origin: center; transition: scale .15s ease-out; }
+.pf-gm-dot:hover { scale: 1.25; }
+

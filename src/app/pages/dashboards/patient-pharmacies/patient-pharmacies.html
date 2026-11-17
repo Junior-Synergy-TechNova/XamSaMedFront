@@ -31,9 +31,9 @@
             <span class="pf-liic" [class.green]="p.nearest"><nv-icon name="pin" [size]="18"/></span>
             <span class="pf-libody">
               <strong>{{ p.name }}</strong>
-              <span>{{ p.address || p.city }}@if (p.hours) { · {{ p.hours }}}</span>
+              <span>{{ p.address || p.city }}@if (p.hours) { · <span class="pf-tx gray"><nv-icon name="clock" [size]="13"/>{{ p.hours }}</span> }</span>
             </span>
-            <span class="chip" [class.chip-green]="p.nearest" [class.chip-gray]="!p.nearest">{{ p.dist }}</span>
+            <span class="pf-tx" [class.green]="p.nearest" [class.blue]="!p.nearest"><nv-icon name="pin" [size]="13"/>{{ p.dist }}</span>
           </button>
           @if (sel() === p.key) {
             <div class="pf-pharm-actions">

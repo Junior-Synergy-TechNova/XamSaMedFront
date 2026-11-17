@@ -2,7 +2,6 @@
 /* ===================== DISTRIBUTEUR / PNA / PRA ===================== */
 :host { @apply contents; }
 /* Tensions par zone : besoin estimé en colonne chiffrée, avant le bouton */
-.pf-zone { @apply font-semibold text-blue; }
 .pf-need { @apply flex flex-col items-end flex-none min-w-[92px] mr-1 leading-tight; }
 .pf-need-val { @apply font-semibold text-[18px] text-black; }
 .pf-need-val.pf-need-zero { @apply text-gray; }

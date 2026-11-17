@@ -68,6 +68,9 @@ export class IncomingDeliveries {
     const t = new Date(); const today = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
     return d.status === 'planned' && !!d.delivery_date && d.delivery_date.slice(0, 10) < today;
   }
-  statusTag(s: string): string { return s === 'in_transit' ? 'new' : s === 'planned' ? 'vue' : 'ok'; }
+  /** Planifiée bleu, en transit teal (à confirmer à l'arrivée), reçue vert. */
+  statusTag(s: string): string { return s === 'in_transit' ? 'teal' : s === 'planned' ? 'blue' : 'ok'; }
+  /** Teinte de catégorie du fournisseur : PNA / PRA (public) rose, distributeur privé violet (= couleur carte). */
+  kindTone(t: string | null): string { return t === 'pna' || t === 'pra' ? 'rose' : 'violet'; }
   supplierKind(t: string | null): string { return t === 'pna' ? 'PNA' : t === 'pra' ? 'PRA' : 'Distributeur'; }
 }
