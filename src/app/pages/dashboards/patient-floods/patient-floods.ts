@@ -10,6 +10,7 @@ import { Stat } from '../../../components/stat/stat';
 import { Tag } from '../../../components/tag/tag';
 import { FLOOD_ZONE_RADIUS_M, FloodMap, isDemoFlood } from '../../../components/flood-map/flood-map';
 import { ModalA11y } from '../../../directives/modal-a11y/modal-a11y';
+import { ScrollActive } from '../../../directives/scroll-active/scroll-active';
 import { PlatformState } from '../../../services/platform/platform';
 import { FloodService } from '../../../services/floods/floods';
 import { GeoService } from '../../../services/geo/geo';
@@ -36,7 +37,7 @@ interface AffectedPharmacy { pharmacy: PharmacyPoint; floodM: number; severity: 
 @Component({
   selector: 'app-patient-floods',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, Card, PageHead, Stat, Tag, FloodMap, ModalA11y, DatePipe],
+  imports: [Icon, Card, PageHead, Stat, Tag, FloodMap, ModalA11y, ScrollActive, DatePipe],
   templateUrl: './patient-floods.html',
   styleUrl: './patient-floods.css',
 })

@@ -51,43 +51,47 @@
 
   <div>
     <pf-card title="Fournisseurs autorisés" [sub]="rule() || ''">
-      @for (p of suppliers(); track p.key) {
-        <div class="pf-li pf-nm-li" [class.on]="sel() === p.key">
-          <button type="button" class="pf-nm-row" [attr.aria-pressed]="sel() === p.key" (click)="toggle(p.key)">
-            <span class="pf-liic" [class.violet]="!medId()" [class.green]="medId() && p.s.has_stock" [class.red]="medId() && !p.s.has_stock"><nv-icon name="truck" [size]="18"/></span>
-            <span class="pf-libody">
-              <strong>{{ p.s.name }}</strong>
-              <span><span class="pf-tx violet">{{ p.s.kind }}</span>@if (p.s.is_partner) { · <span class="pf-tx teal"><nv-icon name="link" [size]="13"/>Partenaire</span> }{{ p.s.city ? ' · ' + p.s.city : '' }}{{ p.km !== null ? ' · ' + p.dist : '' }}</span>
-            </span>
-            @if (medId()) {
-              <span class="chip" [class.chip-green]="p.s.has_stock" [class.chip-red]="!p.s.has_stock">{{ p.s.has_stock ? p.s.available + ' dispo.' : 'Pas de stock' }}</span>
-            }
-          </button>
-          @if (medId()) {
-            <div class="pf-nm-act">
-              @if (isAsked(p.s.id)) {
-                <span class="pf-nm-asked"><nv-icon name="check" [size]="15"/> Demande en cours</span>
-              } @else {
-                <button type="button" class="btn btn-sm" [class.btn-primary]="p.s.has_stock" [class.btn-outline]="!p.s.has_stock" (click)="ask(p.s.id)">
-                  <nv-icon name="send" [size]="15"/> Demander
-                </button>
+      <div class="pf-scroll" [pfScrollActive]="sel()">
+        @for (p of suppliers(); track p.key) {
+          <div class="pf-li pf-nm-li" [class.on]="sel() === p.key">
+            <button type="button" class="pf-nm-row" [attr.aria-pressed]="sel() === p.key" (click)="toggle(p.key)">
+              <span class="pf-liic" [class.violet]="!medId()" [class.green]="medId() && p.s.has_stock" [class.red]="medId() && !p.s.has_stock"><nv-icon name="truck" [size]="18"/></span>
+              <span class="pf-libody">
+                <strong>{{ p.s.name }}</strong>
+                <span><span class="pf-tx violet">{{ p.s.kind }}</span>@if (p.s.is_partner) { · <span class="pf-tx teal"><nv-icon name="link" [size]="13"/>Partenaire</span> }{{ p.s.city ? ' · ' + p.s.city : '' }}{{ p.km !== null ? ' · ' + p.dist : '' }}</span>
+              </span>
+              @if (medId()) {
+                <span class="chip" [class.chip-green]="p.s.has_stock" [class.chip-red]="!p.s.has_stock">{{ p.s.has_stock ? p.s.available + ' dispo.' : 'Pas de stock' }}</span>
               }
-            </div>
-          }
-        </div>
-      }
+            </button>
+            @if (medId()) {
+              <div class="pf-nm-act">
+                @if (isAsked(p.s.id)) {
+                  <span class="pf-nm-asked"><nv-icon name="check" [size]="15"/> Demande en cours</span>
+                } @else {
+                  <button type="button" class="btn btn-sm" [class.btn-primary]="p.s.has_stock" [class.btn-outline]="!p.s.has_stock" (click)="ask(p.s.id)">
+                    <nv-icon name="send" [size]="15"/> Demander
+                  </button>
+                }
+              </div>
+            }
+          </div>
+        }
+      </div>
       @if (!loading() && suppliers().length === 0) { <div class="pf-note">Aucun fournisseur autorisé pour votre structure.</div> }
     </pf-card>
 
     @if (medId()) {
       <pf-card title="Officines en stock" sub="De la plus proche à la plus lointaine — pour orienter un patient">
-        @for (p of withStock(); track p.key) {
-          <button type="button" class="pf-li pf-nm-row pf-nm-pharm" [class.on]="sel() === p.key" [attr.aria-pressed]="sel() === p.key" (click)="toggle(p.key)">
-            <span class="pf-liic" [class.green]="p.tone === 'green'" [class.amber]="p.tone === 'amber'"><nv-icon name="pill" [size]="18"/></span>
-            <span class="pf-libody"><strong>{{ p.name }}</strong><span>{{ p.city }}{{ p.km !== null ? ' · ' + p.dist : '' }}</span></span>
-            <span class="chip" [class.chip-green]="p.tone === 'green'" [class.chip-amber]="p.tone === 'amber'">{{ p.available }} dispo.</span>
-          </button>
-        }
+        <div class="pf-scroll" [pfScrollActive]="sel()">
+          @for (p of withStock(); track p.key) {
+            <button type="button" class="pf-li pf-nm-row pf-nm-pharm" [class.on]="sel() === p.key" [attr.aria-pressed]="sel() === p.key" (click)="toggle(p.key)">
+              <span class="pf-liic" [class.green]="p.tone === 'green'" [class.amber]="p.tone === 'amber'"><nv-icon name="pill" [size]="18"/></span>
+              <span class="pf-libody"><strong>{{ p.name }}</strong><span>{{ p.city }}{{ p.km !== null ? ' · ' + p.dist : '' }}</span></span>
+              <span class="chip" [class.chip-green]="p.tone === 'green'" [class.chip-amber]="p.tone === 'amber'">{{ p.available }} dispo.</span>
+            </button>
+          }
+        </div>
         @if (!loading() && withStock().length === 0) { <div class="pf-note">Aucune autre officine n'a ce médicament en stock.</div> }
       </pf-card>
     }

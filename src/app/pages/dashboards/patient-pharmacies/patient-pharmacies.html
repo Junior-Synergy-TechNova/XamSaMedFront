@@ -25,28 +25,30 @@
     </pf-card>
 
     <pf-card title="Officines" [sub]="loading() ? 'Chargement…' : pharmacies().length + ' classées par distance'">
-      @for (p of pharmacies(); track p.id) {
-        <div class="pf-li pf-pharm" [class.on]="sel() === p.key">
-          <button type="button" class="pf-pharm-main" [attr.aria-expanded]="sel() === p.key" (click)="toggle(p.key)">
-            <span class="pf-liic" [class.green]="p.nearest"><nv-icon name="pin" [size]="18"/></span>
-            <span class="pf-libody">
-              <strong>{{ p.name }}</strong>
-              <span>{{ p.address || p.city }}@if (p.hours) { · <span class="pf-tx gray"><nv-icon name="clock" [size]="13"/>{{ p.hours }}</span> }</span>
-            </span>
-            <span class="pf-tx" [class.green]="p.nearest" [class.blue]="!p.nearest"><nv-icon name="pin" [size]="13"/>{{ p.dist }}</span>
-          </button>
-          @if (sel() === p.key) {
-            <div class="pf-pharm-actions">
-              <a class="btn btn-primary btn-sm" [href]="directions(p)" target="_blank" rel="noopener">
-                <nv-icon name="arrow" [size]="15"/> Itinéraire
-              </a>
-              @if (p.phone) {
-                <a class="btn btn-outline btn-sm" [href]="tel(p.phone)"><nv-icon name="phoneCall" [size]="15"/> {{ p.phone }}</a>
-              }
-            </div>
-          }
-        </div>
-      }
+      <div class="pf-scroll" [pfScrollActive]="sel()">
+        @for (p of pharmacies(); track p.id) {
+          <div class="pf-li pf-pharm" [class.on]="sel() === p.key">
+            <button type="button" class="pf-pharm-main" [attr.aria-expanded]="sel() === p.key" (click)="toggle(p.key)">
+              <span class="pf-liic" [class.green]="p.nearest"><nv-icon name="pin" [size]="18"/></span>
+              <span class="pf-libody">
+                <strong>{{ p.name }}</strong>
+                <span>{{ p.address || p.city }}@if (p.hours) { · <span class="pf-tx gray"><nv-icon name="clock" [size]="13"/>{{ p.hours }}</span> }</span>
+              </span>
+              <span class="pf-tx" [class.green]="p.nearest" [class.blue]="!p.nearest"><nv-icon name="pin" [size]="13"/>{{ p.dist }}</span>
+            </button>
+            @if (sel() === p.key) {
+              <div class="pf-pharm-actions">
+                <a class="btn btn-primary btn-sm" [href]="directions(p)" target="_blank" rel="noopener">
+                  <nv-icon name="arrow" [size]="15"/> Itinéraire
+                </a>
+                @if (p.phone) {
+                  <a class="btn btn-outline btn-sm" [href]="tel(p.phone)"><nv-icon name="phoneCall" [size]="15"/> {{ p.phone }}</a>
+                }
+              </div>
+            }
+          </div>
+        }
+      </div>
       @if (!loading() && !loadError() && pharmacies().length === 0) {
         <div class="pf-note">Aucune officine géolocalisée pour le moment.</div>
       }
