@@ -1,0 +1,95 @@
+<div class="pf-nm-bar">
+  <div class="s-field pf-nm-field">
+    <label>Médicament</label>
+    <select (change)="pick($any($event.target).value)">
+      <option value="0" [selected]="medId() === 0">Tout le réseau (sans filtre)</option>
+      @for (m of options(); track m.id) { <option [value]="'' + m.id" [selected]="medId() === m.id">{{ m.text }}</option> }
+    </select>
+  </div>
+  @if (medId()) {
+    <p class="pf-nm-summary">
+      <strong>{{ medLabel() }}</strong> :
+      {{ suppliersWithStock() }} fournisseur{{ suppliersWithStock() > 1 ? 's' : '' }} sur {{ suppliers().length }} en stock,
+      {{ withStock().length }}{{ withStock().length === 6 ? '+' : '' }} officine{{ withStock().length > 1 ? 's' : '' }} en stock{{ withStock().length ? ' (la plus proche à ' + withStock()[0].dist + ')' : '' }}.
+    </p>
+  }
+</div>
+
+@if (error()) {
+  <div class="pf-banner red" role="alert">
+    <span class="pf-bannic"><nv-icon name="alert" [size]="22"/></span>
+    <div class="pf-banner-body"><strong>Carte non chargée</strong><p>Fournisseurs ou stocks indisponibles. Vérifiez la connexion puis réessayez.</p></div>
+    <button type="button" class="btn btn-white btn-sm" (click)="retry()"><nv-icon name="refresh" [size]="15"/> Réessayer</button>
+  </div>
+}
+@if (!origin()) {
+  <div class="pf-banner amber">
+    <span class="pf-bannic"><nv-icon name="pin" [size]="22"/></span>
+    <div class="pf-banner-body"><strong>Position de {{ originName() }} non renseignée</strong><p>Les distances ne peuvent pas être calculées. Demandez à l'administrateur de géolocaliser votre structure.</p></div>
+  </div>
+}
+
+<div class="pf-cols">
+  <pf-card title="Carte" [sub]="loading() ? 'Chargement…' : medId() ? 'Couleur = stock de ' + medLabel() : 'Choisissez un médicament pour voir qui en a'">
+    <pf-geo-map [markers]="markers()" [selected]="sel()" [me]="origin()" [maxZoom]="14" [fitIds]="fitIds()"
+                label="Carte des fournisseurs et des officines" (select)="sel.set($event)"/>
+    <div class="pf-gm-legend">
+      <span><i class="blue"></i> {{ originName() }}</span>
+      <span><i class="violet"></i> Fournisseur{{ medId() ? ' (halo = en stock)' : '' }}</span>
+      @if (medId()) {
+        <span><i class="green"></i> Officine en stock</span>
+        <span><i class="amber"></i> Stock bas</span>
+        <span><i class="red"></i> Pas de stock</span>
+      } @else {
+        <span><i class="gray"></i> Officine</span>
+      }
+    </div>
+    @if (unplacedSuppliers().length > 0) {
+      <p class="pf-nm-note">Sans position sur la carte : {{ unplacedSuppliers().join(', ') }}.</p>
+    }
+  </pf-card>
+
+  <div>
+    <pf-card title="Fournisseurs autorisés" [sub]="rule() || ''">
+      @for (p of suppliers(); track p.key) {
+        <div class="pf-li pf-nm-li" [class.on]="sel() === p.key">
+          <button type="button" class="pf-nm-row" [attr.aria-pressed]="sel() === p.key" (click)="toggle(p.key)">
+            <span class="pf-liic" [class.violet]="!medId()" [class.green]="medId() && p.s.has_stock" [class.red]="medId() && !p.s.has_stock"><nv-icon name="truck" [size]="18"/></span>
+            <span class="pf-libody">
+              <strong>{{ p.s.name }}</strong>
+              <span><span class="pf-tx violet">{{ p.s.kind }}</span>@if (p.s.is_partner) { · <span class="pf-tx teal"><nv-icon name="link" [size]="13"/>Partenaire</span> }{{ p.s.city ? ' · ' + p.s.city : '' }}{{ p.km !== null ? ' · ' + p.dist : '' }}</span>
+            </span>
+            @if (medId()) {
+              <span class="chip" [class.chip-green]="p.s.has_stock" [class.chip-red]="!p.s.has_stock">{{ p.s.has_stock ? p.s.available + ' dispo.' : 'Pas de stock' }}</span>
+            }
+          </button>
+          @if (medId()) {
+            <div class="pf-nm-act">
+              @if (isAsked(p.s.id)) {
+                <span class="pf-nm-asked"><nv-icon name="check" [size]="15"/> Demande en cours</span>
+              } @else {
+                <button type="button" class="btn btn-sm" [class.btn-primary]="p.s.has_stock" [class.btn-outline]="!p.s.has_stock" (click)="ask(p.s.id)">
+                  <nv-icon name="send" [size]="15"/> Demander
+                </button>
+              }
+            </div>
+          }
+        </div>
+      }
+      @if (!loading() && suppliers().length === 0) { <div class="pf-note">Aucun fournisseur autorisé pour votre structure.</div> }
+    </pf-card>
+
+    @if (medId()) {
+      <pf-card title="Officines en stock" sub="De la plus proche à la plus lointaine — pour orienter un patient">
+        @for (p of withStock(); track p.key) {
+          <button type="button" class="pf-li pf-nm-row pf-nm-pharm" [class.on]="sel() === p.key" [attr.aria-pressed]="sel() === p.key" (click)="toggle(p.key)">
+            <span class="pf-liic" [class.green]="p.tone === 'green'" [class.amber]="p.tone === 'amber'"><nv-icon name="pill" [size]="18"/></span>
+            <span class="pf-libody"><strong>{{ p.name }}</strong><span>{{ p.city }}{{ p.km !== null ? ' · ' + p.dist : '' }}</span></span>
+            <span class="chip" [class.chip-green]="p.tone === 'green'" [class.chip-amber]="p.tone === 'amber'">{{ p.available }} dispo.</span>
+          </button>
+        }
+        @if (!loading() && withStock().length === 0) { <div class="pf-note">Aucune autre officine n'a ce médicament en stock.</div> }
+      </pf-card>
+    }
+  </div>
+</div>

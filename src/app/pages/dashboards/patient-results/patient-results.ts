@@ -4,7 +4,9 @@ import { catchError, map, of, switchMap, tap } from 'rxjs';
 import { Icon } from '../../../components/icon/icon';
 import { Card } from '../../../components/card/card';
 import { Tag } from '../../../components/tag/tag';
-import { MedicineService } from '../../../services/medicines/medicines';
+import { EquivalentSet, MedicineService } from '../../../services/medicines/medicines';
+import { GeoService } from '../../../services/geo/geo';
+import { PlatformState } from '../../../services/platform/platform';
 import { AvailabilityRow, Med } from '../../../interfaces/models';
 import { ApiGroupedSearchEquivalent } from '../../../interfaces/api';
 
@@ -20,6 +22,17 @@ function byAvailabilityThenDistance(a: AvailabilityRow, b: AvailabilityRow): num
   return s !== 0 ? s : (a.distKm ?? Infinity) - (b.distKm ?? Infinity);
 }
 
+/**
+ * Classement par score d'accessibilité (§15.4) : l'API a déjà trié par score ;
+ * on garde cet ordre et on renvoie seulement les ruptures en fin de liste.
+ */
+function byScore(a: AvailabilityRow, b: AvailabilityRow): number {
+  return Number(a.s === 'out') - Number(b.s === 'out') || (b.score ?? -1) - (a.score ?? -1);
+}
+
+/** Raison qui signale un accès gêné (inondation) : mise en avant dans la liste. */
+export function isFloodReason(reason: string): boolean { return reason.startsWith('Inondation'); }
+
 /* Résultats de recherche patient : points de disponibilité (API réelle). */
 @Component({
   selector: 'app-patient-results',
@@ -30,6 +43,8 @@ function byAvailabilityThenDistance(a: AvailabilityRow, b: AvailabilityRow): num
 })
 export class PatientResults {
   private readonly meds = inject(MedicineService);
+  private readonly platform = inject(PlatformState);
+  protected readonly geo = inject(GeoService);
 
   readonly med = input.required<Med>();
   readonly back = output<void>();
@@ -39,8 +54,36 @@ export class PatientResults {
 
   readonly rows = signal<AvailabilityRow[]>([]);
   readonly loading = signal(true);
-  /** Équivalents proposés quand le médicament est indisponible partout (§6.1, §9). */
-  readonly equivalents = signal<ApiGroupedSearchEquivalent[]>([]);
+  /** Disponibilités non lues : « Réessayer » au lieu de « aucune disponibilité » (qui pousserait à tort vers la recherche groupée). */
+  readonly loadError = signal(false);
+  private readonly retryTick = signal(0);
+  /**
+   * Proposés quand le médicament est indisponible partout (§6.1, §9) : équivalents
+   * de même DCI d'un côté, alternatives d'une autre molécule (à valider) de l'autre.
+   */
+  readonly equivSet = signal<EquivalentSet | null>(null);
+  readonly equivalents = computed(() => this.equivSet()?.equivalents ?? []);
+  readonly alternatives = computed(() => this.equivSet()?.alternatives ?? []);
+
+  /** Position utilisée par le classement : gps, domicile enregistré, ou aucune (pas de score). */
+  readonly positionSource = signal<'gps' | 'home' | null>(null);
+  /** L'API a renvoyé des scores : la liste est classée par accessibilité, pas seulement par distance. */
+  readonly ranked = computed(() => this.rows().some(r => r.score !== null));
+  /**
+   * Sans position (ni GPS ni domicile), l'API ne calcule aucune distance : celle du
+   * service partirait d'un point fixe du centre de Dakar, donc on ne l'affiche pas.
+   */
+  readonly hasPosition = computed(() => this.positionSource() !== null);
+  /** Dit d'où partent les distances : le domicile enregistré n'est pas forcément là où l'on est. */
+  readonly geoHint = computed(() => {
+    const from = this.positionSource() === 'gps' ? 'votre position actuelle' : 'votre domicile enregistré';
+    if (this.positionSource() === null) return "Partagez votre position pour voir les distances réelles et classer les pharmacies selon l'accès : distance, stock à jour, routes inondées.";
+    const base = this.ranked()
+      ? `Classées par accessibilité depuis ${from} : stock disponible, mise à jour récente du stock, distance et inondations confirmées à proximité.`
+      : `Distances calculées depuis ${from}.`;
+    return this.positionSource() === 'home' ? `${base} Vous n'êtes pas chez vous ? Utilisez votre position actuelle.` : base;
+  });
+  readonly isFloodReason = isFloodReason;
 
   readonly best = computed(() => this.rows().find(r => r.s !== 'out'));
   readonly availableCount = computed(() => this.rows().filter(r => r.s !== 'out').length);
@@ -48,29 +91,47 @@ export class PatientResults {
   constructor() {
     // Rechargement à chaque changement de médicament ; switchMap annule la
     // requête précédente si l'utilisateur change de résultat rapidement.
-    toObservable(this.med).pipe(
-      tap(() => this.loading.set(true)),
-      tap(() => this.equivalents.set([])),
-      switchMap(m => this.meds.availability(Number(m.id)).pipe(
-        map(list => [...list].sort(byAvailabilityThenDistance)),
-        catchError(() => of([] as AvailabilityRow[])),
+    // La position partagée relance aussi le classement.
+    const query = computed(() => ({ med: this.med(), at: this.geo.position(), tick: this.retryTick() }));
+    toObservable(query).pipe(
+      tap(() => { this.loading.set(true); this.loadError.set(false); }),
+      tap(() => this.equivSet.set(null)),
+      switchMap(({ med: m, at }) => this.meds.rankedAvailability(Number(m.id), at).pipe(
+        tap(r => this.positionSource.set(r.positionSource)),
+        map(r => [...r.rows].sort(r.rows.some(x => x.score !== null) ? byScore : byAvailabilityThenDistance)),
         tap(rows => { this.rows.set(rows); this.loading.set(false); }),
         // Indisponibilité totale : on propose les équivalents classés.
-        switchMap(rows => rows.some(r => r.s !== 'out') ? of([]) : this.meds.equivalents(Number(m.id))),
+        switchMap(rows => rows.some(r => r.s !== 'out') ? of(null) : this.meds.equivalentSet(Number(m.id), at)),
+        catchError(() => { this.rows.set([]); this.loading.set(false); this.loadError.set(true); return of(null); }),
       )),
       takeUntilDestroyed(),
-    ).subscribe(eq => this.equivalents.set(eq));
+    ).subscribe(set => this.equivSet.set(set));
   }
 
   open(e: ApiGroupedSearchEquivalent): void {
     this.pick.emit({
       id: String(e.id),
       nom: e.dosage ? `${e.name ?? ''} ${e.dosage}` : (e.name ?? ''),
-      dci: e.name ?? '',
+      dci: e.dci ?? e.name ?? '',
       forme: e.form ?? '',
       crit: false,
-      cat: 'Équivalent thérapeutique',
+      cat: e.same_dci === false ? 'Alternative à valider' : 'Équivalent thérapeutique',
     });
   }
+  retry(): void { this.retryTick.update(n => n + 1); }
+
+  /** Partager sa position : le classement est recalculé depuis l'endroit où l'on est. */
+  useMyPosition(): void {
+    this.geo.locate().catch(reason => this.platform.notify(GeoService.failureMessage(reason), 'alert'));
+  }
+
+  /** Ligne secondaire d'un équivalent : note du catalogue (souvent absente), officines, distance. */
+  equivLine(e: ApiGroupedSearchEquivalent): string {
+    const parts = [e.note?.trim() || [e.dci, e.form].filter(Boolean).join(' · ')];
+    parts.push(this.plural(e.available_pharmacies ?? 0, 'pharmacie', 'pharmacies'));
+    if (e.nearest_km !== null && e.nearest_km !== undefined) parts.push(`à ${e.nearest_km} km`);
+    return parts.filter(Boolean).join(' · ');
+  }
+
   plural(n: number, one: string, many: string): string { return `${n} ${n > 1 ? many : one}`; }
 }

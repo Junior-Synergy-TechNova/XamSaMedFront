@@ -2,9 +2,22 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, catchError, map, of } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { ApiAvailabilityRow, ApiGroupedSearchEquivalent, ApiMedicine, GlobalSearchResult } from '../../interfaces/api';
+import { ApiAvailabilityResponse, ApiAvailabilityRow, ApiEquivalentsResponse, ApiGroupedSearchEquivalent, ApiMedicine, GlobalSearchResult } from '../../interfaces/api';
 import { AvailabilityRow, DispoState, Med } from '../../interfaces/models';
-import { REF, haversineKm, kmLabel, toPoint } from '../structures/structures';
+import { GeoPoint, REF, haversineKm, kmLabel, toPoint } from '../structures/structures';
+
+/** Équivalents d'un médicament, tels que le patient doit les voir. */
+export interface EquivalentSet {
+  /** Même DCI, classés par correspondance puis distance. */
+  equivalents: ApiGroupedSearchEquivalent[];
+  /** Autre molécule : jamais présentée comme un équivalent. */
+  alternatives: ApiGroupedSearchEquivalent[];
+  alternativesNotice: string;
+  disclaimer: string;
+  /** Rien dans le rayon : résultats élargis à tout le réseau. */
+  widened: boolean;
+}
+const EMPTY_EQUIVALENTS: EquivalentSet = { equivalents: [], alternatives: [], alternativesNotice: '', disclaimer: '', widened: false };
 
 /** Référentiel médicaments + disponibilité (recherche patient). */
 @Injectable({ providedIn: 'root' })
@@ -16,8 +29,7 @@ export class MedicineService {
   search(q: string): Observable<Med[]> {
     const searchParams = new HttpParams().set('search', q);
     return this.http.get<{ data: ApiMedicine[] }>(`${this.base}/medicines`, { params: searchParams }).pipe(
-      map(r => r.data.map(toMed)),
-      catchError(() => of([])),
+      map(r => (r.data ?? []).map(toMed)),
     );
   }
 
@@ -26,18 +38,18 @@ export class MedicineService {
     const params = new HttpParams().set('q', q);
     return this.http.get<{ data: GlobalSearchResult[] }>(`${this.base}/search`, { params }).pipe(
       map(r => r.data ?? []),
-      catchError(() => of([])),
     );
   }
 
   /** GET /medicines → catalogue complet (pour les listes déroulantes). */
-  list(): Observable<{ id: number; name: string; label: string }[]> {
+  list(): Observable<{ id: number; name: string; label: string; dci: string | null }[]> {
     const params = new HttpParams().set('per_page', '200');
     return this.http.get<{ data: ApiMedicine[] }>(`${this.base}/medicines`, { params }).pipe(
       map(r => (r.data ?? []).map(m => ({
         id: Number(m.id),
         name: m.name,
         label: m.dosage ? `${m.name} — ${m.dosage}${m.form ? ' (' + m.form + ')' : ''}` : m.name,
+        dci: m.dci?.trim() || null,
       }))),
       catchError(() => of([])),
     );
@@ -48,18 +60,47 @@ export class MedicineService {
    * pertinence (même DCI, classe ATC, forme, dosage) et disponibilité réelle.
    */
   equivalents(medId: number): Observable<ApiGroupedSearchEquivalent[]> {
-    const params = new HttpParams().set('lat', String(REF.lat)).set('lng', String(REF.lng));
-    return this.http.get<{ data: ApiGroupedSearchEquivalent[] }>(`${this.base}/medicines/${medId}/equivalents`, { params }).pipe(
-      map(r => r.data ?? []),
-      catchError(() => of([])),
+    return this.equivalentSet(medId).pipe(map(s => s.equivalents));
+  }
+
+  /**
+   * Réponse complète de `/equivalents` : équivalents de même DCI (avec leurs
+   * avertissements), alternatives d'une autre molécule — à présenter à part,
+   * toujours « à valider » — et le message de prudence fourni par l'API.
+   * Position = `at` si connue, sinon le point de référence (Dakar Plateau).
+   */
+  equivalentSet(medId: number, at?: GeoPoint | null): Observable<EquivalentSet> {
+    const from = at ?? REF;
+    const params = new HttpParams().set('lat', String(from.lat)).set('lng', String(from.lng));
+    return this.http.get<ApiEquivalentsResponse>(`${this.base}/medicines/${medId}/equivalents`, { params }).pipe(
+      map(r => ({
+        equivalents: r.data ?? [],
+        alternatives: r.alternatives?.data ?? [],
+        alternativesNotice: r.alternatives?.notice ?? 'Molécule différente : à valider obligatoirement par un médecin ou un pharmacien.',
+        disclaimer: r.disclaimer ?? "La substitution d'un médicament doit se faire uniquement avec l'avis de votre pharmacien.",
+        widened: r.fallback === true,
+      })),
+      catchError(() => of(EMPTY_EQUIVALENTS)),
     );
   }
 
   /** GET /medicines/{id}/availability → points de disponibilité (officines). */
   availability(medId: number): Observable<AvailabilityRow[]> {
     return this.http.get<{ data: ApiAvailabilityRow[] }>(`${this.base}/medicines/${medId}/availability`).pipe(
-      map(r => r.data.map(toAvailabilityRow)),
-      catchError(() => of([])),
+      map(r => (r.data ?? []).map(toAvailabilityRow)),
+    );
+  }
+
+  /**
+   * GET /medicines/{id}/availability?sort=score — classement par score d'accessibilité
+   * (disponibilité, fraîcheur du stock, distance, inondations confirmées). Sans `from`,
+   * l'API prend le domicile enregistré ; sans domicile, `position_source` est null et le score aussi.
+   */
+  rankedAvailability(medId: number, from: GeoPoint | null, qty = 1): Observable<{ rows: AvailabilityRow[]; positionSource: 'gps' | 'home' | null }> {
+    let params = new HttpParams().set('sort', 'score').set('qty', String(qty));
+    if (from) params = params.set('lat', from.lat.toFixed(5)).set('lng', from.lng.toFixed(5));
+    return this.http.get<ApiAvailabilityResponse>(`${this.base}/medicines/${medId}/availability`, { params }).pipe(
+      map(r => ({ rows: (r.data ?? []).map(toAvailabilityRow), positionSource: r.position_source ?? null })),
     );
   }
 }
@@ -100,5 +141,7 @@ function toAvailabilityRow(r: ApiAvailabilityRow): AvailabilityRow {
     s: toDispoState(r.status),
     label: r.label,
     available: Number(r.available ?? 0),
+    score: typeof r.score === 'number' ? r.score : null,
+    reasons: r.reasons ?? [],
   };
 }

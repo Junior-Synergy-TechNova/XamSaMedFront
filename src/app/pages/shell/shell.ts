@@ -1,12 +1,12 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, Injector, afterNextRender, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Subject, debounceTime, distinctUntilChanged, of, switchMap } from 'rxjs';
+import { Subject, catchError, debounceTime, distinctUntilChanged, of, switchMap } from 'rxjs';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Icon } from '../../components/icon/icon';
 import { Logo } from '../../components/logo/logo';
 import { PlatformState } from '../../services/platform/platform';
 import { AuthService } from '../../services/auth/auth';
-import { NAV, roleById } from '../../data/mock-data';
+import { ICON_TONE, NAV, roleById } from '../../data/mock-data';
 import { NavItem, Notif, RoleId } from '../../interfaces/models';
 import { GlobalSearchResult } from '../../interfaces/api';
 import { MedicineService } from '../../services/medicines/medicines';
@@ -54,6 +54,8 @@ export class AppShell {
   readonly globalQuery = signal('');
   readonly globalResults = signal<GlobalSearchResult[]>([]);
   readonly searchLoading = signal(false);
+  /** Recherche en échec : message dédié, pas « aucun résultat ». */
+  readonly searchError = signal(false);
   readonly searchFocused = signal(false);
   readonly dismissedNotifications = signal<Set<string>>(new Set());
   readonly notifications = signal<Notif[]>([]);
@@ -72,6 +74,8 @@ export class AppShell {
     return { name: s.name, kind: (kinds[s.type] ?? s.type) + plan };
   });
   readonly userName = computed(() => this.auth.user()?.name ?? '');
+  /** Teinte de l'espace (patient bleu, officine teal, distributeur violet, hôpital bleu ciel, santé rose). */
+  readonly roleTone = computed(() => ICON_TONE[this.current()?.icon ?? ''] ?? 'blue');
   readonly nav = computed(() => {
     const r = this.role();
     if (!r) return [];
@@ -115,6 +119,13 @@ export class AppShell {
       });
       // Persiste chaque changement, qu'il vienne de la sidebar ou d'un bouton du dashboard.
       effect(() => { const role = this.role(); if (role) this.platform.saveSection(role, this.sec()); });
+      // Changement de section : le contenu entre en fondu (pas au premier affichage).
+      let first = true;
+      effect(() => {
+        this.sec();
+        if (first) { first = false; return; }
+        afterNextRender({ write: () => this.animateContent() }, { injector: this.injector });
+      });
     }
     const onNarrow = (e: MediaQueryListEvent) => this.narrow.set(e.matches);
     this.narrowQuery.addEventListener('change', onNarrow);
@@ -127,12 +138,15 @@ export class AppShell {
       distinctUntilChanged(),
       switchMap(query => {
         const term = query.trim();
+        this.searchError.set(false);
         if (term.length < 2) {
           this.searchLoading.set(false);
           return of([]);
         }
         this.searchLoading.set(true);
-        return this.medicines.globalSearch(term);
+        return this.medicines.globalSearch(term).pipe(
+          catchError(() => { this.searchError.set(true); return of([]); }),
+        );
       }),
       takeUntilDestroyed(this.destroyRef),
     ).subscribe(results => {
@@ -152,6 +166,17 @@ export class AppShell {
     return NAV[role].filter(item =>
       (!item.types || (structure !== null && item.types.includes(structure.type)))
       && (!item.sector || item.sector === sector));
+  }
+
+  /** Fondu court du contenu (Web Animations) ; rien si « réduire les animations » ou sans support. */
+  private animateContent(): void {
+    const el = document.querySelector<HTMLElement>('.pf-content');
+    if (!el || typeof el.animate !== 'function' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    el.animate(
+      [{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }],
+      { duration: 260, easing: 'cubic-bezier(.22,1,.36,1)' },
+    );
+    window.scrollTo({ top: 0 });
   }
 
   shortLabel(label: string): string { return label.split(' / ')[0]; }
@@ -205,6 +230,19 @@ export class AppShell {
   goHome(): void { const first = this.nav()[0]; if (first) this.select(first.id); }
   toggleNotif(e: Event): void { e.stopPropagation(); this.profileOpen.set(false); this.notifOpen.update(o => !o); }
   toggleProfile(e: Event): void { e.stopPropagation(); this.notifOpen.set(false); this.profileOpen.update(o => !o); }
+  /**
+   * Échap : ferme d'abord le panneau ouvert (notifications ou profil) et rend le focus à son bouton,
+   * sinon le tiroir de navigation (téléphone). Un seul niveau fermé par appui.
+   */
+  onEscape(): void {
+    const trigger = this.notifOpen() ? '.pf-notifwrap .pf-iconbtn' : this.profileOpen() ? '.pf-roleswbtn' : null;
+    if (trigger) {
+      this.closeMenus();
+      document.querySelector<HTMLElement>(trigger)?.focus();
+    } else if (this.drawerOpen()) {
+      this.closeDrawer();
+    }
+  }
   closeMenus(): void {
     if (this.notifOpen()) this.notifOpen.set(false);
     if (this.profileOpen()) this.profileOpen.set(false);

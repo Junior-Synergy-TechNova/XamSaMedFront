@@ -39,6 +39,26 @@
   --color-amber: #d49a2a;
   --color-amber-text: #8f5f0a;
   --color-amber-soft: #fcf3e2;
+  /* Teintes de catégorie (pas d'état) : types de mouvement de stock. Texte sur fond soft ≥ 4,5:1. */
+  --color-violet: #7c3aed;
+  --color-violet-text: #5b21b6;
+  --color-violet-soft: #f1ebfe;
+  --color-teal: #0891b2;
+  --color-teal-text: #0e6680;
+  --color-teal-soft: #dcf2f8;
+  --color-sky: #0284c7;
+  --color-sky-text: #075985;
+  --color-sky-soft: #e3f1fa;
+  --color-rose: #db2777;
+  --color-rose-text: #9d174d;
+  --color-rose-soft: #fce8f1;
+  /* Carte : teintes vives, bien séparées entre elles et du fond OpenStreetMap (verts, beiges). */
+  --color-map-blue: #2563eb;
+  --color-map-green: #16a34a;
+  --color-map-amber: #f59e0b;
+  --color-map-red: #dc2626;
+  --color-map-violet: #9333ea;
+  --color-map-gray: #64748b;
 
   --font-title: "IBM Plex Sans", system-ui, sans-serif;
   --font-body: "IBM Plex Sans", system-ui, sans-serif;
@@ -58,11 +78,9 @@
 
   --animate-spin-fast: pf-spin .7s linear infinite;
   --animate-fadein: fadein .15s ease;
-  --animate-modalin: modalin .2s cubic-bezier(.16, 1, .3, 1);
   @keyframes pf-spin { to { transform: rotate(360deg) } }
   @keyframes pf-breathe { 50% { opacity: .35 } }
   @keyframes fadein { from { opacity: 0 } to { opacity: 1 } }
-  @keyframes modalin { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: none } }
 }
 
 /* ---------- Base ---------- */
@@ -84,7 +102,7 @@
   *::-webkit-scrollbar-thumb:hover { @apply bg-gray; }
   *::-webkit-scrollbar-corner { @apply bg-transparent; }
   @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+    *, *::before, *::after { animation-duration: .01ms !important; animation-delay: 0s !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; transition-delay: 0s !important; }
     /* Exception : un chargement doit rester visible. Pas de rotation, une respiration lente de l'opacité. */
     .pf-spin { animation: pf-breathe 1.6s ease-in-out infinite !important; }
   }
@@ -121,9 +139,26 @@
 .chip-gray { @apply bg-gray-bg text-gray-text; }
 .chip-red { @apply bg-red-soft text-red-text; }
 .chip-amber { @apply bg-amber-soft text-amber-text; }
+.chip-violet { @apply bg-violet-soft text-violet-text; }
+.chip-teal { @apply bg-teal-soft text-teal-text; }
+.chip-sky { @apply bg-sky-soft text-sky-text; }
+.chip-rose { @apply bg-rose-soft text-rose-text; }
 /* Médicament contrôlé (stupéfiant…) : statut réglementaire, pas un état de stock → marine, jamais rouge */
 .chip-ctrl { @apply bg-white text-blue border border-blue/25 py-[6px]; }
 .chip-inline { @apply ml-2; }
+/* Texte coloré sans fond (catégorie ou état lisible d'un coup d'œil) — la couleur passe devant .pf-libody span */
+.pf-tx { @apply inline font-medium; }
+/* Pas de `nowrap` ici : dans un tableau la cellule l'impose déjà ; ailleurs un texte coloré long (motif de refus, « orienté vers … ») doit passer à la ligne plutôt qu'élargir la page. */
+.pf-tx svg { @apply inline-block align-[-0.15em] mr-1; }
+.pf-tx.green { @apply text-green-text; }
+.pf-tx.blue { @apply text-blue; }
+.pf-tx.red { @apply text-red-text; }
+.pf-tx.amber { @apply text-amber-text; }
+.pf-tx.violet { @apply text-violet-text; }
+.pf-tx.teal { @apply text-teal-text; }
+.pf-tx.sky { @apply text-sky-text; }
+.pf-tx.rose { @apply text-rose-text; }
+.pf-tx.gray { @apply text-gray-text; }
 .dot { @apply w-2 h-2 rounded-full inline-block flex-none; }
 
 /* ---------- Panneaux ---------- */
@@ -164,6 +199,30 @@ pf-card + .pf-cols, pf-card + .pf-half, pf-card + .pf-cols3, pf-card + .pf-statg
 }
 .s-field textarea { @apply h-auto py-3 resize-y; }
 .s-field input:disabled, .s-field select:disabled { @apply bg-gray-bg text-gray-text; }
+/* Valeur affichée à titre indicatif (non modifiable) : pointillés + cadenas, explication au survol / focus via `data-tip`. */
+.s-field input[readonly], .pf-readonly { @apply border-dashed bg-gray-bg cursor-default; }
+.pf-readonly { @apply relative flex items-center gap-2.5 h-12 px-4 rounded-[10px] border border-gray-line text-[15px] text-black select-text outline-none; }
+.pf-readonly nv-icon { @apply text-gray-text shrink-0; }
+.pf-readonly > span { @apply truncate; }
+.pf-readonly.empty { @apply text-gray-text; }
+.pf-readonly:focus-visible { @apply border-green shadow-focus; }
+/* Infobulle : `data-tip="…"` sur l'élément (champ en lecture seule, ou `.s-field` d'un champ désactivé).
+   Jamais plus large que l'élément (`max-w-full`) : un modal a `overflow-y: auto`, une bulle qui déborde
+   à droite y créerait un défilement horizontal. Apparition retardée (survol de passage ignoré), disparition immédiate. */
+[data-tip] { @apply relative; }
+[data-tip]::after {
+  content: attr(data-tip);
+  @apply absolute left-0 bottom-[calc(100%+8px)] z-20 w-max max-w-full px-3 py-2 rounded-md bg-blue text-white text-[13px] leading-snug font-normal whitespace-normal text-left pointer-events-none;
+  opacity: 0; visibility: hidden; transform: translateY(4px) scale(0.98); transform-origin: bottom left;
+  transition: opacity 160ms ease-in, transform 160ms ease-in, visibility 0s linear 160ms;
+}
+[data-tip]:hover::after, [data-tip]:focus-visible::after {
+  opacity: 1; visibility: visible; transform: none;
+  transition: opacity 220ms cubic-bezier(0.22, 1, 0.36, 1) 300ms, transform 220ms cubic-bezier(0.22, 1, 0.36, 1) 300ms, visibility 0s linear 300ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-tip]::after, [data-tip]:hover::after, [data-tip]:focus-visible::after { transform: none; }
+}
 .s-field input:not([type="checkbox"]):not([type="radio"]):focus, .s-field select:focus, .s-field textarea:focus,
 .pf-fieldrow input:not([type="checkbox"]):not([type="radio"]):focus { @apply outline-none border-green shadow-focus; }
 .pf-fieldrow { @apply grid grid-cols-2 gap-4 mb-5; }
@@ -176,8 +235,27 @@ pf-card + .pf-cols, pf-card + .pf-half, pf-card + .pf-cols3, pf-card + .pf-statg
 .pf-check:disabled { @apply cursor-not-allowed; }
 
 /* ===================== MODALS ===================== */
-.pf-modal-overlay { @apply fixed inset-0 bg-blue-700/35 z-[150] flex items-center justify-center p-5 animate-fadein; }
-.pf-modal { @apply bg-white rounded-lg w-full max-w-[560px] shadow-lg flex flex-col max-h-[90vh] animate-modalin; }
+.pf-modal-overlay { @apply fixed inset-0 bg-blue-700/35 backdrop-blur-[2px] z-[150] flex items-center justify-center p-5; animation: pf-ov-in .22s ease-out both; }
+.pf-modal { @apply bg-white rounded-lg w-full max-w-[560px] shadow-lg flex flex-col max-h-[90vh]; animation: pf-modal-in .34s cubic-bezier(.22,1,.36,1) both; }
+/* Ouverture : le voile se pose, la fenêtre monte en grandissant légèrement, puis son contenu arrive en cascade.
+   Fermeture (`animate.leave="pf-modal-out"` sur chaque .pf-modal-overlay) : l'inverse, plus court.
+   Tout est neutralisé par « réduire les animations » (règle globale plus haut). */
+@keyframes pf-ov-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pf-ov-out { to { opacity: 0; } }
+@keyframes pf-modal-in { from { opacity: 0; transform: translateY(18px) scale(.96); } to { opacity: 1; transform: none; } }
+@keyframes pf-modal-out { to { opacity: 0; transform: translateY(10px) scale(.97); } }
+@keyframes pf-sheet-in { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes pf-sheet-out { to { transform: translateY(100%); } }
+@keyframes pf-modal-item { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.pf-modal-body > * { animation: pf-modal-item .3s cubic-bezier(.22,1,.36,1) both; }
+.pf-modal-body > :nth-child(1) { animation-delay: .08s; }
+.pf-modal-body > :nth-child(2) { animation-delay: .12s; }
+.pf-modal-body > :nth-child(3) { animation-delay: .16s; }
+.pf-modal-body > :nth-child(4) { animation-delay: .2s; }
+.pf-modal-body > :nth-child(n+5) { animation-delay: .24s; }
+.pf-modal-foot { animation: pf-modal-item .3s cubic-bezier(.22,1,.36,1) .2s both; }
+.pf-modal-overlay.pf-modal-out { animation: pf-ov-out .18s ease-in both; }
+.pf-modal-out .pf-modal { animation: pf-modal-out .18s ease-in both; }
 .pf-modal-head { @apply px-8 pt-7 pb-5 border-b border-gray-line flex justify-between items-center; }
 .pf-modal-head h2 { @apply text-[21px] font-semibold text-blue; }
 .pf-modal-close { @apply w-8 h-8 grid place-items-center rounded-[6px] text-gray-text transition-colors duration-150; }
@@ -213,6 +291,51 @@ pf-card + .pf-cols, pf-card + .pf-half, pf-card + .pf-cols3, pf-card + .pf-statg
 .pf-table th:last-child, .pf-table td:last-child { @apply pr-1; }
 .pf-table tr:last-child td { @apply border-b-0; }
 .pf-table tbody tr { @apply transition-colors duration-100; }
+/* ---------- Apparition des tableaux et des listes ----------
+   Chaque ligne monte en fondu, l'une après l'autre (cascade plafonnée pour ne pas faire attendre).
+   Une ligne n'est animée qu'à sa création : un rafraîchissement garde les lignes existantes
+   (track par id), seule une ligne nouvelle apparaît. Neutralisé par « réduire les animations ». */
+@keyframes pf-row-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.pf-table tbody tr, .pf-li, .pf-rowline { animation: pf-row-in .38s cubic-bezier(.22,1,.36,1) both; }
+.pf-table tbody tr:nth-child(2), .pf-li:nth-child(2), .pf-rowline:nth-child(2) { animation-delay: .04s; }
+.pf-table tbody tr:nth-child(3), .pf-li:nth-child(3), .pf-rowline:nth-child(3) { animation-delay: .08s; }
+.pf-table tbody tr:nth-child(4), .pf-li:nth-child(4), .pf-rowline:nth-child(4) { animation-delay: .12s; }
+.pf-table tbody tr:nth-child(5), .pf-li:nth-child(5), .pf-rowline:nth-child(5) { animation-delay: .16s; }
+.pf-table tbody tr:nth-child(6), .pf-li:nth-child(6), .pf-rowline:nth-child(6) { animation-delay: .2s; }
+.pf-table tbody tr:nth-child(7), .pf-li:nth-child(7), .pf-rowline:nth-child(7) { animation-delay: .24s; }
+.pf-table tbody tr:nth-child(n+8), .pf-li:nth-child(n+8), .pf-rowline:nth-child(n+8) { animation-delay: .28s; }
+/* Panneaux (pf-card) et cellules d'indicateurs : arrivent en cascade à l'ouverture d'une section.
+   L'hôte du composant est en `display: contents`, d'où le rang pris sur l'hôte. */
+@keyframes pf-card-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+.pf-block, .pf-stat { animation: pf-card-in .45s cubic-bezier(.22,1,.36,1) both; }
+pf-card:nth-child(2) > .pf-block, pf-stat:nth-child(2) > .pf-stat { animation-delay: .06s; }
+pf-card:nth-child(3) > .pf-block, pf-stat:nth-child(3) > .pf-stat { animation-delay: .12s; }
+pf-card:nth-child(4) > .pf-block, pf-stat:nth-child(4) > .pf-stat { animation-delay: .18s; }
+pf-card:nth-child(n+5) > .pf-block, pf-stat:nth-child(n+5) > .pf-stat { animation-delay: .22s; }
+/* ---------- Dépliages et contenus révélés ----------
+   Ce qui s'ouvre dans la page (historique replié, filtres, détail d'une ligne, bandeaux) se déplie
+   au lieu d'apparaître d'un coup. Hauteur animée là où le navigateur sait animer `auto`
+   (interpolate-size + ::details-content, Chrome / Edge récents) ; ailleurs, simple fondu. */
+:root { interpolate-size: allow-keywords; }
+@keyframes pf-reveal { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+@keyframes pf-open-row { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.pf-handled::details-content, .pf-morefilters::details-content, .pf-loginhint::details-content {
+  block-size: 0; overflow-y: clip;
+  transition: block-size .32s cubic-bezier(.22,1,.36,1), content-visibility .32s allow-discrete;
+}
+.pf-handled[open]::details-content, .pf-morefilters[open]::details-content, .pf-loginhint[open]::details-content { block-size: auto; }
+/* Lignes d'un historique déplié : nouvelle animation à chaque ouverture (nom différent → elle repart) */
+.pf-handled[open] > .pf-li { animation-name: pf-open-row; }
+.pf-morefilters[open] > :not(summary), .pf-loginhint[open] > :not(summary) { animation: pf-reveal .3s cubic-bezier(.22,1,.36,1) both; }
+.pf-morefilters > summary svg { @apply transition-transform duration-200; }
+.pf-morefilters[open] > summary svg { @apply rotate-180; }
+/* Bandeaux, états vides et notes : arrivent en fondu (ex. erreur après « Réessayer ») */
+.pf-banner, .pf-empty, .pf-note { animation: pf-reveal .3s cubic-bezier(.22,1,.36,1) both; }
+/* Ligne sélectionnée / dépliée : bordure et fond changent en douceur */
+.pf-li, .pf-rowline { transition: border-color .2s ease-out, background-color .2s ease-out; }
+/* Lignes cliquables : la bordure se fonce au survol */
+button.pf-li, label.pf-li, a.pf-li { @apply transition-colors duration-150; }
+button.pf-li:hover, label.pf-li:hover, a.pf-li:hover { @apply border-gray; }
 .pf-table tbody tr:hover td { @apply bg-gray-bg; }
 .pf-table tbody tr:hover td:first-child { @apply rounded-l-[10px]; }
 .pf-table tbody tr:hover td:last-child { @apply rounded-r-[10px]; }
@@ -237,7 +360,6 @@ pf-card + .pf-cols, pf-card + .pf-half, pf-card + .pf-cols3, pf-card + .pf-statg
    l'état se lit sur la case de l'icône (fond teinté + icône colorée). */
 .pf-li { @apply flex items-center gap-5 px-6 py-5 bg-white border border-gray-line rounded-[12px]; }
 .pf-li + .pf-li { @apply mt-3.5; }
-.pf-li-top { @apply items-start; }
 .pf-li-flat { @apply p-0 border-0! rounded-none mb-2; }
 .pf-li-sm { @apply py-3.5; }
 .pf-li-sm + .pf-li-sm { @apply mt-2.5; }
@@ -248,11 +370,19 @@ pf-card + .pf-cols, pf-card + .pf-half, pf-card + .pf-cols3, pf-card + .pf-statg
 .pf-liic.red { @apply bg-red-soft text-red; }
 .pf-liic.amber { @apply bg-amber-soft text-amber-text; }
 .pf-liic.blue { @apply bg-blue-soft text-blue; }
+/* Teintes de catégorie (états de demande / réservation : orientée, retirée, annulée…). */
+.pf-liic.violet { @apply bg-violet-soft text-violet; }
+.pf-liic.teal { @apply bg-teal-soft text-teal; }
+.pf-liic.sky { @apply bg-sky-soft text-sky-text; }
+.pf-liic.rose { @apply bg-rose-soft text-rose-text; }
 .pf-liic.lg { @apply w-12 h-12; }
 .pf-libody { @apply flex-1 min-w-0; }
 .pf-libody strong { @apply block font-semibold text-black text-[16px] leading-snug mb-1.5; }
+/* Un nom sans espace plus large que la fiche (« d'Approvisionnement » sur téléphone) se coupe au lieu de passer sous le bouton voisin */
+.pf-libody strong { overflow-wrap: anywhere; }
 .pf-libody span { @apply text-[14.5px] text-gray-text leading-relaxed; }
 .pf-libody .muted { @apply font-normal; }
+.pf-libody .chip { @apply text-[13px] leading-none; }
 .pf-li-act { @apply flex gap-3 items-center flex-none flex-wrap justify-end; }
 .pf-li-act.tight { @apply gap-2 flex-nowrap; }
 
@@ -271,7 +401,6 @@ pf-card + .pf-cols, pf-card + .pf-half, pf-card + .pf-cols3, pf-card + .pf-statg
 
 /* Fiche « élément » (alerte, demande, ordonnance…) */
 .pf-row { @apply flex gap-5 items-center flex-wrap; }
-.pf-row-top { @apply items-start; }
 .pf-row-body { @apply flex-1 min-w-[200px]; }
 .pf-row-head { @apply flex items-center gap-2.5 flex-wrap; }
 .pf-row-head .pf-medname, .pf-row-body > .pf-medname { @apply text-[17px]; }
@@ -338,22 +467,13 @@ pf-card + .pf-cols, pf-card + .pf-half, pf-card + .pf-cols3, pf-card + .pf-statg
 /* Mini-histogramme — hauteur de barre = donnée */
 .pf-spark { @apply flex items-end gap-1 h-[150px] pt-4; }
 .pf-spark-bar { @apply flex-1 min-w-[4px] rounded-t-[2px] bg-green/70 hover:bg-green transition-colors; }
+/* Histogramme : les barres poussent depuis l'axe à l'affichage */
+@keyframes pf-spark-grow { from { transform: scaleY(0); } }
+.pf-spark-bar { @apply origin-bottom transition-[height] duration-500 ease-[cubic-bezier(.22,1,.36,1)]; animation: pf-spark-grow .7s cubic-bezier(.22,1,.36,1) .1s both; }
 .pf-spark-bar.red { @apply bg-red/75 hover:bg-red; }
 .pf-spark-bar.amber { @apply bg-amber/75 hover:bg-amber; }
 .pf-spark-axis { @apply flex justify-between text-[13px] text-gray-text mt-3; }
 
-/* Carte (zone-map + pharmacies patient) */
-.pf-map {
-  @apply relative border border-gray-line rounded-md h-[360px] overflow-hidden bg-blue-soft-2;
-  background-image:
-    linear-gradient(0deg, rgba(0, 51, 102, .035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 51, 102, .035) 1px, transparent 1px);
-  background-size: 100% 32px, 32px 100%;
-}
-.pf-mappin { @apply absolute -translate-x-1/2 -translate-y-full flex flex-col items-center cursor-pointer; }
-.pf-mapdot { @apply w-[16px] h-[16px] rounded-[50%_50%_50%_0] rotate-45 shadow-[0_2px_6px_rgba(0,0,0,.25)]; }
-.pf-maplegend { @apply absolute bottom-3 left-3 bg-white border border-gray-line rounded-[8px] px-3 py-2 flex flex-col gap-1 text-[12px] font-medium; }
-.pf-maplegend > div { @apply flex items-center gap-[7px]; }
 
 /* Icône de rôle (login + profil) */
 .pf-roleic { @apply w-10 h-10 rounded-[8px] bg-blue-soft text-blue grid place-items-center flex-none; }
@@ -368,6 +488,13 @@ pf-card + .pf-cols, pf-card + .pf-half, pf-card + .pf-cols3, pf-card + .pf-statg
   .pf-li { @apply flex-wrap px-4 py-4 gap-4; }
   .pf-li-act { @apply w-full justify-start; }
   .pf-li-act.tight { @apply flex-wrap; }
+  /* Liste cochable (fournisseurs) : case + nom sur toute la largeur, l'état (stock, « Déjà demandé ») passe dessous, aligné sur le nom */
+  .pf-li-pick { @apply grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3.5 gap-y-2.5; }
+  .pf-li-pick .pf-check { @apply m-0 mt-[3px]; }
+  .pf-li-pick .pf-liic { @apply hidden; }
+  .pf-li-pick .pf-libody strong { @apply flex-wrap; }
+  .pf-li-pick .pf-pickname { @apply whitespace-normal; }
+  .pf-li-pick > .chip, .pf-li-pick .pf-tag { @apply col-start-2 justify-self-start; }
   .pf-rowline { @apply px-4 py-5; }
   .pf-banner { @apply flex-wrap px-5 py-5 gap-4; }
   .pf-banner .btn { @apply ml-0 w-full; }
@@ -394,6 +521,8 @@ pf-card + .pf-cols, pf-card + .pf-half, pf-card + .pf-cols3, pf-card + .pf-statg
 
   /* Modales : quasi plein écran, marges réduites */
   .pf-modal-overlay { @apply p-3 items-end; }
+  .pf-modal { animation-name: pf-sheet-in; }
+  .pf-modal-out .pf-modal { animation-name: pf-sheet-out; }
   .pf-modal { @apply max-h-[92dvh]; }
   .pf-modal-head { @apply px-5 pt-5 pb-4; }
   .pf-modal-body { @apply px-5 py-5; }

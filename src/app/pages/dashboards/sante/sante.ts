@@ -1,4 +1,6 @@
-import { ChangeDetectionStrategy, Component, computed, inject, model, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, model, signal } from '@angular/core';
+import { DatePipe } from '@angular/common';
+import { Observable, finalize } from 'rxjs';
 import { Icon } from '../../../components/icon/icon';
 import { Card } from '../../../components/card/card';
 import { PageHead } from '../../../components/page-head/page-head';
@@ -8,14 +10,31 @@ import { Tag } from '../../../components/tag/tag';
 import { ZoneMap } from '../../../components/zone-map/zone-map';
 import { PlatformState, saveBlob } from '../../../services/platform/platform';
 import { PublicHealthService } from '../../../services/public-health/public-health';
+import { SHARED_READ_MS } from '../../../services/shared-read/shared-read';
 import { AdminService } from '../../../services/admin/admin';
 import { MedicineService } from '../../../services/medicines/medicines';
-import { ApiAdminUser, ApiControlledMedicine, ApiMedicine, ApiOverview, ApiReport, ApiStructure, ApiTrendPoint, ApiTrends } from '../../../interfaces/api';
+import { HttpErrorResponse } from '@angular/common/http';
+import { ApiAdminUser, ApiControlledMedicine, ApiMedicine, ApiMedicinePayload, ApiOverview, ApiReport, ApiStructure, ApiTrendPoint, ApiTrends } from '../../../interfaces/api';
 import { Tension, ZoneInfo } from '../../../interfaces/models';
 
 import { ModalA11y } from '../../../directives/modal-a11y/modal-a11y';
 import { FieldLabel } from '../../../directives/field-label/field-label';
 import { TableLabels } from '../../../directives/table-labels/table-labels';
+/** Une fiche a une DCI exploitable (le backend ne propose aucun équivalent sans elle). */
+function hasDci(m: ApiMedicine): boolean { return !!m.dci?.trim(); }
+
+/** Message lisible d'un refus de l'API catalogue (422 de validation, doublon nom/forme/dosage…). */
+function medicineError(e: HttpErrorResponse): string {
+  if (e.status === 0) return 'Serveur injoignable : vérifiez la connexion puis réessayez.';
+  if (e.status === 403) return "Action réservée à l'administration nationale.";
+  const body = e.error as { message?: string; errors?: Record<string, string[]> } | null;
+  const first = body?.errors ? Object.values(body.errors)[0]?.[0] : undefined;
+  if (first) return first;
+  if (e.status === 409 || /unique|duplicate|23505/i.test(body?.message ?? '')) return 'Ce médicament existe déjà au catalogue (même nom, forme et dosage).';
+  if (e.status === 422 && body?.message) return body.message;
+  return 'Enregistrement impossible pour le moment. Réessayez.';
+}
+
 type BarTone = 'green' | 'amber' | 'red' | 'blue';
 
 /** Rapport enrichi de son libellé d'état et de la couleur du tag. */
@@ -27,7 +46,7 @@ interface ReportRow extends ApiReport { statusLabel: string; s: string; }
 @Component({
   selector: 'app-sante-dash',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ModalA11y, FieldLabel, TableLabels, Icon, Card, PageHead, Stat, Bar, Tag, ZoneMap],
+  imports: [DatePipe, ModalA11y, FieldLabel, TableLabels, Icon, Card, PageHead, Stat, Bar, Tag, ZoneMap],
   templateUrl: './sante.html',
   styleUrl: './sante.css',
 })
@@ -38,18 +57,36 @@ export class SanteDash {
   private readonly medicines = inject(MedicineService);
 
   readonly section = model.required<string>();
+  /** Premier chargement seulement. */
   readonly loading = signal(true);
+  /** La vue nationale n'a pas pu être lue : écran « Réessayer » (des zéros partout seraient trompeurs). */
+  readonly overviewError = signal(false);
+  /** Données secondaires en échec : bandeau ambre avec « Réessayer ». */
+  readonly failedLoads = signal<ReadonlySet<string>>(new Set());
+  readonly failedLabel = computed(() => [...this.failedLoads()].join(', '));
+  readonly lastSync = signal<Date | null>(null);
+  readonly inFlight = signal(0);
 
   // --- Administration ---
   readonly users = signal<ApiAdminUser[]>([]);
   /** Catalogue national : l'admin décide des médicaments soumis à ordonnance. */
   readonly catalogMeds = signal<ApiMedicine[]>([]);
-  readonly catalogFilter = signal<'all' | 'rx' | 'free'>('all');
+  readonly catalogFilter = signal<'all' | 'rx' | 'free' | 'nodci'>('all');
   readonly filteredCatalog = computed(() => {
     const f = this.catalogFilter();
-    return this.catalogMeds().filter(m => f === 'all' || (f === 'rx' ? m.requires_prescription : !m.requires_prescription));
+    return this.catalogMeds().filter(m =>
+      f === 'all' ? true
+      : f === 'nodci' ? !hasDci(m)
+      : f === 'rx' ? m.requires_prescription : !m.requires_prescription);
   });
   readonly rxCount = computed(() => this.catalogMeds().filter(m => m.requires_prescription).length);
+  /** Fiches sans DCI : aucun équivalent ne peut leur être proposé. */
+  readonly noDciCount = computed(() => this.catalogMeds().filter(m => !hasDci(m)).length);
+  /** Fiche en cours d'édition : `null` = fermé, `'new'` = ajout, sinon le médicament modifié. */
+  readonly medModal = signal<ApiMedicine | 'new' | null>(null);
+  readonly medSaving = signal(false);
+  readonly medError = signal<string | null>(null);
+  readonly medEditing = computed(() => { const m = this.medModal(); return m && m !== 'new' ? m : null; });
   readonly structures = signal<ApiStructure[]>([]);
   readonly userModal = signal(false);
   readonly structureModal = signal(false);
@@ -60,6 +97,9 @@ export class SanteDash {
 
   readonly generateModal = signal(false);
   readonly reportType = signal('national');
+  /** Infobulles des filtres désactivés selon le type de rapport. */
+  readonly regionTip = 'Utilisé seulement pour un rapport régional.';
+  readonly medicineTip = 'Utilisé seulement pour un rapport par médicament.';
   readonly catalog = signal<{ id: number; name: string; label: string }[]>([]);
   readonly regions = computed(() => [...new Set(this.structures().map(s => s.region ?? s.city).filter((c): c is string => !!c))].sort());
 
@@ -90,25 +130,69 @@ export class SanteDash {
 
   readonly reports = signal<ReportRow[]>([]);
 
+  /** Vrai seulement pendant le reload() du constructeur : la cloche vient de lire zones et rapports. */
+  private firstLoad = true;
+
   constructor() {
-    this.ph.overview().subscribe({
-      next: o => { this.overview.set(o); this.loading.set(false); },
-      error: () => this.loading.set(false),
+    this.reload();
+    this.firstLoad = false;
+    // Pastilles = ce qui demande une décision : zones critiques, contrôlés en rupture, fiches sans DCI.
+    effect(() => this.platform.navCounts.set({
+      zones: this.critZones(),
+      ctrl: this.controlledInRupture(),
+      catalogue: this.noDciCount(),
+    }));
+    inject(DestroyRef).onDestroy(() => this.platform.navCounts.set(null));
+  }
+
+  /** Tout recharger : premier affichage et « Actualiser ». */
+  reload(): void {
+    this.inFlight.update(n => n + 1);
+    this.ph.overview().pipe(finalize(() => this.inFlight.update(n => n - 1))).subscribe({
+      next: o => { this.overview.set(o); this.overviewError.set(false); this.loading.set(false); this.lastSync.set(new Date()); },
+      error: () => {
+        this.overviewError.set(this.lastSync() === null);
+        this.loading.set(false);
+        if (this.lastSync()) this.platform.notify('Vue nationale non actualisée — connexion instable', 'alert');
+      },
     });
-    this.ph.zones().subscribe({ next: z => this.zones.set(z), error: () => { /* ignore */ } });
-    this.ph.tension().subscribe({ next: t => this.tension.set(t), error: () => { /* ignore */ } });
-    this.ph.trends().subscribe({ next: t => this.trends.set(t), error: () => { /* ignore */ } });
-    this.ph.controlled().subscribe({ next: c => this.controlled.set(c), error: () => { /* ignore */ } });
-    this.medicines.list().subscribe({ next: c => this.catalog.set(c), error: () => { /* ignore */ } });
+    this.track('zones', this.ph.zones(this.firstLoad ? SHARED_READ_MS : 0), z => this.zones.set(z));
+    this.track('tensions', this.ph.tension(), t => this.tension.set(t));
+    this.track('tendance', this.ph.trends(), t => this.trends.set(t));
+    this.track('médicaments contrôlés', this.ph.controlled(), c => this.controlled.set(c));
+    this.medicines.list().subscribe(c => this.catalog.set(c)); // saisie assistée des rapports (repli silencieux)
     this.loadReports();
     this.loadUsers();
     this.loadStructures();
     this.loadCatalog();
   }
 
+  retry(): void {
+    this.loading.set(this.lastSync() === null);
+    this.overviewError.set(false);
+    this.reload();
+  }
+
+  /** Charge une donnée secondaire et note son échec (bandeau) au lieu de l'ignorer. */
+  private track<T>(label: string, source: Observable<T>, apply: (value: T) => void): void {
+    this.inFlight.update(n => n + 1);
+    source.pipe(finalize(() => this.inFlight.update(n => n - 1))).subscribe({
+      next: value => { apply(value); this.setFailed(label, false); },
+      error: () => this.setFailed(label, true),
+    });
+  }
+
+  private setFailed(label: string, failed: boolean): void {
+    const current = this.failedLoads();
+    if (current.has(label) === failed) return;
+    const next = new Set(current);
+    if (failed) next.add(label); else next.delete(label);
+    this.failedLoads.set(next);
+  }
+
   // ── Catalogue : médicaments sur ordonnance ou en vente libre ─────
   private loadCatalog(): void {
-    this.admin.medicines().subscribe({ next: m => this.catalogMeds.set(m), error: () => { /* ignore */ } });
+    this.track('catalogue', this.admin.medicines(), m => this.catalogMeds.set(m));
   }
   toggleRx(m: ApiMedicine): void {
     const next = !m.requires_prescription;
@@ -120,13 +204,60 @@ export class SanteDash {
       error: () => this.platform.notify('Échec de la mise à jour du catalogue', 'alert'),
     });
   }
+  openMedicine(m: ApiMedicine | 'new'): void {
+    this.medError.set(null);
+    this.medModal.set(m);
+  }
+  /**
+   * Ajout ou modification d'une fiche. La DCI est exigée ici : sans elle, le
+   * backend ne propose jamais d'équivalent (il ne devine pas la molécule).
+   * Délivrance « auto » à l'ajout = l'API la propose elle-même.
+   */
+  submitMedicine(f: { name: string; dci: string; brand: string; form: string; dosage: string; atc: string; price: string; category: string; rx: string; controlled: boolean }): void {
+    const name = f.name.trim(), dci = f.dci.trim();
+    if (!name || !dci) { this.medError.set('Le nom et la DCI sont obligatoires.'); return; }
+    const priceText = f.price.trim().replace(/\s/g, '').replace(',', '.');
+    const price = priceText === '' ? null : Number(priceText);
+    if (price === null || !Number.isFinite(price) || price < 0) { this.medError.set('Indiquez un prix de référence valide (en FCFA).'); return; }
+    const editing = this.medEditing();
+    const payload: ApiMedicinePayload = {
+      name, dci,
+      brand: f.brand.trim() || null, form: f.form.trim() || null, dosage: f.dosage.trim() || null,
+      atc_code: f.atc.trim().toUpperCase() || null,
+      price,
+      category: f.category, is_controlled: f.controlled,
+    };
+    if (f.rx === 'yes' || f.rx === 'no') payload.requires_prescription = f.rx === 'yes';
+    this.medSaving.set(true);
+    this.medError.set(null);
+    const call = editing ? this.admin.updateMedicine(editing.id, payload) : this.admin.createMedicine(payload);
+    call.subscribe({
+      next: () => {
+        this.medSaving.set(false);
+        this.medModal.set(null);
+        this.platform.notify(editing ? `${name} : fiche mise à jour` : `${name} ajouté au catalogue`, 'ok');
+        this.loadCatalog();
+      },
+      error: (e: HttpErrorResponse) => { this.medSaving.set(false); this.medError.set(medicineError(e)); },
+    });
+  }
+  /** Prix de référence lisible (« 1 500 FCFA »), null si la fiche n'en a pas. */
+  medPrice(m: ApiMedicine): string | null {
+    const v = m.price == null || m.price === '' ? NaN : Number(m.price);
+    return Number.isFinite(v) ? `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 }).format(v)} FCFA` : null;
+  }
+  /** Valeur du champ prix à l'ouverture de la modale. */
+  medPriceInput(m: ApiMedicine | null): string {
+    const v = m?.price == null || m.price === '' ? NaN : Number(m.price);
+    return Number.isFinite(v) ? String(v) : '';
+  }
   categoryLabel(c: string | undefined): string {
     return c === 'hospital' ? 'Hôpital uniquement' : c === 'pharmaceutical' ? 'Officine uniquement' : 'Officine et hôpital';
   }
 
   // ── Administration : utilisateurs ──────────────────────────────
   private loadUsers(): void {
-    this.admin.users().subscribe({ next: u => this.users.set(u), error: () => { /* ignore */ } });
+    this.track('utilisateurs', this.admin.users(), u => this.users.set(u));
   }
   submitUser(name: string, email: string, role: string, phone: string, structureId: string): void {
     if (!name.trim() || !email.trim() || !role) { this.platform.notify('Nom, email et rôle requis', 'alert'); return; }
@@ -145,7 +276,7 @@ export class SanteDash {
 
   // ── Administration : structures ────────────────────────────────
   private loadStructures(): void {
-    this.admin.structures().subscribe({ next: s => this.structures.set(s), error: () => { /* ignore */ } });
+    this.track('structures', this.admin.structures(), st => this.structures.set(st));
   }
   submitStructure(name: string, type: string, sector: string, plan: string, city: string, region: string, phone: string): void {
     if (!name.trim() || !type) { this.platform.notify('Nom et type requis', 'alert'); return; }
@@ -197,6 +328,20 @@ export class SanteDash {
   barPct(v: number): number { return Math.round((v / this.trendMax()) * 100); }
   day(iso: string): string { return iso.slice(8, 10) + '/' + iso.slice(5, 7); }
   ztag(n: string): string { return n === 'crit' ? 'crit' : n === 'haute' ? 'low' : 'ok'; }
+  /** Case d'icône d'une zone : même couleur que sa pastille. */
+  zoneTile(n: string): string { return this.tileOf(this.ztag(n)); }
+  /** Clé de pastille → teinte de case / de texte (ok vert, low ambre, crit rouge, new bleu, vue gris). */
+  tileOf(tag: string): string {
+    return tag === 'ok' ? 'green' : tag === 'low' ? 'amber' : tag === 'crit' || tag === 'out' ? 'red' : tag === 'new' ? 'blue' : tag === 'vue' ? 'gray' : tag;
+  }
+  /** Teintes de catégorie : officine teal, hôpital sky, distributeur violet, PNA / PRA rose. */
+  typeTone(type: string): string {
+    return type === 'pharmacy' ? 'teal' : type === 'hospital' ? 'sky' : type === 'pna' || type === 'pra' ? 'rose' : type === 'distributor' ? 'violet' : 'gray';
+  }
+  roleTone(role: string): string {
+    return role === 'pharmacy_user' ? 'teal' : role === 'hospital_user' ? 'sky' : role === 'distributor_user' ? 'violet' : role === 'admin' ? 'blue' : 'gray';
+  }
+  categoryTone(c: string | undefined): string { return c === 'hospital' ? 'sky' : c === 'pharmaceutical' ? 'teal' : 'violet'; }
   ttag(pct: number): string { return pct > 70 ? 'crit' : pct > 40 ? 'low' : 'ok'; }
   tlabel(pct: number): string { return pct > 70 ? 'Critique' : pct > 40 ? 'Élevée' : 'Modérée'; }
 
@@ -241,13 +386,11 @@ export class SanteDash {
   periodLabel(p: string): string { return p === 'week' ? 'Semaine' : p === 'quarter' ? 'Trimestre' : 'Mois'; }
 
   private loadReports(): void {
-    this.ph.reports().subscribe({
-      next: reports => this.reports.set(reports.map((report): ReportRow => ({
-        ...report,
-        statusLabel: report.status === 'completed' ? 'Prêt' : report.status === 'generating' ? 'En cours' : 'Échec',
-        s: report.status === 'completed' ? 'ok' : 'low',
-      }))),
-    });
+    this.track('rapports', this.ph.reports(this.firstLoad ? SHARED_READ_MS : 0), reports => this.reports.set(reports.map((report): ReportRow => ({
+      ...report,
+      statusLabel: report.status === 'completed' ? 'Prêt' : report.status === 'generating' ? 'En cours' : 'Échec',
+      s: report.status === 'completed' ? 'ok' : 'low',
+    }))));
   }
 
 }

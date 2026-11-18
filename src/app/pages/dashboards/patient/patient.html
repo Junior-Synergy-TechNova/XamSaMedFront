@@ -9,7 +9,7 @@
               @if (q()) { <button type="button" class="pf-sbclear" (click)="clear()" aria-label="Effacer"><nv-icon name="x" [size]="18"/></button> }
             </div>
             <button type="button" class="btn btn-outline" disabled title="Le scan de QR code arrive bientôt"><nv-icon name="qr" [size]="18"/> Scanner (bientôt)</button>
-            <button class="btn btn-outline" (click)="prescriptionModal.set(true)"><nv-icon name="doc" [size]="18"/> Ordonnance</button>
+            <button class="btn btn-outline" (click)="openPrescription()"><nv-icon name="doc" [size]="18"/> Ordonnance</button>
           </div>
 
           @if (!q()) {
@@ -25,7 +25,15 @@
             <div class="pf-searching">Recherche en cours…</div>
           }
 
-          @if (q() && !searching() && results().length === 0) {
+          @if (q() && !searching() && searchError()) {
+            <pf-card>
+              <div class="pf-empty" role="alert">
+                <nv-icon name="alert" [size]="30" color="var(--color-red)"/>
+                <p><strong>La recherche n'a pas pu aboutir.</strong> Vérifiez votre connexion internet puis réessayez.</p>
+                <button type="button" class="btn btn-primary btn-sm" (click)="retrySearch()"><nv-icon name="refresh" [size]="15"/> Réessayer</button>
+              </div>
+            </pf-card>
+          } @else if (q() && !searching() && results().length === 0) {
             <pf-card>
               <div class="pf-empty">
                 <nv-icon name="search" [size]="34" color="var(--color-gray)"/>
@@ -56,7 +64,17 @@
       @case ('resa') {
         <div>
           <pf-page-head title="Mes réservations" sub="Suivez l'état de vos demandes et retraits."/>
-          @if (resas().length === 0) {
+          @if (resasError() && resas().length === 0) {
+            <pf-card>
+              <div class="pf-empty" role="alert">
+                <nv-icon name="alert" [size]="30" color="var(--color-red)"/>
+                <p><strong>Impossible de charger vos réservations.</strong> Vérifiez votre connexion internet puis réessayez — elles n'ont pas été perdues.</p>
+                <button type="button" class="btn btn-primary btn-sm" (click)="loadResas(0)"><nv-icon name="refresh" [size]="15"/> Réessayer</button>
+              </div>
+            </pf-card>
+          } @else if (resasLoading()) {
+            <div class="pf-loader" role="status"><span class="pf-spin pf-spin-sm"></span> Chargement de vos réservations…</div>
+          } @else if (resas().length === 0) {
             <pf-card>
               <div class="pf-empty">
                 <nv-icon name="cart" [size]="34" color="var(--color-gray)"/>
@@ -68,10 +86,10 @@
             <div class="pf-resalist">
               @for (r of resas(); track r.orderId) {
                 <div class="card pf-li pf-resa">
-                  <span class="pf-liic {{ r.s === 'ok' ? 'green' : r.s === 'out' ? 'red' : 'amber' }}"><nv-icon name="pill" [size]="20"/></span>
+                  <span class="pf-liic {{ r.tone }}"><nv-icon name="pill" [size]="20"/></span>
                   <div class="pf-libody">
                     <strong>{{ r.medName }}</strong>
-                    <span>{{ r.pharmacyName }}@if (r.status === 'confirmed' && r.expiresAt) { · à retirer avant le {{ r.expiresAt | date:'d MMMM, HH:mm' }} }</span>
+                    <span><span class="pf-tx teal"><nv-icon name="pin" [size]="13"/>{{ r.pharmacyName }}</span>@if (r.status === 'confirmed' && r.expiresAt) { · <span class="pf-tx amber"><nv-icon name="clock" [size]="13"/>à retirer avant le {{ r.expiresAt | date:'d MMMM, HH:mm' }}</span> }</span>
                     <!-- Ordonnance : où retirer chaque médicament, et ce qu'il reste à décider -->
                     @if (r.lines?.length) {
                       <ul class="pf-resalines">
@@ -79,11 +97,11 @@
                           <li class="pf-resaline">
                             <div class="pf-resaline-head">
                               <strong>{{ l.name }} × {{ l.qty }}</strong>
-                              <pf-tag [s]="l.s">{{ l.label }}</pf-tag>
+                              <pf-tag [s]="l.tone">{{ l.label }}</pf-tag>
                             </div>
                             @if (l.prescribed) { <p class="pf-resaline-sub">À la place de {{ l.prescribed }} (même substance, même dosage).</p> }
                             @if (l.status === 'oriented' && l.target) {
-                              <p class="pf-resaline-sub">{{ l.target }}{{ l.targetAddress ? ' · ' + l.targetAddress : '' }}{{ l.targetPhone ? ' · ' + l.targetPhone : '' }}</p>
+                              <p class="pf-resaline-sub"><span class="pf-tx teal"><nv-icon name="pin" [size]="13"/>{{ l.target }}</span>{{ l.targetAddress ? ' · ' + l.targetAddress : '' }}@if (l.targetPhone) { · <span class="pf-tx blue"><nv-icon name="phone" [size]="13"/>{{ l.targetPhone }}</span> }</p>
                               @if (l.originalRequired) { <p class="pf-resaline-sub pf-resaline-warn">Médicament contrôlé : présentez l'original papier de l'ordonnance.</p> }
                             }
                             @if (l.status === 'substitute_proposed') {
@@ -98,7 +116,7 @@
                     }
                   </div>
                   <div class="pf-resa-side">
-                    <pf-tag [s]="r.s">{{ r.statut }}</pf-tag>
+                    <pf-tag [s]="r.tone">{{ r.statut }}</pf-tag>
                     <div class="pf-medsub pf-resa-when">{{ r.quand }}</div>
                     @if (r.status === 'pending') {
                       <button class="btn btn-ghost btn-sm btn-danger pf-resa-cancel" (click)="cancelResa(r.orderId)">Annuler</button>
@@ -111,7 +129,11 @@
         </div>
       }
 
+      @case ('cabinet') { <app-patient-cabinet (itemsChange)="onCabinetItems($event)"/> }
+
       @case ('phar') { <app-patient-pharmacies/> }
+
+      @case ('inond') { <app-patient-floods/> }
 
       @case ('profil') {
         <app-simple-profile role="patient" title="Mon profil" [name]="auth.user()?.name || 'Mon Profil'" sub="Patiente / Accompagnante" [fields]="profilFields()"/>
@@ -119,36 +141,48 @@
     }
 
     @if (prescriptionModal()) {
-      <div class="pf-modal-overlay" (click)="prescriptionModal.set(false)">
+      <div class="pf-modal-overlay" animate.leave="pf-modal-out" (click)="prescriptionModal.set(false)">
         <form class="pf-modal" (click)="$event.stopPropagation()" (submit)="submitPrescription(oPharm.value, oNotes.value); $event.preventDefault()">
           <div class="pf-modal-head">
             <h2>Envoyer une ordonnance</h2>
             <button type="button" class="pf-modal-close" (click)="prescriptionModal.set(false)"><nv-icon name="x" [size]="20"/></button>
           </div>
           <div class="pf-modal-body">
+            @if (prescriptionFor(); as m) {
+              <div class="pf-banner amber" role="status">
+                <div class="pf-banner-body"><strong>{{ m }} est délivré sur ordonnance</strong><p>Envoyez une photo de votre ordonnance à la pharmacie : elle prépare votre traitement et vous prévient. Présentez l'original au retrait.</p></div>
+              </div>
+            }
             <div class="s-field"><label>Pharmacie destinataire *</label>
               <select #oPharm required>
                 <option value="">Sélectionnez une pharmacie</option>
-                @for (p of pharmacies(); track p.id) { <option [value]="p.id">{{ p.nom }}{{ p.ville ? ' — ' + p.ville : '' }}</option> }
+                @for (p of pharmacies(); track p.id) { <option [value]="p.id" [selected]="prescriptionPharmacy() === +p.id">{{ p.nom }}{{ p.ville ? ' — ' + p.ville : '' }}</option> }
               </select>
             </div>
-            <div class="s-field"><label>Ordonnance (image ou PDF) *</label>
+            @if (pharmaciesError()) {
+              <div class="pf-banner red" role="alert">
+                <div class="pf-banner-body"><p>La liste des pharmacies n'a pas pu être chargée.</p></div>
+                <button type="button" class="btn btn-white btn-sm" (click)="loadPharmacies()"><nv-icon name="refresh" [size]="15"/> Réessayer</button>
+              </div>
+            }
+            <div class="s-field"><label>Ordonnance (photo JPG / PNG ou PDF, 5 Mo maximum) *</label>
               <input type="file" accept="image/jpeg,image/png,application/pdf" (change)="onPrescriptionFile($event)" required/>
             </div>
             <div class="s-field"><label>Note (facultatif)</label>
-              <textarea #oNotes rows="3" placeholder="Précisions pour le pharmacien…"></textarea>
+              <textarea #oNotes rows="3" maxlength="500" placeholder="Précisions pour le pharmacien…"></textarea>
             </div>
+            @if (prescriptionError(); as err) { <div class="pf-banner red" role="alert"><div class="pf-banner-body"><p>{{ err }}</p></div></div> }
           </div>
           <div class="pf-modal-foot">
             <button type="button" class="btn btn-ghost btn-sm" (click)="prescriptionModal.set(false)">Annuler</button>
-            <button type="submit" class="btn btn-green btn-sm" [disabled]="!prescriptionFile()">Envoyer</button>
+            <button type="submit" class="btn btn-green btn-sm" [disabled]="!prescriptionFile() || sendingPrescription()">{{ sendingPrescription() ? 'Envoi…' : 'Envoyer' }}</button>
           </div>
         </form>
       </div>
     }
 
     @if (groupedModal()) {
-      <div class="pf-modal-overlay" (click)="groupedModal.set(false)">
+      <div class="pf-modal-overlay" animate.leave="pf-modal-out" (click)="groupedModal.set(false)">
         <div class="pf-modal" (click)="$event.stopPropagation()">
           <div class="pf-modal-head">
             <h2>Recherche groupée</h2>
@@ -165,7 +199,7 @@
                 @for (p of st.available; track p.structure_id) {
                   <div class="pf-li">
                     <span class="pf-liic green"><nv-icon name="pin" [size]="16"/></span>
-                    <div class="pf-libody"><strong>{{ p.name }}</strong><span>{{ p.address }} · {{ p.phone }}</span></div>
+                    <div class="pf-libody"><strong>{{ p.name }}</strong><span>{{ p.address }}@if (p.phone) { · <span class="pf-tx blue"><nv-icon name="phone" [size]="13"/>{{ p.phone }}</span> }</span></div>
                     <button class="btn btn-green btn-sm" (click)="reserve(active()!, p.structure_id); groupedModal.set(false)">Réserver</button>
                   </div>
                 }
@@ -176,8 +210,8 @@
                 <span class="pf-caption">Équivalents suggérés</span>
                 @for (e of st.equivalents; track e.id) {
                   <div class="pf-li">
-                    <span class="pf-liic amber"><nv-icon name="pill" [size]="16"/></span>
-                    <div class="pf-libody"><strong>{{ e.name }} {{ e.dosage }}</strong><span>{{ e.note || e.form }} · {{ plural(e.available_pharmacies ?? 0, 'pharmacie disponible', 'pharmacies disponibles') }}</span></div>
+                    <span class="pf-liic {{ (e.available_pharmacies ?? 0) > 0 ? 'green' : 'amber' }}"><nv-icon name="pill" [size]="16"/></span>
+                    <div class="pf-libody"><strong>{{ e.name }} {{ e.dosage }}</strong><span>{{ e.note || e.form }} · <span class="pf-tx {{ (e.available_pharmacies ?? 0) > 0 ? 'green' : 'amber' }}">{{ plural(e.available_pharmacies ?? 0, 'pharmacie disponible', 'pharmacies disponibles') }}</span></span></div>
                     @if (e.score) { <span class="chip chip-blue">{{ e.score }}/100</span> }
                   </div>
                 }

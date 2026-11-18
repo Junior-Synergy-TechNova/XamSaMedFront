@@ -1,0 +1,133 @@
+<div>
+  <pf-page-head title="Routes inondées" sub="Les inondations signalées par les habitants, et les pharmacies dont l'accès est gêné.">
+    <button actions type="button" class="btn btn-green btn-sm" (click)="reportOpen.set(true)"><nv-icon name="alert" [size]="16"/> Signaler une inondation</button>
+  </pf-page-head>
+
+  <div class="pf-fl-bar">
+    <div class="pf-fl-where">
+      <nv-icon name="pin" [size]="18"/>
+      <span>{{ centerIsMine() ? 'Autour de votre position' : 'Autour de Dakar Plateau' }}</span>
+      <button type="button" class="btn btn-ghost btn-sm" (click)="useMyPosition()" [disabled]="geo.locating()">
+        {{ geo.locating() ? 'Localisation…' : centerIsMine() ? 'Actualiser ma position' : 'Utiliser ma position' }}
+      </button>
+    </div>
+    <div class="pf-fl-radius" role="group" aria-label="Rayon de recherche">
+      @for (r of radii; track r.m) {
+        <button type="button" class="btn btn-sm" [class.btn-primary]="radius() === r.m" [class.btn-outline]="radius() !== r.m" [attr.aria-pressed]="radius() === r.m" (click)="setRadius(r.m)">{{ r.label }}</button>
+      }
+    </div>
+  </div>
+
+  @if (loadError()) {
+    <div class="pf-banner red" role="alert">
+      <span class="pf-bannic"><nv-icon name="alert" [size]="22"/></span>
+      <div class="pf-banner-body"><strong>Signalements non chargés</strong><p>Vérifiez la connexion puis réessayez. N'affichez pas une route comme sûre sans cette information.</p></div>
+      <button type="button" class="btn btn-white btn-sm" (click)="retry()"><nv-icon name="refresh" [size]="15"/> Réessayer</button>
+    </div>
+  }
+
+  <div class="pf-statgrid">
+    <pf-stat icon="alert" tone="amber" label="Signalements en cours" [value]="counts().total"/>
+    <pf-stat icon="checkC" tone="red" label="Confirmés" [value]="counts().confirmed"/>
+    <pf-stat icon="x" tone="red" label="Impraticables" [value]="counts().impassable"/>
+    <pf-stat icon="pill" tone="amber" label="Pharmacies gênées" [value]="counts().pharmacies"/>
+  </div>
+
+  <pf-card title="Carte" [sub]="loading() ? 'Chargement des signalements…' : plural(counts().total, 'signalement', 'signalements') + ' dans un rayon de ' + (radius() / 1000) + ' km'">
+    <pf-flood-map [center]="center()" [radiusM]="radius()" [reports]="reports()" [pharmacies]="visiblePharmacies()"
+                  [floodedPharmacyIds]="affectedIds()" [me]="centerIsMine() ? center() : null" [selected]="selected()"
+                  (selectReport)="selected.set($event)"/>
+    <div class="pf-fl-legend">
+      <span><i class="pf-fl-dot red"></i> Impraticable</span>
+      <span><i class="pf-fl-dot orange"></i> Très difficile</span>
+      <span><i class="pf-fl-dot amber"></i> Praticable avec difficulté</span>
+      <span><i class="pf-fl-dot dashed"></i> Pas encore confirmé</span>
+      <span><i class="pf-fl-dot green"></i> Pharmacie</span>
+      <span><i class="pf-fl-dot gray"></i> Pharmacie à moins de {{ zoneRadius }} m d'une inondation confirmée</span>
+    </div>
+    @if (pharmaciesError()) { <p class="pf-note-sm">Les pharmacies n'ont pas pu être placées sur la carte.</p> }
+  </pf-card>
+
+  <div class="pf-cols">
+    <pf-card title="Signalements" sub="Du plus proche au plus loin. Un signalement expire après 6 h sans nouvelle confirmation.">
+      @if (!loading() && !loadError() && reports().length === 0) {
+        <div class="pf-empty ok">
+          <nv-icon name="checkC" [size]="30"/>
+          <p>Aucune route inondée signalée dans ce rayon.</p>
+        </div>
+      }
+      @for (r of reports(); track r.id) {
+        <div class="pf-li pf-fl-row" [class.on]="selected() === r.id">
+          <span class="pf-liic {{ r.status === 'confirmed' ? 'red' : 'amber' }}"><nv-icon name="alert" [size]="18"/></span>
+          <div class="pf-libody">
+            <strong>{{ r.severity_label }}</strong>
+            <span>{{ distance(r) ? 'À ' + distance(r) + ' · ' : '' }}signalé à {{ r.reported_at | date:'HH:mm' }} · expire à {{ r.expires_at | date:'HH:mm' }}</span>
+            <div class="pf-fl-tags">
+              <pf-tag [s]="r.status === 'confirmed' ? 'crit' : 'low'">{{ r.status_label }}</pf-tag>
+              <span class="chip chip-gray">{{ r.confirmations }} / {{ r.confirmations_required }} personnes</span>
+              @if (isDemo(r)) {
+                <span class="chip chip-violet" title="Donnée de démonstration : elle ne peut pas être confirmée et ne pénalise aucune pharmacie">{{ r.source_label ?? 'Démonstration' }}</span>
+              }
+            </div>
+          </div>
+          <div class="pf-li-act tight">
+            <button type="button" class="btn btn-ghost btn-sm" (click)="selected.set(r.id)">Voir</button>
+            @if (!isDemo(r)) {
+              <button type="button" class="btn btn-outline btn-sm" (click)="confirm(r)" [disabled]="r.confirmed_by_me || confirming() !== null"
+                      [attr.title]="r.confirmed_by_me ? null : 'Vous devez être sur place (moins de 200 m)'">
+                {{ r.confirmed_by_me ? 'Déjà confirmé' : confirming() === r.id ? 'Localisation…' : 'Je confirme' }}
+              </button>
+            }
+          </div>
+        </div>
+      }
+    </pf-card>
+
+    <pf-card title="Pharmacies dont l'accès est gêné" [sub]="'Inondation confirmée à moins de ' + zoneRadius + ' m — elles passent après les autres dans les résultats de recherche'">
+      @if (affected().length === 0) {
+        <div class="pf-empty ok">
+          <nv-icon name="checkC" [size]="30"/>
+          <p>Aucune pharmacie de la zone n'est près d'une inondation confirmée.</p>
+        </div>
+      }
+      @for (a of affected(); track a.pharmacy.id) {
+        <div class="pf-li pf-li-sm">
+          <span class="pf-liic amber"><nv-icon name="pill" [size]="18"/></span>
+          <div class="pf-libody">
+            <strong>{{ a.pharmacy.name }}</strong>
+            <span>{{ a.pharmacy.city }} · {{ a.severity }} à {{ a.floodM }} m</span>
+          </div>
+        </div>
+      }
+    </pf-card>
+  </div>
+
+  <p class="pf-fl-foot muted">Les signalements sont anonymes : ni votre nom ni votre position exacte ne sont montrés aux autres. Une inondation est confirmée quand plusieurs personnes différentes l'ont signalée.</p>
+</div>
+
+<!-- ── Signaler ─────────────────────────────────────────────── -->
+@if (reportOpen()) {
+  <div class="pf-modal-overlay" animate.leave="pf-modal-out" (click)="reportOpen.set(false)">
+    <div class="pf-modal" (click)="$event.stopPropagation()">
+      <div class="pf-modal-head">
+        <h2>Signaler une route inondée</h2>
+        <button type="button" class="pf-modal-close" (click)="reportOpen.set(false)"><nv-icon name="x" [size]="20"/></button>
+      </div>
+      <div class="pf-modal-body">
+        <p class="muted pf-fl-intro">Faites le signalement <strong>sur place</strong> : c'est la position actuelle de votre téléphone qui est envoyée. Si quelqu'un a déjà signalé ce lieu, votre signalement le confirme.</p>
+        <div class="pf-fl-sev" role="radiogroup" aria-label="Gravité">
+          @for (s of severities; track s.id) {
+            <label class="pf-li pf-li-pick pf-li-sm">
+              <input type="radio" name="sev" class="pf-check" [checked]="reportSeverity() === s.id" (change)="reportSeverity.set(s.id)"/>
+              <div class="pf-libody"><strong>{{ s.label }}</strong><span>{{ s.hint }}</span></div>
+            </label>
+          }
+        </div>
+      </div>
+      <div class="pf-modal-foot">
+        <button type="button" class="btn btn-ghost btn-sm" (click)="reportOpen.set(false)">Annuler</button>
+        <button type="button" class="btn btn-green btn-sm" (click)="sendReport()" [disabled]="sending()">{{ sending() ? 'Envoi…' : 'Envoyer ma position' }}</button>
+      </div>
+    </div>
+  </div>
+}

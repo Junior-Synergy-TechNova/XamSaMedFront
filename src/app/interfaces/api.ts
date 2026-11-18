@@ -96,8 +96,26 @@ export interface ApiMedicine {
   dosage: string | null;
   is_controlled: boolean;
   requires_prescription?: boolean;
+  /** Prix public de référence en FCFA (catalogue national) ; null sur les fiches anciennes. */
+  price?: number | string | null;
   /** pharmaceutical | hospital | both — séparation officine ↔ hôpital. */
   category?: string;
+  atc_code?: string | null;
+}
+
+/** POST / PUT /admin/medicines — fiche du catalogue national. Sans `requires_prescription`, l'API le propose (IA). */
+export interface ApiMedicinePayload {
+  name?: string;
+  dci?: string | null;
+  brand?: string | null;
+  form?: string | null;
+  dosage?: string | null;
+  /** Prix public de référence en FCFA. */
+  price?: number | null;
+  atc_code?: string | null;
+  category?: string;
+  is_controlled?: boolean;
+  requires_prescription?: boolean;
 }
 
 export interface GlobalSearchResult {
@@ -123,6 +141,17 @@ export interface ApiAvailabilityRow {
   distance_label?: string | null;
   /** Renseigné quand l'appel fournit une position GPS (tri PostGIS côté API). */
   distance_metres?: number | string | null;
+  /** Score d'accessibilité (§15.4) : sert seulement au tri, jamais affiché ; null sans position. */
+  score?: number | null;
+  /** Raisons du classement, à afficher (« Stock mis à jour il y a 2 h », « À 0,8 km », « Inondation signalée… »). */
+  reasons?: string[];
+}
+
+/** GET /medicines/{id}/availability?lat=&lng=&qty=&sort=score */
+export interface ApiAvailabilityResponse {
+  data: ApiAvailabilityRow[];
+  /** gps = position envoyée, home = domicile enregistré, null = aucune position (pas de score). */
+  position_source?: 'gps' | 'home' | null;
 }
 export interface ApiStructure {
   id: number;
@@ -187,6 +216,8 @@ export interface ApiStockRow {
   medicine_name?: string | null;
   form: string | null;
   dosage: string | null;
+  /** Prix public de référence (FCFA) du catalogue national ; null si non renseigné. */
+  price?: number | string | null;
   is_controlled: boolean;
   quantity: number;
   reserved: number;
@@ -251,6 +282,8 @@ export interface ApiSupplier {
   city: string | null;
   region: string | null;
   phone: string | null;
+  latitude?: number | string | null;
+  longitude?: number | string | null;
   is_partner: boolean;
   available: number | null;
   has_stock: boolean | null;
@@ -361,6 +394,9 @@ export interface ApiZone {
   ruptures: number;
   tensions?: number;
   level: string;
+  /** Moyenne des coordonnées des structures de la ville (null si aucune n'est géolocalisée). */
+  latitude?: number | string | null;
+  longitude?: number | string | null;
 }
 /** Deux niveaux d'urgence hospitaliers (§6.4) : tension (stock critique non nul) / rupture (zéro). */
 export type HospitalSeverity = 'tension' | 'rupture';
@@ -490,6 +526,10 @@ export interface ApiPrescription {
   expires_at?: string | null;
   rejection_reason?: string | null;
   lines?: ApiPrescriptionLine[];
+  /** Nombre d'AUTRES envois du même fichier (toutes pharmacies, tous comptes) — information seulement. */
+  photo_deja_envoyee?: number;
+  /** Rappel à afficher au pharmacien (vérifier l'original au retrait). */
+  rappel_controle?: string | null;
 }
 
 /** GET /pharmacy/stock/{stock}/movements — ligne de traçabilité. */
@@ -536,17 +576,64 @@ export interface ApiGroupedSearchPharmacy {
   phone: string | null;
   quantity?: number | null;
 }
-/** Équivalent thérapeutique classé (§9) : pertinence + disponibilité réelle. */
+/** Avertissement attaché à un équivalent ou une alternative (forme / dosage / molécule différents…). */
+export interface ApiEquivalentWarning {
+  code: string;
+  message: string;
+}
+/** Officine qui détient un équivalent (les plus proches d'abord). */
+export interface ApiEquivalentPharmacy {
+  structure_id?: number;
+  name?: string | null;
+  phone?: string | null;
+  available?: number;
+  distance_label?: string | null;
+}
+/**
+ * Équivalent thérapeutique classé (§9) : pertinence + disponibilité réelle.
+ * Même type pour la recherche groupée (forme courte) et `GET /medicines/{id}/equivalents`
+ * (forme complète : `dci`, `match_level`, `warnings`…). `note` vaut `null` quand
+ * aucun lien n'a été saisi au catalogue.
+ */
 export interface ApiGroupedSearchEquivalent {
   id: number;
   name: string | null;
   dosage: string | null;
   form: string | null;
-  score?: number;
+  brand?: string | null;
+  dci?: string | null;
+  rank?: number;
+  /** `exact` | `dosage_differs` | `form_differs` | `form_and_dosage_differ` | `different_dci` */
+  match_level?: string;
+  same_dci?: boolean;
+  same_form?: boolean;
+  same_dosage?: boolean;
+  /** null pour une alternative (autre molécule) : jamais de score. */
+  score?: number | null;
+  reason_codes?: string[];
   reasons?: string[];
-  note?: string;
+  warnings?: ApiEquivalentWarning[];
+  note?: string | null;
   available_pharmacies?: number;
+  total_available?: number;
+  nearest_distance_metres?: number | null;
   nearest_km?: number | null;
+  pharmacies?: ApiEquivalentPharmacy[];
+}
+/** GET /medicines/{id}/equivalents — même DCI d'un côté, autres molécules (à valider) de l'autre. */
+export interface ApiEquivalentsResponse {
+  medicine?: { id: number; name: string; dci: string | null; form: string | null; dosage: string | null };
+  searched_at?: { lat: number; lng: number; radius_m: number } | null;
+  /** true = aucun équivalent dans le rayon, résultats élargis à tout le réseau. */
+  fallback?: boolean;
+  disclaimer?: string;
+  count?: number;
+  data: ApiGroupedSearchEquivalent[];
+  alternatives?: {
+    requires_validation: boolean;
+    notice: string;
+    data: ApiGroupedSearchEquivalent[];
+  };
 }
 /** GET /grouped-search/{id}/status */
 export interface ApiGroupedSearchStatus {
@@ -732,3 +819,130 @@ export interface ApiNotification {
 
 /** Réponse d'erreur Laravel (validation / métier). */
 export interface ApiErrorBody { message?: string; code?: string; errors?: Record<string, string[]>; }
+
+/* ── Armoire familiale (patient) ─────────────────────────────────── */
+
+export type CabinetStorage = 'fridge' | 'room' | 'bag' | 'car';
+export type FamilyRelationship = 'child' | 'parent' | 'spouse' | 'sibling' | 'grandparent' | 'other';
+
+/** GET /cabinet/members — proche du patient. */
+export interface ApiFamilyMember { id: number; name: string; relationship: FamilyRelationship; }
+
+/** GET /cabinet — médicament gardé à la maison (péremption : seuils domicile J-30 / J-7). */
+export interface ApiCabinetItem {
+  id: number;
+  member: ApiFamilyMember | null;
+  medicine: { id: number; name: string; brand: string | null; form: string | null; dosage: string | null; is_controlled: boolean };
+  expiry_date: string;
+  expiry_level: 'ok' | 'warn' | 'crit' | 'expired';
+  expiry_color: 'green' | 'orange' | 'red';
+  days_to_expiry: number;
+  expiring_soon: boolean;
+  expires_today: boolean;
+  storage_location: CabinetStorage;
+  storage_label: string;
+  fridge_power_cuts: boolean | null;
+  opened: boolean;
+  opened_at: string | null;
+}
+
+/** POST /cabinet, PUT /cabinet/{id}. */
+export interface CabinetItemPayload {
+  medicine_id: number;
+  family_member_id: number | null;
+  expiry_date: string;
+  storage_location: CabinetStorage;
+  fridge_power_cuts: boolean | null;
+  opened_at: string | null;
+}
+
+/** GET /cabinet/thermal-status — une ligne par médicament de l'armoire. */
+export interface ApiThermalItem {
+  id: number;
+  medicine: string | null;
+  max_temp_c: number;
+  requires_fridge: boolean;
+  current_temp: number | null;
+  at_risk: boolean;
+  hours_above_threshold: number | null;
+  last_alerted_at: string | null;
+  risk_note: string;
+}
+
+/** GET /cabinet/thermal-status (422 tant que le domicile n'est pas localisé). */
+export interface ApiThermalStatus {
+  current_temp_c: number | null;
+  location: { lat: number; lng: number };
+  items_at_risk: number;
+  data: ApiThermalItem[];
+}
+
+/* ── Conservation thermique (pharmacie) ──────────────────────────────
+   Contrat de GET /pharmacy/thermal-status — implémenté côté backend
+   (branche feat/pharmacie-conservation-thermique, PharmacyThermalController ;
+   ThermalChecker::getCurrentTemp + medicine_storage_rules, météo en cache 30 min).
+   422 { message } tant que la structure n'a pas de latitude / longitude. */
+
+/** Une ligne de stock (quantité > 0) dont le médicament a une règle de conservation. */
+export interface ApiPharmacyThermalItem {
+  stock_id: number;
+  medicine_id: number;
+  medicine: string;
+  dosage: string | null;
+  form: string | null;
+  /** Unités disponibles (quantité − réservé). */
+  quantity: number;
+  /** `fridge` = requires_fridge (2–8 °C, non comparé à la météo) ; `room` sinon. */
+  storage: 'fridge' | 'room';
+  max_temp_c: number;
+  min_temp_c: number | null;
+  /** room : current_temp_c > max_temp_c ; fridge : toujours false. */
+  at_risk: boolean;
+  /** notice | ARP | OMS — « à valider » tant qu'aucun pharmacien n'a validé (le front l'affiche comme non renseignée). */
+  source: string | null;
+  /** Règle validée par un pharmacien (`validated_by` renseigné). */
+  validated: boolean;
+}
+
+export interface ApiPharmacyThermalStatus {
+  /** Température extérieure (OpenWeatherMap) à la position de l'officine ; null si la météo ne répond pas. */
+  current_temp_c: number | null;
+  checked_at: string;
+  location: { lat: number; lng: number };
+  items_at_risk: number;
+  data: ApiPharmacyThermalItem[];
+}
+
+/* ── Routes inondées (§15, GET/POST /flood-reports) ───────────────── */
+
+export type FloodSeverity = 'difficult' | 'very_difficult' | 'impassable';
+
+/** Signalement anonyme ; coordonnées arrondies à ~11 m. */
+export interface ApiFloodReport {
+  id: number;
+  latitude: number;
+  longitude: number;
+  severity: FloodSeverity;
+  severity_label: string;
+  /** active = signalé, confirmed = ≥ confirmations_required personnes, expired = sans confirmation depuis 6 h. */
+  status: 'active' | 'confirmed' | 'expired';
+  status_label: string;
+  /**
+   * user = signalé par une personne ; demo = donnée de démonstration (montrée sur la carte,
+   * jamais confirmable — 409 —, ne pénalise pas le score hors DEMO_MODE). Absent sur un ancien backend.
+   */
+  source?: 'user' | 'demo';
+  /** « Signalement d'usager » | « Démonstration ». */
+  source_label?: string;
+  confirmations: number;
+  confirmations_required: number;
+  reported_at: string;
+  last_confirmed_at: string;
+  expires_at: string;
+  /** Uniquement dans la liste autour d'un point. */
+  distance_metres?: number;
+  confirmed_by_me: boolean;
+}
+
+/** POST /flood-reports — merged = compté comme confirmation d'un signalement existant à moins de 200 m. */
+export interface ApiFloodReportCreated extends ApiFloodReport { merged: boolean; }

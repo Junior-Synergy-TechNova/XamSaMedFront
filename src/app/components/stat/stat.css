@@ -5,7 +5,9 @@
 .pf-stat { @apply px-6 py-6 flex flex-col justify-between gap-3 min-h-[124px]; }
 .pf-statlabel { @apply flex items-center gap-2 text-[14px] text-gray-text leading-tight; }
 .pf-statlabel nv-icon { @apply flex-none opacity-80; }
-.pf-statval { @apply block font-semibold text-[32px] text-black leading-none tracking-[-.015em]; }
+.pf-statval { @apply block font-semibold text-[32px] text-black leading-none tracking-[-.015em] tabular-nums; }
+/* Valeur exacte pour les lecteurs d'écran (la valeur visible compte jusqu'à elle) */
+.pf-sr { @apply sr-only; }
 .pf-stat.is-alert[data-tone="red"] .pf-statval { @apply text-red-text; }
 .pf-stat.is-alert[data-tone="amber"] .pf-statval { @apply text-amber-text; }
 .pf-stat.is-alert[data-tone="red"] { @apply shadow-[inset_0_3px_0_var(--color-red)]; }

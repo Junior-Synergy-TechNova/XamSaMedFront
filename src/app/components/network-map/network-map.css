@@ -1,0 +1,15 @@
+@reference "../../../styles.css";
+/* ===================== Carte du réseau (pharmacien, hôpital) ===================== */
+:host { @apply contents; }
+.pf-nm-bar { @apply flex flex-wrap items-end gap-x-7 gap-y-2 mb-7; }
+.pf-nm-field { @apply mb-0 min-w-[280px] max-w-[440px] flex-1; }
+.pf-nm-summary { @apply text-[14.5px] text-gray-text pb-3; }
+.pf-nm-summary strong { @apply text-black font-semibold; }
+.pf-nm-note { @apply mt-3 text-[13px] text-gray-text; }
+.pf-nm-li { @apply flex-col items-stretch gap-0 p-0; }
+.pf-nm-li.on, .pf-nm-pharm.on { @apply border-blue; }
+.pf-nm-row { @apply flex items-center gap-5 w-full text-left px-6 py-5 cursor-pointer bg-transparent border-0 rounded-[12px] font-[inherit] text-[inherit]; }
+.pf-nm-pharm { @apply bg-white border border-gray-line; }
+.pf-nm-act { @apply px-6 pb-5 -mt-1 flex; }
+.pf-nm-asked { @apply inline-flex items-center gap-1.5 text-[14px] font-medium text-green-text; }
+

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, model, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, model, signal } from '@angular/core';
 import { Icon } from '../../../components/icon/icon';
 import { Card } from '../../../components/card/card';
 import { PageHead } from '../../../components/page-head/page-head';
@@ -6,24 +6,35 @@ import { Tag } from '../../../components/tag/tag';
 import { PlatformState } from '../../../services/platform/platform';
 import { MedicineService } from '../../../services/medicines/medicines';
 import { OrderService } from '../../../services/orders/orders';
+import { SHARED_READ_MS } from '../../../services/shared-read/shared-read';
 import { StructureService } from '../../../services/structures/structures';
 import { AuthService } from '../../../services/auth/auth';
 import { Med, Pharmacy, ResaRow } from '../../../interfaces/models';
-import { ApiGroupedSearch, ApiGroupedSearchStatus } from '../../../interfaces/api';
+import { ApiCabinetItem, ApiErrorBody, ApiGroupedSearch, ApiGroupedSearchStatus } from '../../../interfaces/api';
+import { CabinetService } from '../../../services/cabinet/cabinet';
+
+/** Taille maximale d'une ordonnance acceptée par l'API (5 Mo). */
+const PRESCRIPTION_MAX_BYTES = 5 * 1024 * 1024;
+
+/** 422 de POST /orders quand le médicament exige une ordonnance. */
+interface PrescriptionRequiredBody extends ApiErrorBody { requires_prescription?: boolean; medicine?: string; }
 import { PatientResults } from '../patient-results/patient-results';
 import { PatientPharmacies } from '../patient-pharmacies/patient-pharmacies';
 import { SimpleProfile } from '../profile/profile';
+import { PatientCabinet } from '../patient-cabinet/patient-cabinet';
+import { PatientFloods } from '../patient-floods/patient-floods';
 
 import { ModalA11y } from '../../../directives/modal-a11y/modal-a11y';
 import { FieldLabel } from '../../../directives/field-label/field-label';
 import { DatePipe } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 /* ============================================================
    PATIENT — recherche, réservations, pharmacies, profil (API réelle)
    ============================================================ */
 @Component({
   selector: 'app-patient-dash',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ModalA11y, FieldLabel, Icon, Card, PageHead, Tag, PatientResults, PatientPharmacies, SimpleProfile, DatePipe],
+  imports: [ModalA11y, FieldLabel, Icon, Card, PageHead, Tag, PatientResults, PatientPharmacies, PatientCabinet, PatientFloods, SimpleProfile, DatePipe],
   templateUrl: './patient.html',
   styleUrl: './patient.css',
 })
@@ -38,12 +49,30 @@ export class PatientDash {
   readonly active = signal<Med | null>(null);
   readonly results = signal<Med[]>([]);
   readonly searching = signal(false);
+  /** La recherche a échoué (serveur injoignable) : « Réessayer », jamais « aucun médicament trouvé ». */
+  readonly searchError = signal(false);
   readonly resas = signal<ResaRow[]>([]);
+  /** Réservations : chargement initial et échec de lecture (pas de « aucune réservation » à tort). */
+  readonly resasLoading = signal(true);
+  readonly resasError = signal(false);
+  /** Réservations qui attendent le patient : prêtes au retrait, ou équivalent proposé à accepter. */
+  readonly resasToHandle = computed(() => this.resas().filter(r =>
+    r.status === 'confirmed' || (r.lines ?? []).some(l => l.status === 'substitute_proposed')).length);
+  /** Armoire : médicaments périmés ou à J-7 (seuils domicile). Pastille seulement : un échec la laisse à 0. */
+  readonly cabinetToHandle = signal(0);
 
   // Ordonnance numérique
   readonly prescriptionModal = signal(false);
   readonly pharmacies = signal<Pharmacy[]>([]);
+  /** Liste des pharmacies (envoi d'ordonnance) non lue : le sélecteur propose « Réessayer ». */
+  readonly pharmaciesError = signal(false);
   readonly prescriptionFile = signal<File | null>(null);
+  /** Pharmacie présélectionnée (réservation refusée faute d'ordonnance). */
+  readonly prescriptionPharmacy = signal<number | null>(null);
+  /** Médicament pour lequel l'ordonnance est demandée (affiché dans la fenêtre). */
+  readonly prescriptionFor = signal<string | null>(null);
+  readonly prescriptionError = signal<string | null>(null);
+  readonly sendingPrescription = signal(false);
 
   // Recherche groupée
   readonly groupedModal = signal(false);
@@ -65,24 +94,44 @@ export class PatientDash {
   });
 
   constructor() {
-    this.loadResas();
-    this.structures.pharmacies().subscribe({ next: p => this.pharmacies.set(p), error: () => { /* ignore */ } });
+    // Premier affichage : la cloche vient de lire les mêmes réservations, on partage sa requête.
+    this.loadResas(SHARED_READ_MS);
+    this.loadPharmacies();
+    inject(CabinetService).items().subscribe({ next: items => this.onCabinetItems(items), error: () => { /* pastille seulement */ } });
+    // Les pastilles de la sidebar comptent ce qui attend le patient — jamais les notifications lues ou non.
+    effect(() => this.platform.navCounts.set({ resa: this.resasToHandle(), cabinet: this.cabinetToHandle() }));
+    inject(DestroyRef).onDestroy(() => this.platform.navCounts.set(null));
   }
+
+  onCabinetItems(items: ApiCabinetItem[]): void {
+    this.cabinetToHandle.set(items.filter(i => i.expiry_level === 'expired' || i.expiry_level === 'crit').length);
+  }
+
+  loadPharmacies(): void {
+    this.pharmaciesError.set(false);
+    this.structures.pharmacies().subscribe({
+      next: p => this.pharmacies.set(p),
+      error: () => this.pharmaciesError.set(true),
+    });
+  }
+
+  retrySearch(): void { this.runSearch(this.q()); }
 
   onSearch(e: Event): void { this.runSearch((e.target as HTMLInputElement).value); }
   setQuery(s: string): void { this.runSearch(s); }
   plural(n: number, one: string, many: string): string { return `${n} ${n > 1 ? many : one}`; }
-  clear(): void { this.q.set(''); this.results.set([]); this.active.set(null); }
+  clear(): void { this.q.set(''); this.results.set([]); this.active.set(null); this.searchError.set(false); }
 
   private runSearch(term: string): void {
     this.q.set(term);
     this.active.set(null);
     const t = term.trim();
+    this.searchError.set(false);
     if (!t) { this.results.set([]); return; }
     this.searching.set(true);
     this.meds.search(t).subscribe({
-      next: list => { this.results.set(list); this.searching.set(false); },
-      error: () => { this.results.set([]); this.searching.set(false); },
+      next: list => { if (this.q().trim() !== t) return; this.results.set(list); this.searching.set(false); },
+      error: () => { if (this.q().trim() !== t) return; this.results.set([]); this.searching.set(false); this.searchError.set(true); },
     });
   }
 
@@ -94,8 +143,25 @@ export class PatientDash {
         this.loadResas();
         this.section.set('resa');
       },
-      error: () => this.platform.notify('Échec de la réservation', 'alert'),
+      error: (e: HttpErrorResponse) => {
+        const body = e.error as PrescriptionRequiredBody | null;
+        // Médicament sur ordonnance : on n'échoue pas, on propose d'envoyer l'ordonnance à cette pharmacie.
+        if (e.status === 422 && body?.requires_prescription) {
+          this.openPrescription(structureId, body.medicine ?? med.nom);
+          return;
+        }
+        this.platform.notify(body?.message ?? 'Échec de la réservation — réessayez', 'alert');
+      },
     });
+  }
+
+  /** Ouvre l'envoi d'ordonnance, éventuellement pour une pharmacie et un médicament donnés. */
+  openPrescription(structureId: number | null = null, medicine: string | null = null): void {
+    this.prescriptionPharmacy.set(structureId);
+    this.prescriptionFor.set(medicine);
+    this.prescriptionFile.set(null);
+    this.prescriptionError.set(null);
+    this.prescriptionModal.set(true);
   }
 
   /** Réponses aux équivalents proposés en cours d'envoi (boutons désactivés). */
@@ -121,7 +187,15 @@ export class PatientDash {
 
   onPrescriptionFile(e: Event): void {
     const input = e.target as HTMLInputElement;
-    this.prescriptionFile.set(input.files?.[0] ?? null);
+    const file = input.files?.[0] ?? null;
+    this.prescriptionError.set(null);
+    if (file && file.size > PRESCRIPTION_MAX_BYTES) {
+      this.prescriptionFile.set(null);
+      this.prescriptionError.set('Fichier trop lourd (5 Mo maximum) : reprenez la photo en qualité normale ou envoyez un PDF.');
+      input.value = '';
+      return;
+    }
+    this.prescriptionFile.set(file);
   }
 
   /** Envoie l'ordonnance numérique à la pharmacie choisie. */
@@ -129,18 +203,28 @@ export class PatientDash {
     const sid = Number(structureId);
     const file = this.prescriptionFile();
     if (!sid || !file) {
-      this.platform.notify('Sélectionnez une pharmacie et un fichier', 'alert');
+      this.prescriptionError.set('Sélectionnez une pharmacie et un fichier.');
       return;
     }
+    if (this.sendingPrescription()) return;
+    this.sendingPrescription.set(true);
+    this.prescriptionError.set(null);
     this.orders.submitPrescription(sid, file, notes).subscribe({
-      next: () => {
-        this.platform.notify('Ordonnance envoyée à la pharmacie', 'ok');
+      next: res => {
+        this.sendingPrescription.set(false);
+        // Le message de l'API rappelle de présenter l'ordonnance originale au retrait.
+        this.platform.notify(res.message ?? 'Ordonnance envoyée à la pharmacie. Présentez l\'ordonnance originale au retrait.', 'ok');
         this.prescriptionModal.set(false);
         this.prescriptionFile.set(null);
         this.loadResas();
         this.section.set('resa');
       },
-      error: () => this.platform.notify('Échec de l’envoi de l’ordonnance', 'alert'),
+      error: (e: HttpErrorResponse) => {
+        this.sendingPrescription.set(false);
+        const body = e.error as ApiErrorBody | null;
+        const first = body?.errors ? Object.values(body.errors)[0]?.[0] : undefined;
+        this.prescriptionError.set(first ?? body?.message ?? 'Échec de l\'envoi de l\'ordonnance — vérifiez la connexion et réessayez.');
+      },
     });
   }
 
@@ -164,10 +248,19 @@ export class PatientDash {
   refreshGroupedStatus(): void {
     const id = this.groupedSearchId();
     if (!id) return;
-    this.orders.groupedSearchStatus(id).subscribe({ next: s => this.groupedStatus.set(s), error: () => { /* ignore */ } });
+    this.orders.groupedSearchStatus(id).subscribe({
+      next: s => this.groupedStatus.set(s),
+      error: () => this.platform.notify('État de la recherche non actualisé — vérifiez la connexion', 'alert'),
+    });
   }
 
-  private loadResas(): void {
-    this.orders.list().subscribe({ next: r => this.resas.set(r), error: () => { /* ignore */ } });
+  /** `maxAgeMs` > 0 seulement au premier affichage ; après une action, toujours un nouvel appel. */
+  loadResas(maxAgeMs = 0): void {
+    this.resasError.set(false);
+    this.orders.list(maxAgeMs).subscribe({
+      next: r => { this.resas.set(r); this.resasLoading.set(false); },
+      // Une liste déjà affichée est gardée ; sans lecture réussie, écran « Réessayer ».
+      error: () => { this.resasLoading.set(false); this.resasError.set(true); },
+    });
   }
 }

@@ -1,22 +1,23 @@
     <pf-card title="Livraisons attendues" sub="Confirmez la réception à l'arrivée : le stock est crédité et le bordereau généré">
       @if (expected().length) { <span right class="chip chip-blue">{{ expected().length }} en cours</span> }
       @if (loading()) { <div class="pf-note-sm"><span class="pf-spin pf-spin-sm"></span> Chargement…</div> }
+      @if (!loading() && loadError()) { <div class="pf-banner red" role="alert"><div class="pf-banner-body"><p>Les livraisons attendues n'ont pas pu être chargées.</p></div><button type="button" class="btn btn-white btn-sm" (click)="reload()"><nv-icon name="refresh" [size]="15"/> Réessayer</button></div> }
       @for (d of expected(); track d.id) {
         <div class="pf-li">
-          <span class="pf-liic {{ d.status === 'in_transit' ? 'green' : '' }}"><nv-icon name="truck" [size]="18"/></span>
+          <span class="pf-liic {{ isLate(d) ? 'red' : d.status === 'in_transit' ? 'teal' : 'blue' }}"><nv-icon name="truck" [size]="18"/></span>
           <div class="pf-libody">
             <strong>{{ d.quantity }} × {{ d.medicine }} @if (d.is_controlled) { <span class="chip chip-ctrl">Contrôlé</span> }</strong>
-            <span>{{ d.supplier }} ({{ supplierKind(d.supplier_type) }}){{ d.delivery_date ? ' · prévue le ' + (d.delivery_date | date:'d MMMM') : '' }}@if (isLate(d)) { · <span class="pf-late">en retard</span> }</span>
+            <span><span class="pf-tx {{ kindTone(d.supplier_type) }}">{{ supplierKind(d.supplier_type) }}</span> · {{ d.supplier }}{{ d.delivery_date ? ' · prévue le ' + (d.delivery_date | date:'d MMMM') : '' }}@if (isLate(d)) { · <span class="pf-late">en retard</span> }</span>
           </div>
           <div class="pf-li-act">
-            <pf-tag [s]="statusTag(d.status)">{{ statusLabel(d.status) }}</pf-tag>
+            @if (isLate(d)) { <pf-tag s="crit">En retard</pf-tag> } @else { <pf-tag [s]="statusTag(d.status)">{{ statusLabel(d.status) }}</pf-tag> }
             @if (d.status === 'in_transit') {
               <button class="btn btn-green btn-sm" [disabled]="busy() === d.id" (click)="receive(d)"><nv-icon name="checkC" [size]="15"/> Confirmer la réception</button>
             }
           </div>
         </div>
       }
-      @if (!loading() && expected().length === 0) { <div class="pf-note">Aucune livraison attendue.</div> }
+      @if (!loading() && !loadError() && expected().length === 0) { <div class="pf-note">Aucune livraison attendue.</div> }
     </pf-card>
 
     <pf-card title="Réceptions récentes" sub="30 derniers jours — bordereaux téléchargeables">
@@ -24,8 +25,8 @@
         <div class="pf-li">
           <span class="pf-liic green"><nv-icon name="checkC" [size]="18"/></span>
           <div class="pf-libody"><strong>{{ d.quantity }} × {{ d.medicine }}</strong><span>{{ d.supplier }} · {{ d.slip_number || 'livraison #' + d.id }}</span></div>
-          <div class="pf-li-act"><button class="btn btn-ghost btn-sm" (click)="slip(d)"><nv-icon name="doc" [size]="15"/> Bordereau</button></div>
+          <div class="pf-li-act"><pf-tag s="ok">Reçue</pf-tag><button class="btn btn-ghost btn-sm" (click)="slip(d)"><nv-icon name="doc" [size]="15"/> Bordereau</button></div>
         </div>
       }
-      @if (!loading() && done().length === 0) { <div class="pf-note">Aucune réception sur la période.</div> }
+      @if (!loading() && !loadError() && done().length === 0) { <div class="pf-note">Aucune réception sur la période.</div> }
     </pf-card>

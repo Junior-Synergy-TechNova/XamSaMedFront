@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, Injector, afterNextRender, computed, effect, inject, model, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, Injector, afterNextRender, computed, effect, inject, model, signal, untracked } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { DatePipe, DecimalPipe, NgTemplateOutlet } from '@angular/common';
@@ -13,15 +13,17 @@ import { PartnersPanel, PartnerTypeOption } from '../../../components/partners-p
 import { IncomingDeliveries } from '../../../components/incoming-deliveries/incoming-deliveries';
 import { ExpiryTag } from '../../../components/expiry-tag/expiry-tag';
 import { PlatformState, saveBlob } from '../../../services/platform/platform';
-import { PharmacyService } from '../../../services/pharmacy/pharmacy';
+import { PharmacyService, SHARED_READ_MS } from '../../../services/pharmacy/pharmacy';
 import { MedicineService } from '../../../services/medicines/medicines';
 import { AuthService } from '../../../services/auth/auth';
 import { StructureService, rankByDistance, structurePoint } from '../../../services/structures/structures';
+import { MapMedicine, MapRequest, NetworkMap } from '../../../components/network-map/network-map';
 import { AvailabilityRow, DemandeRow, StockRow } from '../../../interfaces/models';
 import {
   ApiErrorBody, ApiGroupedAlert, ApiPrescription, ApiPrescriptionLine, ApiProcessLine, ApiRestockRequest, ApiSale, ApiSalesStats, ApiStockMovement, ApiSupplier,
 } from '../../../interfaces/api';
 import { PharmaDemandes } from '../pharma-demandes/pharma-demandes';
+import { PharmaThermal } from '../pharma-thermal/pharma-thermal';
 import { SimpleProfile } from '../profile/profile';
 
 import { ModalA11y } from '../../../directives/modal-a11y/modal-a11y';
@@ -35,13 +37,18 @@ type ExpiryFilter = 'all' | 'soon' | 'expired';
 const fold = (text: string): string => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
 /** Données du tableau de bord rechargeables séparément (une action ne recharge que ce qu'elle modifie). */
+/** Date locale au format AAAA-MM-JJ (pas toISOString, qui passe en UTC). */
+function isoDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 type Resource = 'stock' | 'history' | 'demandes' | 'requests' | 'prescriptions' | 'grouped' | 'sales';
 const ALL_RESOURCES: readonly Resource[] = ['stock', 'history', 'demandes', 'requests', 'prescriptions', 'grouped', 'sales'];
 /** Au retour sur l'onglet, données plus vieilles que ce délai : on actualise. */
 const STALE_AFTER_MS = 5 * 60 * 1000;
 
 /** Médicament du catalogue (saisie assistée). */
-type CatalogueItem = { id: number; name: string; label: string };
+type CatalogueItem = { id: number; name: string; label: string; dci: string | null };
 type LineAction = 'reserve' | 'orient' | 'substitute';
 /** Ligne en cours de saisie dans « Traiter l'ordonnance ». */
 interface DraftLine {
@@ -78,10 +85,23 @@ const EMPTY_SET: ReadonlySet<number> = new Set<number>();
    PHARMACIEN — tableau de bord, stock (lots / péremption), alertes,
    demandes, ordonnances, ventes (offre Pro), réceptions, réseau.
    ============================================================ */
+/** Types de StockLedger::movementLabel (backend) → teinte de pf-tag. */
+const MOVEMENT_TONE: Record<string, string> = {
+  initial_stock: 'green', restock: 'green', delivery_received: 'green',
+  patient_order: 'blue',
+  reservation: 'sky', reservation_cancelled: 'gray',
+  external_sale: 'violet',
+  sale_invoice: 'teal',
+  delivery: 'rose', service_issue: 'rose',
+  inventory_adjustment: 'amber',
+  expired: 'red', damaged: 'red', tension_detected: 'red',
+  deletion: 'gray', demo_refresh: 'gray',
+};
+
 @Component({
   selector: 'app-pharma-dash',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ModalA11y, FieldLabel, TableLabels, Icon, Card, PageHead, Stat, Bar, Tag, PharmaDemandes, SimpleProfile, PartnersPanel, IncomingDeliveries, ExpiryTag, DatePipe, DecimalPipe, NgTemplateOutlet],
+  imports: [ModalA11y, FieldLabel, TableLabels, Icon, Card, PageHead, Stat, Bar, Tag, PharmaDemandes, PharmaThermal, SimpleProfile, PartnersPanel, NetworkMap, IncomingDeliveries, ExpiryTag, DatePipe, DecimalPipe, NgTemplateOutlet],
   templateUrl: './pharma.html',
   styleUrl: './pharma.css',
   host: {
@@ -113,7 +133,7 @@ export class PharmaDash {
   /** Une requête d'écriture est en cours : boutons de validation désactivés (pas de double envoi). */
   readonly saving = signal(false);
   /** Catalogue (nom + forme/dosage) proposé en saisie assistée ; chargé à la première ouverture d'un formulaire. */
-  readonly catalogue = signal<{ id: number; name: string; label: string }[]>([]);
+  readonly catalogue = signal<CatalogueItem[]>([]);
   readonly rejectModal = signal<ApiPrescription | null>(null);
   readonly rejectReasons: readonly string[] = [
     'Ordonnance illisible ou incomplète',
@@ -224,6 +244,27 @@ export class PharmaDash {
 
   // Ordonnances numériques reçues
   readonly prescriptions = signal<ApiPrescription[]>([]);
+  readonly ordoPage = signal(1);
+  readonly ordoLastPage = signal(1);
+  readonly ordoTotal = signal(0);
+  readonly ordoMoreLoading = signal(false);
+  readonly ordoRemaining = computed(() => Math.max(0, this.ordoTotal() - this.prescriptions().length));
+  /** Filtre de la liste : à traiter, prêtes au retrait, terminées (retirées, orientées, refusées). */
+  readonly ordoFilter = signal<'all' | 'pending' | 'confirmed' | 'done'>('all');
+  readonly ordoCounts = computed(() => {
+    const list = this.prescriptions();
+    const pending = list.filter(p => p.status === 'pending').length;
+    const confirmed = list.filter(p => p.status === 'confirmed').length;
+    return { all: list.length, pending, confirmed, done: list.length - pending - confirmed };
+  });
+  /** À traiter d'abord, puis prêtes au retrait, puis le reste (l'API trie par date d'envoi). */
+  readonly visiblePrescriptions = computed(() => {
+    const f = this.ordoFilter();
+    const rank = (s: string) => s === 'pending' ? 0 : s === 'confirmed' ? 1 : 2;
+    return this.prescriptions()
+      .filter(p => f === 'all' || (f === 'done' ? p.status !== 'pending' && p.status !== 'confirmed' : p.status === f))
+      .sort((a, b) => rank(a.status) - rank(b.status));
+  });
   readonly processModal = signal<ApiPrescription | null>(null);
   /** Ordonnance affichée à côté du formulaire de traitement (lue depuis l'API, jamais devinée). */
   readonly ordoPreview = signal<{ url: string; safe: SafeResourceUrl; kind: 'image' | 'pdf' | 'other' } | null>(null);
@@ -323,10 +364,13 @@ export class PharmaDash {
     }
     for (const p of this.prescriptions()) {
       if (p.status !== 'pending') continue;
+      // Même fichier déjà envoyé ailleurs : information seulement (le pharmacien décide), signalée en ambre.
+      const reused = (p.photo_deja_envoyee ?? 0) > 0;
+      const received = p.submitted_at ? 'Reçue le ' + this.dayMonth(p.submitted_at) : 'À préparer';
       items.push({
-        key: 'ordo-' + p.id, tone: 'blue', icon: 'doc', rank: 2, primary: false,
+        key: 'ordo-' + p.id, tone: reused ? 'amber' : 'blue', icon: 'doc', rank: 2, primary: false,
         title: `Ordonnance de ${p.patient ?? 'un patient'}`,
-        detail: p.submitted_at ? 'Reçue le ' + this.dayMonth(p.submitted_at) : 'À préparer',
+        detail: reused ? `${received} · même photo déjà envoyée ${this.reuseLabel(p.photo_deja_envoyee ?? 0)}` : received,
         action: 'Traiter', run: () => this.openProcess(p),
       });
     }
@@ -380,14 +424,47 @@ export class PharmaDash {
   readonly expiredCount = computed(() => this.stock().filter(s => s.expiryLevel === 'expired').length);
 
   readonly structureName = computed(() => this.auth.structure()?.name ?? 'Mon officine');
+  /** Carte du réseau : position de l'officine et médicaments de son stock (ruptures en tête). */
+  readonly myPoint = computed(() => structurePoint(this.auth.structure()));
+  readonly myStructureId = computed(() => this.auth.structure()?.id ?? null);
+  readonly mapMedicines = computed<MapMedicine[]>(() => {
+    const seen = new Set<number>();
+    return this.stock().flatMap(s => {
+      if (seen.has(s.medId)) return [];
+      seen.add(s.medId);
+      return [{ id: s.medId, label: s.sub && s.sub !== '—' ? `${s.name} (${s.sub})` : s.name, state: s.s }];
+    });
+  });
 
   // --- Module Vente & Comptabilité (offre Pro) ---
   readonly isPro = this.auth.isPro;
   readonly sales = signal<ApiSale[]>([]);
   readonly salesStats = signal<ApiSalesStats | null>(null);
+  /** Période du journal (et de l'export) : du 1er du mois à aujourd'hui par défaut. */
+  readonly salesFrom = signal(isoDate(new Date(new Date().getFullYear(), new Date().getMonth(), 1)));
+  readonly salesTo = signal(isoDate(new Date()));
+  readonly salesPage = signal(1);
+  readonly salesLastPage = signal(1);
+  readonly salesTotal = signal(0);
+  /** Lecture en échec : la vue affiche « Réessayer », jamais « Aucune vente » à tort. */
+  readonly salesError = signal(false);
+  readonly salesStatsError = signal(false);
+  readonly salesLoading = signal(false);
+  readonly salesMoreLoading = signal(false);
+  readonly salesRemaining = computed(() => Math.max(0, this.salesTotal() - this.sales().length));
+  readonly today = isoDate(new Date());
+  readonly paymentMethods: readonly { value: string; label: string }[] = [
+    { value: 'cash', label: 'Espèces' },
+    { value: 'mobile_money', label: 'Mobile money' },
+    { value: 'card', label: 'Carte' },
+    { value: 'insurance', label: 'Assurance / IPM' },
+    { value: 'other', label: 'Autre' },
+  ];
   readonly cart = signal<CartLine[]>([]);
   readonly vatRate = signal(0);
   readonly savingSale = signal(false);
+  /** Nombre d'unités dans le panier (en-tête du ticket). */
+  readonly cartUnits = computed(() => this.cart().reduce((n, l) => n + l.qty, 0));
   readonly cartNeedsRx = computed(() => this.cart().some(l => l.requiresRx));
   /** Médicaments du panier qui exigent une ordonnance (les autres sont en vente libre). */
   readonly rxNames = computed(() => this.cart().filter(l => l.requiresRx).map(l => l.name.split(' · ')[0]).join(', '));
@@ -398,6 +475,19 @@ export class PharmaDash {
     return { ht, vat, ttc: ht + vat };
   });
   readonly sellable = computed(() => this.stock().filter(s => s.q > 0 && s.expiryLevel !== 'expired'));
+  /** Ligne choisie dans « Nouvelle vente » (null = rien de choisi : le formulaire repart à vide après « Ajouter »). */
+  readonly saleStockId = signal<number | null>(null);
+  readonly saleItem = computed<StockRow | null>(() => {
+    const id = this.saleStockId();
+    return id === null ? null : this.sellable().find(s => s.stockId === id) ?? null;
+  });
+  /** Quantité et prix saisis (le prix ne l'est que sans prix catalogue), remis à zéro après chaque ajout. */
+  readonly saleQty = signal('1');
+  readonly salePriceInput = signal('');
+  /** Prix repris du catalogue : champ en lecture seule, à titre indicatif. */
+  readonly salePriceLocked = computed(() => this.saleItem()?.price != null);
+  /** Saisie manuelle seulement pour un médicament choisi sans prix catalogue. */
+  readonly salePriceManual = computed(() => { const s = this.saleItem(); return !!s && s.price == null; });
   readonly revenueMax = computed(() => Math.max(1, ...(this.salesStats()?.daily ?? []).map(d => d.revenue)));
 
   readonly partnerTypes: readonly PartnerTypeOption[] = [
@@ -427,6 +517,7 @@ export class PharmaDash {
     phoneQuery.addEventListener('change', onPhone);
     inject(DestroyRef).onDestroy(() => phoneQuery.removeEventListener('change', onPhone));
     this.reload();
+    this.firstLoad = false;
     // Les pastilles de la sidebar comptent ce que les pages affichent — jamais un autre chiffre.
     effect(() => this.platform.navCounts.set({
       alert: this.alerts().length,
@@ -434,14 +525,27 @@ export class PharmaDash {
       ordo: this.pendingPrescriptions(),
       grouped: this.groupedAlerts().length,
     }));
+    // Premier passage sur « Ventes » : chargement à la demande.
+    effect(() => {
+      if (this.section() === 'ventes' && this.isPro() && !this.salesWanted) untracked(() => this.reloadSales());
+    });
     inject(DestroyRef).onDestroy(() => this.platform.navCounts.set(null));
   }
 
   /** « 1 médicament », « 2 médicaments » — accord du nom avec le nombre. */
   plural(n: number, one: string, many: string): string { return `${n} ${n > 1 ? many : one}`; }
 
+  /** Vrai seulement pendant le reload() du constructeur (voir `demandes(SHARED_READ_MS)`). */
+  private firstLoad = true;
+
   /** Tout recharger : premier affichage, « Actualiser », retour sur l'onglet après une longue absence. */
-  reload(): void { this.refresh(...ALL_RESOURCES); }
+  reload(): void {
+    this.reloadTick.update(n => n + 1);
+    this.refresh(...ALL_RESOURCES);
+  }
+
+  /** Signale un « tout recharger » aux sous-pages qui lisent leurs propres données (conservation thermique). */
+  readonly reloadTick = signal(0);
 
   /**
    * Recharge uniquement les données touchées par une action. Sur une 3G à
@@ -459,11 +563,16 @@ export class PharmaDash {
           });
           break;
         case 'history': this.track('historique', this.pharmacy.movements(), m => this.history.set(m)); break;
-        case 'demandes': this.track('demandes', this.pharmacy.demandes(), d => this.demandes.set(d)); break;
+        // Premier affichage : la cloche vient de lire les mêmes demandes, on partage sa requête.
+        case 'demandes': this.track('demandes', this.pharmacy.demandes(this.firstLoad ? SHARED_READ_MS : 0), d => this.demandes.set(d)); break;
         case 'requests': this.track('demandes fournisseurs', this.pharmacy.restockRequests(), r => this.restockRequests.set(r)); break;
-        case 'prescriptions': this.track('ordonnances', this.pharmacy.prescriptions(), p => this.prescriptions.set(p)); break;
+        case 'prescriptions': this.track('ordonnances', this.pharmacy.prescriptions(), p => {
+          this.prescriptions.set(p.data); this.ordoPage.set(p.page); this.ordoLastPage.set(p.lastPage); this.ordoTotal.set(p.total);
+        }); break;
         case 'grouped': this.track('alertes groupées', this.pharmacy.groupedAlerts(), g => this.groupedAlerts.set(g)); break;
-        case 'sales': if (this.isPro()) this.reloadSales(); break;
+        // Ventes : chargées seulement une fois la page « Ventes » ouverte (effet du constructeur) —
+        // 2 appels de moins au démarrage. Ne pas lire section() ici : refresh() tourne dès le constructeur.
+        case 'sales': if (this.isPro() && this.salesWanted) this.reloadSales(); break;
       }
     }
   }
@@ -511,7 +620,7 @@ export class PharmaDash {
   }
 
   /** Médicament choisi dans la liste : correspondance exacte du libellé, sinon nom exact et unique — jamais « le premier résultat ». */
-  private resolveMedicine(input: string): { id: number; name: string; label: string } | null {
+  private resolveMedicine(input: string): CatalogueItem | null {
     const value = input.trim().toLocaleLowerCase('fr');
     const list = this.catalogue();
     const byLabel = list.find(m => m.label.toLocaleLowerCase('fr') === value);
@@ -520,7 +629,11 @@ export class PharmaDash {
     return byName.length === 1 ? byName[0] : null;
   }
 
-  openAddRef(): void { this.ensureCatalogue(); this.addRefModal.set(true); }
+  openAddRef(): void { this.ensureCatalogue(); this.addRefMedicine.set(null); this.addRefModal.set(true); }
+
+  /** « Ajouter une référence » : médicament reconnu dans le catalogue (sa DCI s'affiche dans le formulaire). */
+  readonly addRefMedicine = signal<CatalogueItem | null>(null);
+  onAddRefMedicine(value: string): void { this.addRefMedicine.set(this.resolveMedicine(value)); }
 
   private apiError(e: HttpErrorResponse, fallback: string): string {
     return (e.error as ApiErrorBody | null)?.message ?? fallback;
@@ -556,12 +669,18 @@ export class PharmaDash {
   }
 
   /** Un mouvement ordinaire (vente, sortie, ajustement) est neutre ; seuls un lot périmé ou une tension sont des alertes. */
+  /** Une teinte par type de mouvement (rouge réservé aux pertes / alertes). */
   movementTag(m: ApiStockMovement): string {
-    return m.type === 'tension_detected' || m.type === 'expired' ? 'crit'
-      : m.direction === 'entrée' ? 'ok' : 'vue';
+    return MOVEMENT_TONE[m.type] ?? (m.direction === 'entrée' ? 'green' : 'gray');
+  }
+  /** Moyen de paiement : espèces vert, mobile money violet, carte bleu ciel, assurance teal. */
+  paymentTone(method: string | null | undefined): string {
+    return method === 'cash' ? 'green' : method === 'mobile_money' ? 'violet' : method === 'card' ? 'sky' : method === 'insurance' ? 'teal' : 'gray';
   }
   /** Ordonnance : à traiter (orange), prête ou retirée (vert), refusée (neutre — ce n'est pas une alerte). */
-  ordoTile(status: string): string { return status === 'pending' ? 'amber' : status === 'cancelled' ? '' : 'green'; }
+  ordoTile(status: string): string { return status === 'pending' ? 'amber' : status === 'cancelled' ? 'rose' : status === 'oriented' ? 'violet' : status === 'collected' ? 'teal' : 'green'; }
+  /** Pastille d'état d'une ordonnance terminée : retirée teal, orientée violet, refusée / expirée rose (pas une alerte). */
+  ordoTag(status: string): string { return status === 'collected' ? 'teal' : status === 'oriented' ? 'violet' : status === 'cancelled' ? 'rose' : 'amber'; }
   signedQty(m: ApiStockMovement): string {
     return m.direction === 'entrée' ? '+' + m.quantity : m.direction === 'sortie' ? '−' + m.quantity : '—';
   }
@@ -691,7 +810,7 @@ export class PharmaDash {
   // --- Demande de réapprovisionnement aux fournisseurs ---
 
   /** Ouvre le choix des fournisseurs : ceux qui disposent du médicament sont proposés en premier. */
-  alertDistrib(s: StockRow): void {
+  alertDistrib(s: StockRow, only?: number): void {
     this.supplierModal.set(s);
     this.suppliers.set([]);
     this.selectedSuppliers.set(new Set());
@@ -703,12 +822,19 @@ export class PharmaDash {
         this.suppliersLoading.set(false);
         // Pré-sélection : les fournisseurs qui ont le médicament et ne sont pas déjà sollicités.
         const asked = this.alreadyAsked(s);
-        this.selectedSuppliers.set(new Set(list.filter(d => d.has_stock && !asked.has(d.id)).map(d => d.id)));
+        // Depuis la carte du réseau : seulement le fournisseur choisi.
+        this.selectedSuppliers.set(new Set(list.filter(d => (only ? d.id === only : d.has_stock) && !asked.has(d.id)).map(d => d.id)));
         // La liste arrive après l'ouverture : le focus va au premier fournisseur, pas sous la liste.
         afterNextRender({ read: () => document.querySelector<HTMLInputElement>('.pf-modal .pf-check:not(:disabled)')?.focus() }, { injector: this.injector });
       },
       error: () => { this.suppliersLoading.set(false); this.suppliersError.set(true); },
     });
+  }
+
+  /** « Demander » sur la carte du réseau : même formulaire, ce fournisseur pré-coché. */
+  requestFromMap(r: MapRequest): void {
+    const s = this.stock().find(x => x.medId === r.medicineId);
+    if (s) this.alertDistrib(s, r.supplierId);
   }
 
   /** Une demande est en attente pour ce médicament (fournisseurs ciblés ou tout le réseau). */
@@ -772,9 +898,14 @@ export class PharmaDash {
   }
   dayMonth(iso: string): string { return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }); }
   requestTag(r: ApiRestockRequest): string {
-    if (r.status === 'cancelled' || r.status === 'closed') return 'vue';
+    if (r.status === 'cancelled' || r.status === 'closed') return this.pastTone(r);
     if (r.delivery_late || (r.status === 'pending' && r.stale)) return 'low';
     return r.status === 'resolved' ? 'ok' : r.status === 'rejected' ? 'crit' : 'new';
+  }
+  /** Couleur d'une demande terminée : livrée/prévue vert, refusée rouge, annulée violet, close (stock revenu) teal. */
+  pastTone(r: { status: string }): string {
+    return r.status === 'resolved' ? 'green' : r.status === 'rejected' ? 'red'
+      : r.status === 'cancelled' ? 'violet' : r.status === 'closed' ? 'teal' : 'gray';
   }
   /** Demande terminée, plus rien à suivre : elle passe dans l'historique (un refus récent reste visible). */
   isPastRequest(r: ApiRestockRequest): boolean {
@@ -782,7 +913,7 @@ export class PharmaDash {
     return r.status !== 'resolved' || r.delivery_status === 'delivered';
   }
   requestTile(r: ApiRestockRequest): string {
-    if (r.status === 'cancelled' || r.status === 'closed') return '';
+    if (r.status === 'cancelled' || r.status === 'closed') return this.pastTone(r);
     if (r.delivery_late || (r.status === 'pending' && r.stale)) return 'amber';
     return r.status === 'resolved' ? 'green' : r.status === 'rejected' ? 'red' : 'blue';
   }
@@ -997,6 +1128,29 @@ export class PharmaDash {
       : status === 'substitute_refused' || status === 'expired' ? 'crit' : status === 'cancelled' ? 'vue' : 'low';
   }
 
+  /** Texte « où retirer » d'une ligne, même code couleur que sa pastille. */
+  ordoLineText(status: string): string {
+    const t = this.ordoLineTone(status);
+    return t === 'ok' ? 'green' : t === 'crit' ? 'red' : t === 'vue' ? 'gray' : 'amber';
+  }
+
+  /** Page suivante des ordonnances (les plus anciennes). */
+  moreOrdo(): void {
+    if (this.ordoMoreLoading() || this.ordoPage() >= this.ordoLastPage()) return;
+    this.ordoMoreLoading.set(true);
+    this.pharmacy.prescriptions(this.ordoPage() + 1).subscribe({
+      next: p => {
+        this.prescriptions.update(list => [...list, ...p.data.filter(o => !list.some(x => x.id === o.id))]);
+        this.ordoPage.set(p.page); this.ordoLastPage.set(p.lastPage); this.ordoTotal.set(p.total);
+        this.ordoMoreLoading.set(false);
+      },
+      error: () => { this.ordoMoreLoading.set(false); this.platform.notify('Ordonnances plus anciennes non chargées — réessayez', 'alert'); },
+    });
+  }
+
+  reuseLabel(n: number): string { return n === 1 ? 'une autre fois' : `${n} autres fois`; }
+  readonly defaultReuseReminder = 'Vérifiez l\'ordonnance originale (signature, date) au retrait.';
+
   ordoLabel(status: string): string {
     return status === 'confirmed' ? 'Prête au retrait' : status === 'collected' ? 'Retirée' : status === 'oriented' ? 'Orientée'
       : status === 'cancelled' ? 'Refusée ou expirée' : 'À traiter';
@@ -1038,23 +1192,88 @@ export class PharmaDash {
   }
 
   // --- Ventes & comptabilité (offre Pro) ---
+  /** La page « Ventes » a été ouverte : ses données suivent ensuite les rechargements. */
+  private salesWanted = false;
+
   reloadSales(): void {
-    this.pharmacy.sales().subscribe({ next: s => this.sales.set(s), error: () => this.sales.set([]) });
-    this.pharmacy.salesStats().subscribe({ next: s => this.salesStats.set(s), error: () => this.salesStats.set(null) });
+    this.salesWanted = true;
+    this.loadSalesJournal();
+    this.pharmacy.salesStats().subscribe({
+      next: s => { this.salesStats.set(s); this.salesStatsError.set(false); },
+      error: () => this.salesStatsError.set(true),
+    });
   }
 
+  /** Première page du journal pour la période choisie ; les pages suivantes s'ajoutent avec moreSales(). */
+  private loadSalesJournal(): void {
+    this.salesLoading.set(true);
+    this.pharmacy.salesPage(this.salesFrom(), this.salesTo(), 1).subscribe({
+      next: p => {
+        this.sales.set(p.data); this.salesPage.set(p.page); this.salesLastPage.set(p.lastPage); this.salesTotal.set(p.total);
+        this.salesError.set(false); this.salesLoading.set(false);
+      },
+      error: () => { this.salesError.set(true); this.salesLoading.set(false); },
+    });
+  }
+
+  /** Change la période du journal (dates incluses). */
+  setSalesPeriod(from: string, to: string): void {
+    if (!from || !to) { this.platform.notify('Choisissez une date de début et une date de fin', 'alert'); return; }
+    if (from > to) { this.platform.notify('La date de début doit précéder la date de fin', 'alert'); return; }
+    this.salesFrom.set(from);
+    this.salesTo.set(to);
+    this.loadSalesJournal();
+  }
+
+  /** Raccourcis de période : aujourd'hui, mois en cours, mois précédent. */
+  salesPreset(preset: 'today' | 'month' | 'lastMonth'): void {
+    const now = new Date();
+    if (preset === 'today') this.setSalesPeriod(this.today, this.today);
+    else if (preset === 'month') this.setSalesPeriod(isoDate(new Date(now.getFullYear(), now.getMonth(), 1)), this.today);
+    else this.setSalesPeriod(isoDate(new Date(now.getFullYear(), now.getMonth() - 1, 1)), isoDate(new Date(now.getFullYear(), now.getMonth(), 0)));
+  }
+
+  moreSales(): void {
+    if (this.salesMoreLoading() || this.salesPage() >= this.salesLastPage()) return;
+    this.salesMoreLoading.set(true);
+    this.pharmacy.salesPage(this.salesFrom(), this.salesTo(), this.salesPage() + 1).subscribe({
+      next: p => {
+        // Une vente enregistrée entre-temps décale les pages : on évite les doublons.
+        this.sales.update(list => [...list, ...p.data.filter(v => !list.some(x => x.id === v.id))]);
+        this.salesPage.set(p.page); this.salesLastPage.set(p.lastPage); this.salesTotal.set(p.total);
+        this.salesMoreLoading.set(false);
+      },
+      error: () => { this.salesMoreLoading.set(false); this.platform.notify('Ventes plus anciennes non chargées — réessayez', 'alert'); },
+    });
+  }
+
+  /**
+   * Le prix unitaire vient du catalogue national (`medicines.price`) — le champ
+   * n'est qu'indicatif et le serveur applique ce même prix. Il n'est saisi à la
+   * main que si la fiche n'a pas encore de prix de référence.
+   */
   addToCart(stockIdInput: string, qtyInput: string, priceInput: string): void {
     const s = this.stock().find(r => r.stockId === Number(stockIdInput));
     const qty = parseInt(qtyInput, 10);
-    const price = Number(priceInput);
-    if (!s || isNaN(qty) || qty <= 0 || isNaN(price) || price < 0) { this.platform.notify('Médicament, quantité et prix requis', 'alert'); return; }
+    const price = s?.price ?? (priceInput.trim() === '' ? NaN : Number(priceInput));
+    if (!s) { this.platform.notify('Choisissez un médicament', 'alert'); return; }
+    if (isNaN(qty) || qty <= 0) { this.platform.notify('Quantité requise', 'alert'); return; }
+    if (isNaN(price) || price < 0) { this.platform.notify(`Prix non renseigné au catalogue pour ${s.name} : saisissez le prix unitaire`, 'alert'); return; }
     const already = this.cart().find(l => l.stockId === s.stockId)?.qty ?? 0;
     if (qty + already > s.q) { this.platform.notify(`Stock insuffisant : ${this.plural(s.q, 'unité disponible', 'unités disponibles')}`, 'alert'); return; }
     this.cart.update(lines => already
       ? lines.map(l => l.stockId === s.stockId ? { ...l, qty: l.qty + qty, price } : l)
       : [...lines, { stockId: s.stockId, name: s.name + (s.sub ? ' · ' + s.sub : ''), qty, price, requiresRx: s.requiresRx, available: s.q }]);
+    // Formulaire remis à vide pour enchaîner sur un autre médicament.
+    this.saleStockId.set(null);
+    this.saleQty.set('1');
+    this.salePriceInput.set('');
   }
   removeLine(stockId: number): void { this.cart.update(lines => lines.filter(l => l.stockId !== stockId)); }
+  /** −/+ dans le panier : entre 1 et le disponible de la ligne. */
+  changeLineQty(stockId: number, delta: number): void {
+    this.cart.update(lines => lines.map(l => l.stockId === stockId ? { ...l, qty: Math.min(l.available, Math.max(1, l.qty + delta)) } : l));
+  }
   setVat(value: string): void { const v = Number(value); this.vatRate.set(isNaN(v) || v < 0 ? 0 : v); }
 
   submitSale(customer: string, payment: string): void {
@@ -1063,7 +1282,7 @@ export class PharmaDash {
     if (this.cartNeedsRx() && !rxRef.trim()) { this.platform.notify(`Référence d'ordonnance requise pour : ${this.rxNames()}`, 'alert'); return; }
     this.savingSale.set(true);
     this.pharmacy.createSale({
-      items: this.cart().map(l => ({ stock_id: l.stockId, quantity: l.qty, unit_price: l.price })),
+      items: this.cart().map(l => ({ stock_id: l.stockId, quantity: l.qty, unit_price: l.price })), // indicatif : le serveur applique le prix catalogue
       vat_rate: this.vatRate(),
       customer_name: customer.trim() || undefined,
       prescription_ref: rxRef.trim() || undefined,
@@ -1088,9 +1307,12 @@ export class PharmaDash {
     });
   }
 
-  exportSales(from: string, to: string): void {
-    this.pharmacy.exportSales(from || undefined, to || undefined).subscribe({
-      next: blob => { saveBlob(blob, `ventes-${from || 'mois'}-${to || 'courant'}.csv`); this.platform.notify('Export comptable téléchargé', 'ok'); },
+  /** Exporte la période affichée dans le journal. */
+  exportSales(): void {
+    const from = this.salesFrom();
+    const to = this.salesTo();
+    this.pharmacy.exportSales(from, to).subscribe({
+      next: blob => { saveBlob(blob, `ventes-${from}-${to}.csv`); this.platform.notify('Export comptable téléchargé', 'ok'); },
       error: () => this.platform.notify('Échec de l\'export', 'alert'),
     });
   }

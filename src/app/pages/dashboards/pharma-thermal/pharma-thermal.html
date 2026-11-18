@@ -1,0 +1,111 @@
+<div>
+  <pf-page-head title="Conservation thermique" sub="La température de votre zone comparée au maximum supporté par chaque médicament en stock."/>
+
+  @if (loading()) {
+    <pf-card><div class="pf-empty">Lecture de la météo et du stock…</div></pf-card>
+  } @else if (problem(); as p) {
+    <pf-card>
+      <div class="pf-empty">
+        <nv-icon name="thermo" [size]="34" [color]="p.kind === 'error' ? 'var(--color-red)' : 'var(--color-gray)'"/>
+        @switch (p.kind) {
+          @case ('unavailable') {
+            <p><strong>Surveillance pas encore disponible.</strong> Le serveur ne fournit pas encore la conservation thermique des officines : l'écran se remplira dès que le service sera activé.</p>
+          }
+          @case ('no-location') {
+            <p><strong>Position de l'officine manquante.</strong> {{ p.message }} Demandez à l'administrateur de la plateforme de renseigner l'adresse GPS de l'officine.</p>
+          }
+          @default {
+            <p>La conservation thermique n'a pas pu être chargée. Vérifiez la connexion puis réessayez.</p>
+          }
+        }
+        <button type="button" class="btn btn-green btn-sm" (click)="load()"><nv-icon name="refresh" [size]="15"/> Réessayer</button>
+      </div>
+    </pf-card>
+  } @else if (status(); as s) {
+    @if (s.current_temp_c === null) {
+      <div class="pf-banner amber" role="status">
+        <span class="pf-bannic"><nv-icon name="thermo" [size]="22"/></span>
+        <div class="pf-banner-body"><strong>Météo indisponible pour le moment</strong><p>La température de votre zone n'a pas pu être lue : aucune comparaison n'est possible. Les seuils de chaque référence restent affichés ci-dessous.</p></div>
+        <button type="button" class="btn btn-white btn-sm" (click)="load()" [disabled]="refreshing()"><nv-icon name="refresh" [size]="15"/> Réessayer</button>
+      </div>
+    } @else if (counts().atRisk > 0) {
+      <div class="pf-banner red" role="alert">
+        <span class="pf-bannic"><nv-icon name="thermo" [size]="22"/></span>
+        <div class="pf-banner-body">
+          <strong>Il fait {{ s.current_temp_c | number:'1.0-1' }} °C : {{ plural(counts().atRisk, 'référence au-dessus de sa température maximale', 'références au-dessus de leur température maximale') }}</strong>
+          <p>{{ atRiskNames() }}. Gardez l'officine climatisée ou rangez-les dans la zone la plus fraîche, loin des vitrines et du soleil. Contrôlez l'aspect des produits avant de les délivrer.</p>
+        </div>
+      </div>
+    } @else {
+      <div class="pf-banner green" role="status">
+        <span class="pf-bannic"><nv-icon name="thermo" [size]="22"/></span>
+        <div class="pf-banner-body">
+          <strong>{{ s.current_temp_c | number:'1.0-1' }} °C dans votre zone — aucune référence au-dessus de son seuil</strong>
+          <p>@if (counts().near > 0) { {{ plural(counts().near, 'référence est', 'références sont') }} à moins de {{ nearMargin }} °C de son maximum : surveillez la climatisation. } @else { Les conditions extérieures sont compatibles avec tout le stock surveillé. }</p>
+        </div>
+      </div>
+    }
+
+    <div class="pf-statgrid">
+      <pf-stat icon="thermo" tone="blue" label="Température extérieure" [value]="s.current_temp_c === null ? '—' : (s.current_temp_c | number:'1.0-1') + ' °C'"/>
+      <pf-stat icon="box" tone="blue" label="Références surveillées" [value]="counts().watched"/>
+      <pf-stat icon="alert" tone="red" label="Au-dessus du seuil" [value]="counts().atRisk"/>
+      <pf-stat icon="clock" tone="amber" label="Proches du seuil" [value]="counts().near"/>
+    </div>
+
+    <pf-card title="Conservation à température ambiante" [sub]="'Comparée à la température extérieure — ' + plural(roomRows().length, 'référence', 'références')">
+      @if (roomRows().length === 0) {
+        <div class="pf-empty"><p>Aucune référence en stock n'a de règle de conservation ambiante.</p></div>
+      } @else {
+        <div class="pf-th-scroll">
+          <table class="pf-table">
+            <thead><tr><th>Médicament</th><th>En stock</th><th>Maximum supporté</th><th>Écart</th><th>État</th><th>Source</th></tr></thead>
+            <tbody>
+              @for (r of roomRows(); track r.item.stock_id) {
+                <tr>
+                  <td><span class="pf-th-med"><span class="pf-th-dot {{ r.item.at_risk ? 'red' : r.near ? 'amber' : r.gap === null ? '' : 'green' }}"></span><span class="pf-medname">{{ r.label }}</span></span></td>
+                  <td class="pf-num pf-num-sm">{{ r.item.quantity }}</td>
+                  <td><span class="pf-tx sky"><nv-icon name="thermo" [size]="14"/>{{ r.item.max_temp_c | number:'1.0-1' }} °C</span></td>
+                  <td [class.pf-out]="r.item.at_risk" [class.pf-th-near]="r.near" [class.pf-in]="!r.item.at_risk && !r.near && r.gap !== null">{{ gapLabel(r.gap) }}</td>
+                  <td>
+                    @if (r.item.at_risk) { <pf-tag s="crit">Trop chaud</pf-tag> }
+                    @else if (r.near) { <pf-tag s="low">Proche du seuil</pf-tag> }
+                    @else if (r.gap === null) { <pf-tag s="vue">Non comparé</pf-tag> }
+                    @else { <pf-tag s="ok">Conforme</pf-tag> }
+                  </td>
+                  <td class="muted">{{ r.source ?? '—' }}@if (!r.item.validated) { <span class="chip chip-amber chip-inline">À valider</span> }</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </pf-card>
+
+    <pf-card title="Chaîne du froid" sub="Médicaments à conserver au réfrigérateur — non comparés à la météo">
+      @if (fridgeRows().length === 0) {
+        <div class="pf-empty"><p>Aucun médicament à conserver au froid dans votre stock.</p></div>
+      } @else {
+        <p class="pf-note pf-th-note">Relevez le thermomètre du réfrigérateur matin et soir. En cas de coupure de courant, n'ouvrez pas la porte et notez la durée de la coupure : au-delà de quelques heures hors de la plage, demandez l'avis du fabricant avant de délivrer.</p>
+        @for (r of fridgeRows(); track r.item.stock_id) {
+          <div class="pf-li pf-li-sm">
+            <span class="pf-liic blue"><nv-icon name="thermo" [size]="18"/></span>
+            <div class="pf-libody">
+              <strong>{{ r.label }}</strong>
+              <span>{{ plural(r.item.quantity, 'unité', 'unités') }}@if (r.source) { · source {{ r.source }} }</span>
+            </div>
+            <div class="pf-li-act">
+              <span class="pf-tx sky"><nv-icon name="thermo" [size]="14"/>{{ (r.item.min_temp_c ?? 2) | number:'1.0-1' }} – {{ r.item.max_temp_c | number:'1.0-1' }} °C</span>
+              @if (!r.item.validated) { <span class="chip chip-amber">Seuil à valider</span> }
+            </div>
+          </div>
+        }
+      }
+    </pf-card>
+
+    <p class="pf-th-foot muted">
+      Risque estimé à partir de la température extérieure de votre zone (météo), pas d'une mesure de votre local.
+      @if (counts().unvalidated > 0) { {{ plural(counts().unvalidated, 'seuil n\'a', 'seuils n\'ont') }} pas encore été validés par un pharmacien. }
+    </p>
+  }
+</div>

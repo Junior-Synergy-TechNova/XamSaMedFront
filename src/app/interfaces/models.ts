@@ -16,7 +16,8 @@ export interface StockItem { id: string; q: number; seuil: number; s: StockState
 export interface Demande { id: string; med: string; de: string; type: string; qte: string; urgence: string; quand: string; statut: string; }
 export interface DemandePharmacy { id: number; nom: string; adresse: string; tel: string; available: number; status: string; }
 export interface DemandeReg { id: string; zone: string; medId: number; med: string; controlled: boolean; need: number; tension: ZoneLevel; officines: number; pharmacies: DemandePharmacy[]; }
-export interface ZoneInfo { nom: string; x: number; y: number; niveau: ZoneLevel; ruptures: number; }
+/** Zone (ville) en tension. `point` = centre des structures concernées (null si aucune n'est géolocalisée). */
+export interface ZoneInfo { nom: string; point: { lat: number; lng: number } | null; niveau: ZoneLevel; ruptures: number; tensions?: number; }
 export interface Tension { nom: string; pct: number; variation: number; score: number; controlled: boolean; ruptures: number; }
 export interface AlerteHop {
   id: string; medId?: number | null; med: string; service: string; unit?: string | null;
@@ -36,7 +37,9 @@ export interface NavItem {
   /** Restreint l'entrée à un secteur (ex. « Commandes PRA » : hôpitaux publics). */
   sector?: 'public' | 'private';
 }
-export interface Notif { icon: string; s: NotifKind; t: string; d: string; target?: string; id?: number; read?: boolean; }
+/** Teinte affichée dans la cloche : une couleur par type d'événement (rouge réservé aux alertes). */
+export type NotifTone = 'red' | 'amber' | 'green' | 'blue' | 'violet' | 'teal' | 'sky' | 'rose';
+export interface Notif { icon: string; s: NotifKind; t: string; d: string; target?: string; id?: number; read?: boolean; tone?: NotifTone; }
 export interface Feature { role: string; icon: string; color: 'green' | 'blue'; items: [string, string, string][]; }
 
 /* ---- Vues mappées depuis l'API (consommées par les dashboards) ---- */
@@ -46,9 +49,15 @@ export interface Feature { role: string; icon: string; color: 'green' | 'blue'; 
  * (patient ou officine qui oriente) ; `distKm` est la distance retenue (km,
  * null si coordonnées inconnues) et `dist` son libellé affiché.
  */
-export interface AvailabilityRow { structureId: number; pharmacy: string; city: string; phone: string; lat: number | null; lng: number | null; distKm: number | null; dist: string; s: DispoState; label: string; available: number; }
+export interface AvailabilityRow { structureId: number; pharmacy: string; city: string; phone: string; lat: number | null; lng: number | null; distKm: number | null; dist: string; s: DispoState; label: string; available: number;
+  /** Score d'accessibilité (tri uniquement) ; null sans position ou si l'API ne le calcule pas. */
+  score: number | null;
+  /** Raisons du classement affichées au patient. */
+  reasons: string[]; }
 export interface ResaRow {
   orderId: number; medName: string; pharmacyName: string; statut: string; quand: string; s: DispoState; status: string;
+  /** Teinte affichée (clé `pf-tag` / `.pf-liic`) : une couleur par état, `s` reste l'état logique. */
+  tone: string;
   /** Ordonnance multi-lignes : ce qui est prêt ici, orienté ailleurs, ou à accepter. */
   lines?: ResaLine[];
   /** Fin du délai de retrait (48 h après préparation). */
@@ -58,6 +67,8 @@ export interface ResaLine {
   id: number; name: string; qty: number; status: string;
   /** Texte de l'état pour le patient (« Prêt ici », « À retirer à Pharmacie du Port »…). */
   label: string; s: DispoState;
+  /** Teinte affichée (clé `pf-tag`). */
+  tone: string;
   prescribed: string | null; target: string | null; targetAddress: string | null; targetPhone: string | null;
   originalRequired: boolean;
 }
@@ -67,6 +78,8 @@ export interface StockRow {
   /** Seuil critique de la ligne (null = non défini). */
   critical: number | null;
   controlled: boolean; requiresRx: boolean;
+  /** Prix de référence du catalogue (FCFA), appliqué automatiquement aux ventes ; null = non renseigné. */
+  price: number | null;
   batch: string | null; expiry: string | null; expiryLevel: ExpiryLevel; daysToExpiry: number | null;
 }
 export interface DemandeRow { id: number; medId: number | null; medName: string; from: string; type: string; qty: number; urgency: string; status: string; quand: string; }

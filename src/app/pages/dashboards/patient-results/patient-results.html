@@ -8,17 +8,38 @@
 
         @if (loading()) {
           <div class="pf-empty">Chargement des disponibilités…</div>
+        } @else if (loadError()) {
+          <div class="pf-empty" role="alert">
+            <nv-icon name="alert" [size]="28" color="var(--color-red)"/>
+            <p><strong>Les disponibilités n'ont pas pu être chargées.</strong> Vérifiez votre connexion internet puis réessayez.</p>
+            <button type="button" class="btn btn-primary btn-sm" (click)="retry()"><nv-icon name="refresh" [size]="15"/> Réessayer</button>
+          </div>
         }
 
         @if (best(); as b) {
           <div class="pf-banner green pf-banner-best">
             <span class="pf-bannic"><nv-icon name="pin" [size]="22"/></span>
-            <div><strong>Pharmacie la plus proche disponible</strong><p>{{ b.pharmacy }} · {{ b.city }} · {{ b.dist }}</p></div>
+            <div class="pf-banner-body">
+              <strong>{{ ranked() ? 'Pharmacie la plus accessible' : hasPosition() ? 'Pharmacie la plus proche disponible' : 'Pharmacie disponible' }}</strong>
+              <p>{{ b.pharmacy }} · {{ b.city }}@if (hasPosition()) { · {{ b.dist }} }</p>
+              @if (ranked() && b.reasons.length) { <p class="pf-res-why">{{ b.reasons.join(' · ') }}</p> }
+            </div>
             <button class="btn btn-white" (click)="reserve.emit(b.structureId)">Réserver ici</button>
           </div>
         }
 
-        @if (!loading() && availableCount() === 0) {
+        @if (!loading() && rows().length > 0) {
+          @if (positionSource() !== 'gps') {
+            <div class="pf-res-geo">
+              <span>{{ geoHint() }}</span>
+              <button type="button" class="btn btn-outline btn-sm" (click)="useMyPosition()" [disabled]="geo.locating()"><nv-icon name="pin" [size]="15"/> {{ geo.locating() ? 'Localisation…' : positionSource() === 'home' ? 'Utiliser ma position actuelle' : 'Utiliser ma position' }}</button>
+            </div>
+          } @else {
+            <p class="pf-res-rankinfo">{{ geoHint() }}</p>
+          }
+        }
+
+        @if (!loading() && !loadError() && availableCount() === 0) {
           <div class="pf-banner amber pf-banner-none">
             <span class="pf-bannic"><nv-icon name="search" [size]="22"/></span>
             <div class="pf-banner-body">
@@ -29,22 +50,60 @@
           </div>
         }
 
-        @if (equivalents().length > 0) {
-          <span class="pf-caption">Équivalents thérapeutiques disponibles</span>
-          @for (e of equivalents(); track e.id) {
-            <div class="pf-li">
-              <span class="pf-liic {{ (e.available_pharmacies ?? 0) > 0 ? 'green' : 'amber' }}"><nv-icon name="pill" [size]="18"/></span>
-              <div class="pf-libody">
-                <strong>{{ e.name }} {{ e.dosage }}</strong>
-                <span>{{ e.note }} · {{ plural(e.available_pharmacies ?? 0, 'pharmacie', 'pharmacies') }}{{ e.nearest_km !== null && e.nearest_km !== undefined ? ' · à ' + e.nearest_km + ' km' : '' }}</span>
-              </div>
-              <div class="pf-li-act">
-                <span class="chip chip-blue" title="Score de pertinence">{{ e.score }}/100</span>
-                <button class="btn btn-outline btn-sm" (click)="open(e)">Voir</button>
-              </div>
+        @if (equivSet(); as set) {
+          @if (equivalents().length > 0 || alternatives().length > 0) {
+            <div class="pf-banner amber pf-eq-disclaimer">
+              <span class="pf-bannic"><nv-icon name="alert" [size]="20"/></span>
+              <div class="pf-banner-body"><p>{{ set.disclaimer }}</p></div>
             </div>
           }
-          <p class="pf-hint">Demandez l'avis de votre pharmacien ou médecin avant toute substitution.</p>
+
+          @if (equivalents().length > 0) {
+            <span class="pf-caption">Équivalents — même molécule</span>
+            @if (set.widened) { <p class="pf-hint">Aucun équivalent près de vous : résultats élargis à tout le réseau.</p> }
+            @for (e of equivalents(); track e.id) {
+              <div class="pf-li">
+                <span class="pf-liic {{ (e.available_pharmacies ?? 0) > 0 ? 'green' : 'amber' }}"><nv-icon name="pill" [size]="18"/></span>
+                <div class="pf-libody">
+                  <strong>{{ e.name }} {{ e.dosage }}</strong>
+                  <span>{{ equivLine(e) }}</span>
+                  @if (e.warnings?.length) {
+                    <ul class="pf-eq-warn">
+                      @for (w of e.warnings; track w.code) { <li>{{ w.message }}</li> }
+                    </ul>
+                  }
+                </div>
+                <div class="pf-li-act">
+                  @if (e.match_level === 'exact') { <span class="chip chip-green">Même forme et dosage</span> }
+                  <button class="btn btn-outline btn-sm" (click)="open(e)">Voir</button>
+                </div>
+              </div>
+            }
+          }
+
+          @if (alternatives().length > 0) {
+            <div class="pf-eq-alt">
+              <span class="pf-caption pf-eq-alt-title">Autres molécules — à valider par un médecin ou un pharmacien</span>
+              <p class="pf-eq-alt-notice">{{ set.alternativesNotice }}</p>
+              @for (e of alternatives(); track e.id) {
+                <div class="pf-li">
+                  <span class="pf-liic amber"><nv-icon name="pill" [size]="18"/></span>
+                  <div class="pf-libody">
+                    <strong>{{ e.name }} {{ e.dosage }}</strong>
+                    <span>{{ equivLine(e) }}</span>
+                    @if (e.reasons?.length) {
+                      <div class="pf-res-reasons">
+                        @for (why of e.reasons; track why) { <span class="chip chip-gray">{{ why }}</span> }
+                      </div>
+                    }
+                  </div>
+                  <div class="pf-li-act">
+                    <span class="chip chip-amber">À valider</span>
+                  </div>
+                </div>
+              }
+            </div>
+          }
         }
 
         @if (rows().length > 0) {
@@ -52,7 +111,16 @@
           @for (d of rows(); track d.structureId) {
             <div class="pf-li">
               <span class="pf-liic {{ d.s === 'ok' ? 'green' : d.s === 'low' ? 'amber' : 'red' }}"><nv-icon name="pin" [size]="18"/></span>
-              <div class="pf-libody"><strong>{{ d.pharmacy }}</strong><span>{{ d.city }} · {{ d.dist }} · {{ d.phone }}</span></div>
+              <div class="pf-libody">
+                <strong>{{ d.pharmacy }}</strong><span>{{ d.city }}@if (hasPosition()) { · <span class="pf-tx blue"><nv-icon name="pin" [size]="13"/>{{ d.dist }}</span> }@if (d.phone) { · <span class="pf-tx blue"><nv-icon name="phone" [size]="13"/>{{ d.phone }}</span> }</span>
+                @if (d.reasons.length) {
+                  <div class="pf-res-reasons">
+                    @for (why of d.reasons; track why) {
+                      <span class="chip" [class.chip-amber]="isFloodReason(why)" [class.chip-gray]="!isFloodReason(why)">{{ why }}</span>
+                    }
+                  </div>
+                }
+              </div>
               <div class="pf-li-act">
                 <pf-tag [s]="d.s">{{ d.label }}</pf-tag>
                 <button class="btn btn-green btn-sm" [disabled]="d.s === 'out'" (click)="reserve.emit(d.structureId)">{{ d.s === 'out' ? 'Indisponible' : 'Réserver' }}</button>

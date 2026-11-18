@@ -1,5 +1,5 @@
     @if (current(); as r) {
-      <div class="pf-app" [class.col]="compact()" [class.drawer]="drawerOpen()" (keydown.escape)="drawerOpen() && closeDrawer()">
+      <div class="pf-app" [class.col]="compact()" [class.drawer]="drawerOpen()" (keydown.escape)="onEscape()">
         <pf-toast-host/>
 
         <!-- Sidebar (tiroir sur téléphone) -->
@@ -7,9 +7,12 @@
         <aside class="pf-side" id="pf-side" aria-label="Navigation">
           <div class="pf-sidetop">
             <nv-logo [light]="true" [compact]="compact()" (clicked)="goHome()"/>
+            <button type="button" class="pf-drawerclose" (click)="closeDrawer()" aria-label="Fermer le menu" title="Fermer le menu">
+              <nv-icon name="x" [size]="20"/>
+            </button>
           </div>
           <div class="pf-rolepill" [title]="identity().name + ' — ' + identity().kind">
-            <span class="pf-rolepillic"><nv-icon [name]="r.icon" [size]="18"/></span>
+            <span class="pf-rolepillic {{ roleTone() }}"><nv-icon [name]="r.icon" [size]="18"/></span>
             <span class="pf-rolepilltxt pf-collapsible" [class.is-hidden]="compact()"><strong>{{ identity().name }}</strong><span>{{ identity().kind }}</span></span>
           </div>
           <nav class="pf-nav">
@@ -44,17 +47,21 @@
                   @if (searchLoading()) { <div class="pf-global-state">Recherche en cours…</div> }
                   @for (result of globalResults(); track result.type + result.id) {
                     <button type="button" (click)="openGlobalResult(result)">
-                      <span>{{ result.type === 'medicine' ? 'Médicament' : 'Officine' }}</span>
-                      <strong>{{ result.label }}</strong>
+                      <span class="pf-gric" [class.blue]="result.type === 'medicine'" [class.teal]="result.type !== 'medicine'"><nv-icon [name]="result.type === 'medicine' ? 'pill' : 'pin'" [size]="15"/></span>
+                      <span class="pf-grtxt">
+                        <span class="pf-grtype" [class.blue]="result.type === 'medicine'" [class.teal]="result.type !== 'medicine'">{{ result.type === 'medicine' ? 'Médicament' : 'Officine' }}</span>
+                        <strong>{{ result.label }}</strong>
+                      </span>
                     </button>
                   }
-                  @if (!searchLoading() && globalResults().length === 0) { <div class="pf-global-state">Aucun médicament ou officine trouvé.</div> }
+                  @if (!searchLoading() && searchError()) { <div class="pf-global-state" role="alert">Recherche indisponible — vérifiez la connexion puis retapez votre recherche.</div> }
+                  @else if (!searchLoading() && globalResults().length === 0) { <div class="pf-global-state">Aucun médicament ou officine trouvé.</div> }
                 </div>
               }
             </div>
             <div class="pf-topright">
               <div class="pf-notifwrap">
-                <button type="button" class="pf-iconbtn" [class.on]="notifOpen()" (click)="toggleNotif($event)" [attr.aria-expanded]="notifOpen()" [attr.aria-label]="notifs().length ? 'Notifications, ' + notifs().length + ' non lues' : 'Notifications'">
+                <button type="button" class="pf-iconbtn" [class.on]="notifOpen()" [class.has]="notifs().length > 0" (click)="toggleNotif($event)" [attr.aria-expanded]="notifOpen()" [attr.aria-label]="notifs().length ? 'Notifications, ' + notifs().length + ' non lues' : 'Notifications'">
                   <nv-icon name="bell" [size]="20"/>
                   @if (notifs().length > 0) { <span class="pf-notifdot">{{ notifs().length }}</span> }
                 </button>
@@ -63,7 +70,7 @@
                     <div class="pf-notifhead"><strong>Notifications</strong></div>
                     @for (n of notifs(); track n.t; let i = $index) {
                       <button type="button" class="pf-notifitem" (click)="openNotification(i)">
-                        <span class="pf-notificon {{ n.s }}"><nv-icon [name]="n.icon" [size]="16"/></span>
+                        <span class="pf-notificon {{ n.tone ?? n.s }}"><nv-icon [name]="n.icon" [size]="16"/></span>
                         <div><strong>{{ n.t }}</strong><span>{{ n.d }}</span></div>
                       </button>
                     }
@@ -74,7 +81,7 @@
 
               <div class="pf-rolesw">
                 <button type="button" class="pf-roleswbtn" [class.on]="profileOpen()" (click)="toggleProfile($event)" [attr.aria-expanded]="profileOpen()" aria-label="Ouvrir le menu du profil">
-                  <span class="pf-avatar"><nv-icon [name]="r.icon" [size]="16"/></span>
+                  <span class="pf-avatar {{ roleTone() }}"><nv-icon [name]="r.icon" [size]="16"/></span>
                   <span class="pf-rolesname">{{ userName() }}</span>
                   <nv-icon name="chevron" [size]="15" [rotate]="profileOpen() ? 270 : 90"/>
                 </button>
@@ -82,7 +89,7 @@
                   <div class="pf-rolemenu card" (click)="$event.stopPropagation()">
                     <div class="pf-rolemenuh"><strong>{{ userName() }}</strong><span>{{ identity().name }}</span></div>
                     <button type="button" class="pf-rolemenuit" (click)="exit()">
-                      <span class="pf-rolemenuic"><nv-icon name="logout" [size]="16"/></span>
+                      <span class="pf-rolemenuic red"><nv-icon name="logout" [size]="16"/></span>
                       <span>Se déconnecter</span>
                     </button>
                   </div>

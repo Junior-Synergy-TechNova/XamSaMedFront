@@ -35,9 +35,13 @@ export class PartnersPanel {
 
   readonly list = signal<ApiPartner[]>([]);
   readonly loading = signal(true);
+  /** Réseau non lu : « Réessayer » au lieu de « aucun partenaire ». */
+  readonly listError = signal(false);
   readonly inviteOpen = signal(false);
   readonly candidates = signal<ApiPartnerCandidate[]>([]);
   readonly searching = signal(false);
+  readonly searchError = signal(false);
+  private lastSearch = { q: '', type: '' };
 
   readonly toAnswer = computed(() => this.list().filter(p => p.can_respond));
   readonly active = computed(() => this.list().filter(p => p.status === 'active'));
@@ -47,9 +51,10 @@ export class PartnersPanel {
 
   reload(): void {
     this.loading.set(true);
+    this.listError.set(false);
     this.partners.list().subscribe({
       next: l => { this.list.set(l); this.loading.set(false); },
-      error: () => this.loading.set(false),
+      error: () => { this.loading.set(false); this.listError.set(true); },
     });
   }
 
@@ -61,11 +66,16 @@ export class PartnersPanel {
 
   search(q: string, type: string): void {
     this.searching.set(true);
+    this.searchError.set(false);
+    this.lastSearch = { q, type };
     this.partners.search(q.trim(), type || undefined).subscribe({
       next: c => { this.candidates.set(c); this.searching.set(false); },
-      error: () => this.searching.set(false),
+      error: () => { this.candidates.set([]); this.searching.set(false); this.searchError.set(true); },
     });
   }
+
+  retrySearch(): void { this.search(this.lastSearch.q, this.lastSearch.type); }
+
 
   invite(target: { partner_id?: number; identifier?: string }): void {
     if (!target.partner_id && !target.identifier?.trim()) {
@@ -99,6 +109,10 @@ export class PartnersPanel {
     });
   }
 
+  /** Teinte de catégorie par type de structure : officine teal, hôpital sky, PNA / PRA rose, distributeur violet. */
+  tone(type: string | null): string {
+    return type === 'pharmacy' ? 'teal' : type === 'hospital' ? 'sky' : type === 'pna' || type === 'pra' ? 'rose' : 'violet';
+  }
   icon(type: string | null): string {
     return type === 'pharmacy' ? 'pill' : type === 'hospital' ? 'hospital' : 'truck';
   }

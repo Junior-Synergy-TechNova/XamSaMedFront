@@ -1,18 +1,21 @@
-import { ChangeDetectionStrategy, Component, computed, inject, model, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, model, signal } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Observable, map, switchMap, throwError } from 'rxjs';
+import { Observable, finalize, map, switchMap, throwError } from 'rxjs';
 import { Icon } from '../../../components/icon/icon';
 import { Card } from '../../../components/card/card';
 import { PageHead } from '../../../components/page-head/page-head';
 import { Stat } from '../../../components/stat/stat';
 import { Tag } from '../../../components/tag/tag';
+import { MapMedicine, MapRequest, NetworkMap } from '../../../components/network-map/network-map';
 import { PartnersPanel, PartnerTypeOption } from '../../../components/partners-panel/partners-panel';
 import { IncomingDeliveries } from '../../../components/incoming-deliveries/incoming-deliveries';
 import { ExpiryTag } from '../../../components/expiry-tag/expiry-tag';
 import { PlatformState } from '../../../services/platform/platform';
 import { HospitalService } from '../../../services/hospital/hospital';
+import { SHARED_READ_MS } from '../../../services/shared-read/shared-read';
 import { MedicineService } from '../../../services/medicines/medicines';
-import { StructureService } from '../../../services/structures/structures';
+import { StructureService, structurePoint } from '../../../services/structures/structures';
 import { AuthService } from '../../../services/auth/auth';
 import { AlerteHop, CritMedRow } from '../../../interfaces/models';
 import { ModalA11y } from '../../../directives/modal-a11y/modal-a11y';
@@ -44,10 +47,14 @@ const SERVICES = ['Urgences', 'Réanimation', 'Bloc opératoire', 'Cardiologie',
    vers service / unité, réceptions, commandes PRA (public),
    réseau de partenaires, médicaments critiques (API réelle).
    ============================================================ */
+/** Lectures de la page, rechargées séparément après une action. */
+type HospitalResource = 'alerts' | 'crit' | 'history' | 'dashboard' | 'requests' | 'stock' | 'dispensations' | 'pra';
+const ALL_RESOURCES: HospitalResource[] = ['alerts', 'crit', 'history', 'dashboard', 'requests', 'stock', 'dispensations', 'pra'];
+
 @Component({
   selector: 'app-hopital-dash',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ModalA11y, FieldLabel, TableLabels, Icon, Card, PageHead, Stat, Tag, PartnersPanel, IncomingDeliveries, ExpiryTag],
+  imports: [DatePipe, ModalA11y, FieldLabel, TableLabels, Icon, Card, PageHead, Stat, Tag, PartnersPanel, NetworkMap, IncomingDeliveries, ExpiryTag],
   templateUrl: './hopital.html',
   styleUrl: './hopital.css',
 })
@@ -66,11 +73,39 @@ export class HopitalDash {
 
   readonly signalModal = signal(false);
   readonly signalSeverity = signal<HospitalSeverity>('tension');
+  /** Infobulle du champ « Quantité restante », désactivé en rupture. */
+  readonly qtyTip = 'En rupture, la quantité restante est 0 : rien à saisir.';
+  /** Premier chargement seulement : les rafraîchissements après une action gardent l'écran affiché. */
   readonly loading = signal(true);
+  /** Les alertes n'ont pas pu être lues : écran « Réessayer » (« aucune alerte » serait trompeur). */
+  readonly alertsError = signal(false);
+  /** Données secondaires en échec (stock, demandes…) : bandeau ambre avec « Réessayer ». */
+  readonly failedLoads = signal<ReadonlySet<string>>(new Set());
+  readonly failedLabel = computed(() => [...this.failedLoads()].join(', '));
+  /** Heure de la dernière lecture réussie des alertes. */
+  readonly lastSync = signal<Date | null>(null);
+  /** Lectures en cours (actualisation discrète). */
+  readonly inFlight = signal(0);
 
   /** Secteur lu en base : un hôpital public commande à sa PRA, un privé à ses distributeurs. */
   readonly isPublic = computed(() => (this.auth.structure()?.sector ?? 'public') === 'public');
   readonly structureName = computed(() => this.auth.structure()?.name ?? 'Hôpital');
+  /** Carte du réseau : position de l'hôpital et médicaments de son stock (ruptures puis tensions en tête). */
+  readonly myPoint = computed(() => structurePoint(this.auth.structure()));
+  readonly mapMedicines = computed<MapMedicine[]>(() => {
+    const seen = new Set<number>();
+    return this.hStock().flatMap(s => {
+      if (seen.has(s.medicine_id)) return [];
+      seen.add(s.medicine_id);
+      const level = lineLevel(s);
+      const name = s.medicine_name ?? s.medicine ?? '—';
+      return [{
+        id: s.medicine_id,
+        label: s.dosage ? `${name} ${s.dosage}` : name,
+        state: level === 'rupture' ? 'out' : level === 'tension' ? 'crit' : s.status === 'low' ? 'low' : 'ok',
+      } satisfies MapMedicine];
+    });
+  });
   readonly headerSub = computed(() => {
     const s = this.auth.structure();
     const pra = this.dashboardData()['pra'];
@@ -163,27 +198,80 @@ export class HopitalDash {
   readonly tensions = computed(() => this.alertes().filter(a => a.severity === 'tension'));
   readonly dashboardData = signal<ApiHospitalDashboard>({});
 
-  constructor() { this.reload(); }
+  /** Médicaments critiques en rupture ou sous le seuil d'alerte : ce qui demande une action. */
+  readonly critToHandle = computed(() => this.critMeds().filter(m => m.s !== 'ok').length);
+
+  /** Vrai seulement pendant le reload() du constructeur : la cloche vient de lire les mêmes alertes. */
+  private firstLoad = true;
+
+  constructor() {
+    this.reload();
+    this.firstLoad = false;
+    // Les pastilles de la sidebar comptent ce que les pages affichent — jamais un autre chiffre.
+    effect(() => this.platform.navCounts.set({
+      alert: this.alertes().length,
+      stock: this.expiredCount(),
+      crit: this.critToHandle(),
+    }));
+    inject(DestroyRef).onDestroy(() => this.platform.navCounts.set(null));
+  }
 
   private apiError(e: HttpErrorResponse, fallback: string): string {
     return (e.error as ApiErrorBody | null)?.message ?? fallback;
   }
 
-  reload(): void {
-    this.loading.set(true);
-    this.hospital.alerts().subscribe({
-      next: a => { this.alertes.set(a); this.loading.set(false); },
-      error: () => this.loading.set(false),
-    });
-    this.hospital.criticalMedicines().subscribe({ next: m => this.critMeds.set(m), error: () => { /* ignore */ } });
-    this.hospital.alertHistory().subscribe({ next: h => this.alertHistory.set(h), error: () => { /* ignore */ } });
-    this.hospital.dashboard().subscribe({ next: d => this.dashboardData.set(d), error: () => { /* ignore */ } });
-    this.hospital.restockRequests().subscribe({ next: r => this.restockRequests.set(r), error: () => { /* ignore */ } });
-    this.hospital.stock().subscribe({ next: s => this.hStock.set(s), error: () => { /* ignore */ } });
-    this.hospital.dispensations().subscribe({ next: d => { this.dispensations.set(d.data); this.byService.set(d.by_service); } });
-    if (this.isPublic()) {
-      this.hospital.praOrders().subscribe({ next: o => this.praOrders.set(o), error: () => { /* ignore */ } });
+  /** Tout recharger : premier affichage et « Actualiser ». */
+  reload(): void { this.refresh(...ALL_RESOURCES); }
+
+  /** « Réessayer » / « Actualiser » : l'écran de chargement ne revient que s'il n'y a encore rien à montrer. */
+  retry(): void {
+    this.loading.set(this.lastSync() === null);
+    this.alertsError.set(false);
+    this.reload();
+  }
+
+  /** Recharge uniquement ce qu'une action a changé (1 à 4 appels au lieu de 8). */
+  refresh(...what: HospitalResource[]): void {
+    for (const resource of new Set(what)) {
+      switch (resource) {
+        case 'alerts':
+          this.inFlight.update(n => n + 1);
+          this.hospital.alerts(this.firstLoad ? SHARED_READ_MS : 0).pipe(finalize(() => this.inFlight.update(n => n - 1))).subscribe({
+            next: a => { this.alertes.set(a); this.alertsError.set(false); this.loading.set(false); this.lastSync.set(new Date()); },
+            // Échec : on garde ce qui est affiché ; sans lecture réussie, écran d'erreur.
+            error: () => {
+              this.alertsError.set(this.lastSync() === null);
+              this.loading.set(false);
+              if (this.lastSync()) this.platform.notify('Alertes non actualisées — connexion instable', 'alert');
+            },
+          });
+          break;
+        case 'crit': this.track('médicaments critiques', this.hospital.criticalMedicines(), m => this.critMeds.set(m)); break;
+        case 'history': this.track('historique des alertes', this.hospital.alertHistory(), h => this.alertHistory.set(h)); break;
+        case 'dashboard': this.track('indicateurs', this.hospital.dashboard(), d => this.dashboardData.set(d)); break;
+        case 'requests': this.track('demandes fournisseurs', this.hospital.restockRequests(), r => this.restockRequests.set(r)); break;
+        case 'stock': this.track('stock de la pharmacie interne', this.hospital.stock(), st => this.hStock.set(st)); break;
+        case 'dispensations': this.track('sorties vers les services', this.hospital.dispensations(), d => { this.dispensations.set(d.data); this.byService.set(d.by_service); }); break;
+        case 'pra': if (this.isPublic()) this.track('commandes PRA', this.hospital.praOrders(), o => this.praOrders.set(o)); break;
+      }
     }
+  }
+
+  /** Charge une donnée secondaire et note son échec (bandeau) au lieu de l'ignorer. */
+  private track<T>(label: string, source: Observable<T>, apply: (value: T) => void): void {
+    this.inFlight.update(n => n + 1);
+    source.pipe(finalize(() => this.inFlight.update(n => n - 1))).subscribe({
+      next: value => { apply(value); this.setFailed(label, false); },
+      error: () => this.setFailed(label, true),
+    });
+  }
+
+  private setFailed(label: string, failed: boolean): void {
+    const current = this.failedLoads();
+    if (current.has(label) === failed) return;
+    const next = new Set(current);
+    if (failed) next.add(label); else next.delete(label);
+    this.failedLoads.set(next);
   }
 
   submitPraOrder(med: string, qty: string, urgency: string, service: string, notes: string): void {
@@ -240,7 +328,7 @@ export class HopitalDash {
 
   // --- Demande de réapprovisionnement (PRA pour un hôpital public, distributeurs privés sinon) ---
 
-  askRestock(alert: AlerteHop): void {
+  askRestock(alert: AlerteHop, only?: number): void {
     this.supplierModal.set(alert);
     this.suppliers.set([]);
     this.selectedSuppliers.set(new Set());
@@ -250,11 +338,37 @@ export class HopitalDash {
         this.suppliers.set(list);
         this.suppliersLoading.set(false);
         const asked = this.alreadyAsked(alert);
-        this.selectedSuppliers.set(new Set(list.filter(d => (d.has_stock || d.is_partner) && !asked.has(d.id)).map(d => d.id)));
+        this.selectedSuppliers.set(new Set(list.filter(d => (only ? d.id === only : d.has_stock || d.is_partner) && !asked.has(d.id)).map(d => d.id)));
       },
       error: () => this.suppliersLoading.set(false),
     });
   }
+
+  /**
+   * « Demander » sur la carte du réseau. Une demande de réappro. hospitalière part d'une alerte
+   * (POST /hospital/alerts/{alert}/restock) : sans alerte ouverte pour ce médicament, on ouvre
+   * le signalement pré-rempli, la demande se fait ensuite depuis l'alerte créée.
+   */
+  requestFromMap(r: MapRequest): void {
+    const alert = this.alertes().find(a => a.medId === r.medicineId);
+    if (alert) { this.askRestock(alert, r.supplierId); return; }
+    const s = this.hStock().find(x => x.medicine_id === r.medicineId);
+    this.platform.notify('Signalez d’abord la tension ou la rupture : la demande au fournisseur part de l’alerte', 'info');
+    this.signalRupture(s && s.available <= 0 ? 'rupture' : 'tension', s ? (s.medicine_name ?? s.medicine ?? '') : '');
+  }
+
+  /** Fournisseurs déjà sollicités par médicament (pour la carte du réseau). */
+  readonly askedByMedicine = computed(() => {
+    const index = new Map<number, Set<number>>();
+    for (const a of this.alertes()) {
+      const asked = this.askedByAlert().get(a.id);
+      if (a.medId == null || !asked) continue;
+      const set = index.get(a.medId) ?? new Set<number>();
+      asked.forEach(id => set.add(id));
+      index.set(a.medId, set);
+    }
+    return index;
+  });
 
   alreadyAsked(alert: AlerteHop): ReadonlySet<number> {
     return this.askedByAlert().get(alert.id) ?? EMPTY_SET;
@@ -286,7 +400,7 @@ export class HopitalDash {
         const names = res.data.map(d => d.distributor).join(', ');
         this.platform.notify(res.data.length ? 'Demande envoyée à ' + names : 'Demande déjà en attente chez ces fournisseurs', res.data.length ? 'ok' : 'info');
         this.supplierModal.set(null);
-        this.reload();
+        this.refresh('alerts', 'requests');
       },
       error: (e: HttpErrorResponse) => { this.sending.set(false); this.platform.notify(this.apiError(e, 'Échec de la demande de réapprovisionnement'), 'alert'); },
     });
@@ -322,6 +436,11 @@ export class HopitalDash {
     return d === null ? '' : d === 0 ? 'aujourd\'hui' : 'il y a ' + this.plural(d, 'jour', 'jours');
   }
   dayMonth(iso: string): string { return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }); }
+  /** Couleur d'une demande terminée : livrée/prévue vert, refusée rouge, annulée violet, close (stock revenu) teal. */
+  pastTone(r: { status: string }): string {
+    return r.status === 'resolved' ? 'green' : r.status === 'rejected' ? 'red'
+      : r.status === 'cancelled' ? 'violet' : r.status === 'closed' ? 'teal' : 'gray';
+  }
   /** Demande terminée, plus rien à suivre : elle passe dans l'historique (un refus récent reste visible). */
   isPastRequest(r: ApiRestockRequest): boolean {
     if (r.status === 'pending' || r.delivery_late || r.recently_rejected) return false;
@@ -348,8 +467,7 @@ export class HopitalDash {
         done();
         this.platform.notify(res.message, kind);
         // Une annulation libère aussi le fournisseur sur l'alerte d'origine (« Demander réappro. » redevient possible).
-        this.hospital.restockRequests().subscribe(list => this.restockRequests.set(list));
-        this.hospital.alerts().subscribe({ next: a => this.alertes.set(a), error: () => { /* ignore */ } });
+        this.refresh('requests', 'alerts');
       },
       error: (e: HttpErrorResponse) => { done(); this.platform.notify(this.apiError(e, 'Action impossible — réessayez'), 'alert'); },
     });
@@ -357,12 +475,16 @@ export class HopitalDash {
 
   resolve(id: string): void {
     this.hospital.resolveAlert(Number(id)).subscribe({
-      next: () => { this.platform.notify('Alerte résolue — réapprovisionnement reçu', 'ok'); this.reload(); },
+      next: () => { this.platform.notify('Alerte résolue — réapprovisionnement reçu', 'ok'); this.refresh('alerts', 'history', 'stock', 'dashboard', 'requests'); },
       error: () => this.platform.notify('Échec de la résolution', 'alert'),
     });
   }
 
-  signalRupture(severity: HospitalSeverity = 'tension'): void {
+  /** Médicament pré-rempli dans le signalement (depuis la carte du réseau). */
+  readonly signalMed = signal('');
+
+  signalRupture(severity: HospitalSeverity = 'tension', med = ''): void {
+    this.signalMed.set(med);
     this.signalSeverity.set(severity);
     this.signalModal.set(true);
   }
@@ -388,7 +510,7 @@ export class HopitalDash {
       next: ({ medicine, notified }) => {
         this.platform.notify(`${sev === 'rupture' ? 'Rupture' : 'Tension'} signalée pour ${medicine.nom} — ${this.plural(notified, 'partenaire notifié', 'partenaires notifiés')}`, 'ok');
         this.signalModal.set(false);
-        this.reload();
+        this.refresh('alerts', 'history', 'dashboard');
       },
       error: (e: unknown) => this.platform.notify(
         e instanceof Error && e.message === 'not_found' ? 'Médicament introuvable dans le catalogue' : 'Échec du signalement', 'alert'),
@@ -407,13 +529,12 @@ export class HopitalDash {
     if (!s) return;
     if (value !== null && (!Number.isInteger(value) || value < 1)) { this.platform.notify('Seuil de tension invalide (entier ≥ 1)', 'alert'); return; }
     this.savingTension.set(true);
-    this.hospital.setTensionThreshold(s.id, value).pipe(
-      switchMap(r => this.hospital.stock().pipe(map(stock => ({ r, stock })))),
-    ).subscribe({
-      next: ({ r, stock }) => {
+    this.hospital.setTensionThreshold(s.id, value).subscribe({
+      next: r => {
         this.savingTension.set(false);
-        this.hStock.set(stock);
         this.tensionModal.set(null);
+        // Le seuil est enregistré : une relecture du stock en échec ne doit pas le faire croire perdu.
+        this.refresh('stock');
         this.platform.notify(`${s.medicine_name} : seuil de tension ${r.tension_threshold} u. — ${this.sevLabel(r.alert_level).toLowerCase()}`, 'ok');
       },
       error: (e: HttpErrorResponse) => { this.savingTension.set(false); this.platform.notify(this.apiError(e, "Échec de l'enregistrement du seuil"), 'alert'); },
@@ -431,7 +552,7 @@ export class HopitalDash {
     this.hospital.dispense(s.id, {
       quantity, service: service.trim(), unit: unit.trim() || undefined, patient_ref: patientRef.trim() || undefined,
     }).subscribe({
-      next: r => { this.platform.notify(r.message, 'ok'); this.dispenseModal.set(null); this.reload(); },
+      next: r => { this.platform.notify(r.message, 'ok'); this.dispenseModal.set(null); this.refresh('stock', 'dispensations', 'dashboard', 'alerts'); },
       error: (e: HttpErrorResponse) => this.platform.notify(this.apiError(e, 'Échec de la sortie'), 'alert'),
     });
   }

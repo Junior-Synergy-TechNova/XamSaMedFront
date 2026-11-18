@@ -1,0 +1,30 @@
+@reference "../../../../styles.css";
+/* ===================== PATIENT — armoire familiale ===================== */
+:host { @apply contents; }
+
+/* Filtres : personne puis état, sur deux groupes qui passent à la ligne */
+.pf-cab-filters { @apply flex flex-wrap items-center justify-between gap-x-6 gap-y-3 mb-5; }
+.pf-cab-filter { @apply flex flex-wrap gap-2; }
+
+/* Légende du code couleur (seuils domicile : J-30 / J-7) */
+.pf-cab-legend { @apply flex flex-wrap items-center gap-2.5 mb-5 text-[13.5px]; }
+.pf-cab-legend-title { @apply text-gray-text mr-1; }
+
+/* Ligne d'armoire : péremption + chaleur sous le nom */
+.pf-cab-tags { @apply flex flex-wrap gap-2 mt-3; }
+.pf-cab-advice { @apply text-[14px] text-amber-text font-medium mt-2.5 leading-snug; }
+
+/* Formulaires */
+.pf-cab-hint { @apply -mt-2 mb-4 text-[13.5px] text-gray-text leading-snug; }
+.pf-cab-check { @apply flex items-center gap-3 text-[15px] text-black cursor-pointer mb-2; }
+.pf-cab-intro { @apply mb-5 text-[14.5px] leading-relaxed; }
+.pf-cab-memberform { @apply mt-5 p-5 bg-gray-bg rounded-[10px]; }
+.pf-cab-memberform .pf-fieldrow { @apply mb-3; }
+.pf-cab-memberact { @apply flex justify-end gap-2; }
+.pf-cab-locate { @apply w-full justify-center mb-6; }
+
+@media (max-width: 640px) {
+  /* Les actions passent sous le contenu, qui garde toute la largeur */
+  .pf-cab-row { @apply flex-wrap; }
+  .pf-cab-row .pf-li-act { @apply basis-full justify-start flex-wrap; }
+}

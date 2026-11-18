@@ -29,7 +29,9 @@ export const NAV: Record<RoleId, NavItem[]> = {
   patient: [
     { id: 'search', label: 'Rechercher', icon: 'search' },
     { id: 'resa', label: 'Mes réservations', icon: 'cart', badge: 0 },
+    { id: 'cabinet', label: 'Armoire familiale', icon: 'home' },
     { id: 'phar', label: 'Pharmacies', icon: 'pin' },
+    { id: 'inond', label: 'Routes inondées', icon: 'cloud' },
     { id: 'profil', label: 'Mon profil', icon: 'user' },
   ],
   // Trois métiers : répondre aux patients (Comptoir), tenir le stock (Stock), gérer l'officine.
@@ -41,8 +43,10 @@ export const NAV: Record<RoleId, NavItem[]> = {
     { id: 'ventes', label: 'Ventes & comptabilité', icon: 'cart', group: 'Comptoir' },
     { id: 'stock', label: 'Gestion de stock', icon: 'box', group: 'Stock' },
     { id: 'alert', label: 'Alertes de seuil', icon: 'alert', group: 'Stock' },
+    { id: 'thermique', label: 'Conservation thermique', icon: 'thermo', group: 'Stock' },
     { id: 'recep', label: 'Réceptions', icon: 'truck', group: 'Stock' },
     { id: 'history', label: 'Historique', icon: 'clock', group: 'Stock' },
+    { id: 'carte', label: 'Carte du réseau', icon: 'pin', group: 'Officine' },
     { id: 'res', label: 'Réseau', icon: 'link', group: 'Officine' },
     { id: 'profil', label: 'Officine', icon: 'pill', group: 'Officine' },
   ],
@@ -63,6 +67,7 @@ export const NAV: Record<RoleId, NavItem[]> = {
     { id: 'recep', label: 'Réceptions', icon: 'truck' },
     { id: 'pra', label: 'Commandes PRA', icon: 'send', sector: 'public' },
     { id: 'history', label: 'Historique', icon: 'clock' },
+    { id: 'carte', label: 'Carte du réseau', icon: 'pin' },
     { id: 'res', label: 'Réseau partenaires', icon: 'link' },
     { id: 'crit', label: 'Médicaments critiques', icon: 'shield' },
   ],
@@ -113,3 +118,9 @@ export const FEATURES: Feature[] = [
     ],
   },
 ];
+
+/** Teinte de catégorie d'un profil, d'après son icône : patient bleu, officine teal,
+ *  distributeur violet, hôpital bleu ciel, santé publique rose (mêmes teintes que la plateforme). */
+export const ICON_TONE: Readonly<Record<string, string>> = {
+  user: 'blue', pill: 'teal', truck: 'violet', hospital: 'sky', chart: 'rose',
+};

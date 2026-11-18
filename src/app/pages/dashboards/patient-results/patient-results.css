@@ -4,3 +4,17 @@
 .pf-backbtn { @apply mb-3.5; }
 .pf-banner-best { @apply mb-[18px]; }
 .pf-banner-none { @apply mb-1; }
+
+/* Score d'accessibilité : on montre les raisons, jamais le score lui-même */
+.pf-res-why { @apply text-[14px] mt-1.5 text-gray-text; }
+.pf-res-geo { @apply flex flex-wrap items-center justify-between gap-3 px-5 py-4 mb-5 bg-gray-bg rounded-[10px] text-[14px] text-gray-text; }
+.pf-res-rankinfo { @apply text-[13.5px] text-gray-text mb-5 leading-relaxed; }
+.pf-res-reasons { @apply flex flex-wrap gap-1.5 mt-2.5; }
+.pf-res-reasons .chip { @apply text-[12.5px] py-[5px]; }
+
+/* Équivalents : prudence d'abord, alternatives (autre molécule) dans un bloc à part */
+.pf-eq-disclaimer { @apply mt-5 mb-1; }
+.pf-eq-warn { @apply mt-2 pl-4 list-disc text-[13.5px] text-amber-text leading-relaxed; }
+.pf-eq-alt { @apply mt-6 px-5 pb-4 pt-1 border border-amber rounded-[10px]; }
+.pf-eq-alt-title { @apply text-amber-text; }
+.pf-eq-alt-notice { @apply text-[13.5px] text-gray-text mb-3 leading-relaxed; }

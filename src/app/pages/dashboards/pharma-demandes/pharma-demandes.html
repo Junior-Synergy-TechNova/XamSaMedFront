@@ -15,16 +15,19 @@
 
       @for (d of demandes(); track d.id) {
         <div class="pf-rowline">
-          <div class="pf-row pf-row-top">
-            <span class="pf-liic {{ d.status === 'pending' ? (d.urgency === 'Critique' ? 'red' : d.urgency === 'Élevé' ? 'amber' : 'blue') : d.status === 'confirmed' ? 'green' : '' }}">
+          <div class="pf-row">
+            <span class="pf-liic {{ d.status === 'pending' ? urgTone(d.urgency) : statusTone(d.status) }}">
               <nv-icon [name]="typeIcon(d.type)" [size]="18"/>
             </span>
             <div class="pf-row-body">
               <div class="pf-row-head">
                 <span class="pf-medname">{{ d.medName }}</span>
-                <pf-tag [s]="d.status === 'pending' ? urg(d.urgency) : 'vue'">{{ d.urgency }}</pf-tag>
+                <pf-tag [s]="urgTone(d.urgency)">{{ urgLabel(d.urgency) }}</pf-tag>
+                @if (d.status !== 'pending') {
+                  <pf-tag [s]="statusTone(d.status)">{{ statusLabel(d.status) }}</pf-tag>
+                }
               </div>
-              <p class="muted pf-row-sub">Demandé par <strong class="pf-accent">{{ d.from }}</strong> ({{ d.type }}) · {{ d.qty }} u. · {{ d.quand }}</p>
+              <p class="muted pf-row-sub">Demandé par <span class="pf-tx blue">{{ d.from }}</span> · <span class="pf-tx {{ typeTone(d.type) }}"><nv-icon [name]="typeIcon(d.type)" [size]="13"/>{{ d.type }}</span> · <strong class="pf-dm-qty">{{ d.qty }} u.</strong> · <span class="pf-tx gray"><nv-icon name="clock" [size]="13"/>{{ d.quand }}</span></p>
             </div>
             @if (orient() !== d.id) {
               <div class="pf-li-act">
@@ -35,9 +38,6 @@
                   }
                   @case ('confirmed') {
                     <button class="btn btn-green btn-sm" (click)="collect(d.id)" [disabled]="busy().has(d.id)"><nv-icon name="checkC" [size]="15"/> Marquer retiré</button>
-                  }
-                  @default {
-                    <span class="chip">{{ statusLabel(d.status) }}</span>
                   }
                 }
               </div>
@@ -54,19 +54,21 @@
               }
               @for (p of orientOptions(); track p.structureId; let first = $first) {
                 <div class="pf-li pf-li-sm" [class.pf-li-near]="first && p.distKm !== null">
-                  <span class="pf-liic green"><nv-icon name="pin" [size]="16"/></span>
+                  <span class="pf-liic {{ p.s === 'low' ? 'amber' : p.s === 'out' ? 'red' : 'green' }}"><nv-icon name="pin" [size]="16"/></span>
                   <div class="pf-libody">
                     <strong>{{ p.pharmacy }}</strong>
-                    <span>{{ p.city }} · {{ p.dist }} · {{ p.phone }}</span>
+                    <span>{{ p.city }} · <span class="pf-tx" [class.green]="first && p.distKm !== null" [class.blue]="!(first && p.distKm !== null)"><nv-icon name="pin" [size]="13"/>{{ p.dist }}</span>@if (p.phone) { · {{ p.phone }} }</span>
                   </div>
                   @if (first && p.distKm !== null) {
-                    <span class="chip chip-green pf-orient-near"><nv-icon name="pin" [size]="13"/> La plus proche</span>
+                    <span class="pf-tx green pf-orient-near"><nv-icon name="star" [size]="13"/>La plus proche</span>
                   }
                   <pf-tag [s]="p.s">{{ p.available }} u. dispo</pf-tag>
                   <button class="btn btn-green btn-sm" (click)="doOrient(d, p)" [disabled]="busy().has(d.id)">Orienter ici</button>
                 </div>
               }
-              @if (!orientLoading() && orientOptions().length === 0) {
+              @if (!orientLoading() && orientError()) {
+                <div class="pf-banner red" role="alert"><div class="pf-banner-body"><p>Les stocks des autres officines n'ont pas pu être vérifiés.</p></div><button type="button" class="btn btn-white btn-sm" (click)="startOrient(d)"><nv-icon name="refresh" [size]="15"/> Réessayer</button></div>
+              } @else if (!orientLoading() && orientOptions().length === 0) {
                 <div class="pf-note-sm">Aucune autre officine ne dispose de ce médicament en quantité suffisante. Pensez à demander un réapprovisionnement à vos fournisseurs.</div>
               }
               <button type="button" class="btn btn-ghost btn-sm pf-orient-cancel" (click)="orient.set(null)">Annuler</button>

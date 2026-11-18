@@ -13,6 +13,7 @@ import { PartnersPanel, PartnerTypeOption } from '../../../components/partners-p
 import { IncomingDeliveries } from '../../../components/incoming-deliveries/incoming-deliveries';
 import { PlatformState, saveBlob } from '../../../services/platform/platform';
 import { DeliveryReceiptService } from '../../../services/deliveries/deliveries';
+import { SHARED_READ_MS } from '../../../services/shared-read/shared-read';
 import { DistributorDashboard, DistributorService } from '../../../services/distributor/distributor';
 import { MedicineService } from '../../../services/medicines/medicines';
 import {
@@ -142,6 +143,8 @@ export class DistribDash {
   readonly editLivraisonModal = signal<DeliveryRow | null>(null);
   readonly planModal = signal<PlanContext | null>(null);
   readonly planLoading = signal(false);
+  /** Destinations non lues : le formulaire propose « Réessayer » au lieu de « aucune structure livrable ». */
+  readonly planError = signal(false);
   readonly planSelectedMed = signal<number | null>(null);
 
   // --- INSTITUTIONNEL (PNA / PRA) ---
@@ -355,8 +358,12 @@ export class DistribDash {
     }
   });
 
+  /** Vrai seulement pendant le reload() du constructeur : la cloche vient de lire les mêmes demandes régionales. */
+  private firstLoad = true;
+
   constructor() {
     this.reload();
+    this.firstLoad = false;
     this.medicines.list().subscribe({ next: c => this.catalog.set(c), error: () => { /* le modal libre affiche une liste vide */ } });
     // Les pastilles de la sidebar comptent ce que les pages affichent — jamais un autre chiffre.
     effect(() => this.platform.navCounts.set({
@@ -396,16 +403,16 @@ export class DistribDash {
           });
           break;
         case 'dashboard':
-          this.distributor.dashboard().subscribe(d => {
+          this.track('indicateurs', this.distributor.dashboard(), d => {
             const knewType = !!this.auth.user()?.structure?.type;
             this.dashboardData.set(d);
             // Type de structure inconnu avant /dashboard (session restaurée) : le flux institutionnel suit.
             if (!knewType && d.structure?.type) this.refresh('institutional');
           });
           break;
-        case 'demandes': this.track('tensions par zone', this.distributor.regionalDemands(), d => this.demandes.set(d)); break;
+        case 'demandes': this.track('tensions par zone', this.distributor.regionalDemands(this.firstLoad ? SHARED_READ_MS : 0), d => this.demandes.set(d)); break;
         case 'zones': this.track('zones', this.distributor.zones(), z => this.zones.set(z)); break;
-        case 'forecasts': this.distributor.previsions().subscribe(p => this.forecasts.set(p)); break;
+        case 'forecasts': this.track('prévisions', this.distributor.previsions(), p => this.forecasts.set(p)); break;
         case 'deliveries': this.track('livraisons', this.distributor.deliveries(), d => this.deliveries.set(d)); break;
         case 'shortages': this.track('ruptures signalées', this.distributor.shortageReports(), r => this.shortageReports.set(r)); break;
         case 'institutional': this.loadInstitutional(); break;
@@ -425,13 +432,13 @@ export class DistribDash {
   private loadInstitutional(): void {
     switch (this.distType()) {
       case 'PNA':
-        this.distributor.pnaDashboard().subscribe(d => this.pnaDash.set(d));
+        this.track('indicateurs PNA', this.distributor.pnaDashboard(), d => this.pnaDash.set(d));
         this.track('commandes des PRA', this.distributor.pnaRequests(), o => this.pnaRequests.set(o));
-        this.distributor.pnaOrders().subscribe(o => this.pnaOrders.set(o));
+        this.track('commandes nationales', this.distributor.pnaOrders(), o => this.pnaOrders.set(o));
         break;
       case 'PRA':
         this.track('commandes des hôpitaux', this.distributor.praOrders(), o => this.praOrders.set(o));
-        this.distributor.praPnaOrders().subscribe(o => this.praPnaOrders.set(o));
+        this.track('commandes à la PNA', this.distributor.praPnaOrders(), o => this.praPnaOrders.set(o));
         break;
       default:
         break;
@@ -518,6 +525,17 @@ export class DistribDash {
     });
   }
 
+  /** Couleur d'une demande terminée : livrée/prévue vert, refusée rouge, annulée violet, close (stock revenu) teal. */
+  pastTone(r: { status: string }): string {
+    return r.status === 'resolved' ? 'green' : r.status === 'rejected' ? 'red'
+      : r.status === 'cancelled' ? 'violet' : r.status === 'closed' ? 'teal' : 'gray';
+  }
+
+  /** Stock restant du demandeur : rouge à zéro, ambre sinon (il est sous son seuil), gris si inconnu. */
+  restTone(v: string | number | null | undefined): string {
+    const n = typeof v === 'number' ? v : parseFloat(v ?? '');
+    return isNaN(n) ? 'gray' : n <= 0 ? 'red' : 'amber';
+  }
   requestStatusLabel(r: ApiIncomingRequest): string {
     const day = (iso: string) => new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
     return r.status === 'resolved' ? 'Livraison prévue' + (r.delivery_date ? ' le ' + day(r.delivery_date) : '')
@@ -567,14 +585,20 @@ export class DistribDash {
   /** Charge les destinations livrables (avec leur stock du médicament choisi). */
   private loadDestinations(medicineId: number | null): void {
     this.planLoading.set(true);
+    this.planError.set(false);
     this.distributor.destinations(medicineId).subscribe({
       next: list => {
         this.planLoading.set(false);
         const ctx = this.planModal();
         if (ctx) this.planModal.set({ ...ctx, destinations: list });
       },
-      error: () => this.planLoading.set(false),
+      error: () => { this.planLoading.set(false); this.planError.set(true); },
     });
+  }
+
+  retryDestinations(): void {
+    const ctx = this.planModal();
+    if (ctx) this.loadDestinations(ctx.medicineId);
   }
 
   /** Changement de médicament dans le modal libre → rafraîchit l'état de stock des destinations. */
@@ -727,7 +751,7 @@ export class DistribDash {
   ztag(n: string): string { return n === 'crit' ? 'crit' : n === 'haute' ? 'low' : 'ok'; }
   /** Mêmes libellés que la légende de la carte. */
   zoneLabel(n: string): string { return n === 'crit' ? 'Critique' : n === 'haute' ? 'Tension haute' : n === 'moyenne' ? 'Modérée' : 'Faible'; }
-  zoneTile(n: string): string { return n === 'crit' ? 'red' : n === 'haute' ? 'amber' : ''; }
+  zoneTile(n: string): string { return n === 'crit' ? 'red' : n === 'haute' ? 'amber' : 'green'; }
   tone(pct: number): BarTone { return pct > 70 ? 'red' : pct > 40 ? 'amber' : 'green'; }
 
   /** Délai réel de réappro. (delivery_plans livrés) ou absence d'historique. */

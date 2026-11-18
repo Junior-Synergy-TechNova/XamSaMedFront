@@ -4,7 +4,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Icon } from '../../components/icon/icon';
 import { Logo } from '../../components/logo/logo';
 import { AuthService } from '../../services/auth/auth';
-import { ROLES, roleById } from '../../data/mock-data';
+import { ICON_TONE, ROLES, roleById } from '../../data/mock-data';
 import { RoleId } from '../../interfaces/models';
 import { OtpChannel } from '../../interfaces/api';
 
@@ -26,6 +26,8 @@ export class LoginScreen {
   private readonly auth = inject(AuthService);
 
   readonly roles = ROLES;
+  /** Teinte de la case d'icône d'un profil (mêmes teintes que le site et la plateforme). */
+  tone(icon: string): string { return ICON_TONE[icon] ?? 'blue'; }
   readonly points: readonly [string, string][] = [
     ['shield', 'Données de santé chiffrées'],
     ['refresh', 'Disponibilité en temps réel'],
@@ -43,7 +45,7 @@ export class LoginScreen {
 
   readonly role = signal<RoleId>('pharma');
   readonly email = signal<string>(this.demoEmail['pharma']);
-  readonly password = signal<string>('password123');
+  readonly password = signal<string>('');
   readonly error = signal<string | null>(null);
   readonly loading = signal(false);
   // Affichage en clair du mot de passe (évite les fautes de frappe à l'aveugle).

@@ -23,7 +23,7 @@
             <div class="pf-roles">
               @for (x of roles; track x.id) {
                 <button class="pf-role" [class.on]="role() === x.id" (click)="pick(x.id)">
-                  <span class="pf-roleic"><nv-icon [name]="x.icon" [size]="22"/></span>
+                  <span class="pf-roleic {{ tone(x.icon) }}"><nv-icon [name]="x.icon" [size]="22"/></span>
                   <span class="pf-roletxt"><strong>{{ x.label }}</strong><span>{{ x.desc }}</span></span>
                   <span class="pf-roleradio">@if (role() === x.id) { <nv-icon name="check" [size]="14"/> }</span>
                 </button>
@@ -65,7 +65,7 @@
 
               <details class="pf-loginhint">
                 <summary>Tous les comptes de démonstration</summary>
-                <p><strong>pharma&#64;xamsamed.test</strong> · <strong>pharma2&#64;xamsamed.test</strong> · <strong>pra&#64;xamsamed.test</strong> · <strong>distrib&#64;xamsamed.test</strong> · <strong>hopital&#64;xamsamed.test</strong> · <strong>clinique&#64;xamsamed.test</strong> · <strong>admin&#64;xamsamed.test</strong> · mot de passe <strong>password123</strong></p>
+                <p><strong>pharma&#64;xamsamed.test</strong> · <strong>pharma2&#64;xamsamed.test</strong> · <strong>pra&#64;xamsamed.test</strong> · <strong>distrib&#64;xamsamed.test</strong> · <strong>hopital&#64;xamsamed.test</strong> · <strong>clinique&#64;xamsamed.test</strong> · <strong>admin&#64;xamsamed.test</strong> · mot de passe : à demander à Fatou ou Alioune</p>
               </details>
             } @else if (mode() === 'otp') {
               <p class="muted pf-resetintro">Connexion sans mot de passe : un code à 6 chiffres, valable 10 minutes, vous est envoyé.</p>

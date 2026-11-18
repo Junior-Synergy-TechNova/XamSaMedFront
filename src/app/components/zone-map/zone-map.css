@@ -1,18 +1,4 @@
 @reference "../../../styles.css";
 :host { @apply contents; }
-.pf-mapzone { @apply absolute -translate-x-1/2 -translate-y-1/2 rounded-full opacity-50; }
-.pf-maplabel { @apply absolute -translate-x-1/2 -translate-y-1/2 font-title font-bold text-[11px] text-blue bg-white/85 px-[7px] py-0.5 rounded-[6px] whitespace-nowrap; }
-.pf-maplegend .dot.crit { @apply bg-red; }
-.pf-maplegend .dot.haute { @apply bg-amber; }
-.pf-maplegend .dot.moyenne { @apply bg-green; }
-.pf-maplegend .dot.basse { @apply bg-blue; }
-/* Niveau de la zone : halo (taille + couleur) et épingle, mêmes couleurs que la légende */
-.pf-mapzone.crit { @apply w-16 h-16 bg-red; }
-.pf-mapzone.haute { @apply w-[52px] h-[52px] bg-amber; }
-.pf-mapzone.moyenne { @apply w-10 h-10 bg-green; }
-.pf-mapzone.basse { @apply w-[30px] h-[30px] bg-blue; }
-.pf-mapdot.crit { @apply bg-red; }
-.pf-mapdot.haute { @apply bg-amber; }
-.pf-mapdot.moyenne { @apply bg-green; }
-.pf-mapdot.basse { @apply bg-blue; }
-.pf-mapdot.on { @apply outline-3 outline-blue/30; }
+.pf-zm-hint { @apply ml-auto max-[760px]:ml-0; }
+.pf-zm-unplaced { @apply mt-3 text-[13px] text-gray-text; }

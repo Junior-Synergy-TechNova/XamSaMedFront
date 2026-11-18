@@ -3,8 +3,12 @@
 .pf-bar { @apply relative h-2 rounded-[6px] bg-gray-bg overflow-hidden flex-1; }
 /* Repère du seuil : un trait fin, le niveau se lit « au-dessus / en dessous » du trait */
 .pf-barmark { @apply absolute top-0 bottom-0 w-0.5 -ml-px bg-black/45; }
-.pf-barfill { @apply block h-full rounded-[6px]; }
+.pf-barfill { @apply block h-full rounded-[6px] transition-[width] duration-700 ease-[cubic-bezier(.22,1,.36,1)]; animation: pf-bar-grow .9s cubic-bezier(.22,1,.36,1) .1s both; }
+/* La jauge se remplit depuis 0 à l'affichage, puis glisse vers sa nouvelle valeur après une action */
+@keyframes pf-bar-grow { from { width: 0; } }
 .pf-barfill.green { @apply bg-green; }
 .pf-barfill.amber { @apply bg-amber; }
 .pf-barfill.red { @apply bg-red; }
 .pf-barfill.blue { @apply bg-blue; }
+.pf-barmark { animation: pf-bar-mark .3s ease-out .7s both; }
+@keyframes pf-bar-mark { from { opacity: 0; } }
