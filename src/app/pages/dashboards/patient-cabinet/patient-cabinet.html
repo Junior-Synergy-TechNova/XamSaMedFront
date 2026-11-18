@@ -106,7 +106,7 @@
         </div>
       </pf-card>
     } @else {
-      <div class="pf-scroll">
+      <div class="pf-scroll pf-scroll-page">
         @for (r of visibleRows(); track r.item.id) {
           <div class="pf-li pf-cab-row">
             <span class="pf-liic {{ r.tone }}"><nv-icon [name]="r.heat ? 'thermo' : 'pill'" [size]="20"/></span>

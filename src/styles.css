@@ -365,9 +365,13 @@ button.pf-li:hover, label.pf-li:hover, a.pf-li:hover { @apply border-gray; }
 .pf-li-sm + .pf-li-sm { @apply mt-2.5; }
 /* Liste longue dans un panneau : elle défile dans le panneau au lieu d'allonger la page.
    Pas d'overscroll-contain : arrivée en bas (ou en haut), la molette continue sur la page.
-   Le léger débord (-mx/-my + padding) garde visibles bordures et anneaux de focus des lignes. */
-.pf-scroll { @apply relative max-h-[min(600px,68vh)] overflow-y-auto -mx-2 px-2 -my-1 py-1; scrollbar-width: thin; scrollbar-color: var(--color-gray-line) transparent; }
+   Le léger débord (-mx/-my + padding) garde visibles bordures et anneaux de focus des lignes.
+   Fond blanc opaque (= celui du panneau) : Chrome peut alors faire défiler la liste sur le GPU,
+   sans dépendre du fil principal — sinon le défilement saccade dès que la page travaille. */
+.pf-scroll { @apply relative max-h-[min(600px,68vh)] overflow-y-auto bg-white -mx-2 px-2 -my-1 py-1; scrollbar-width: thin; scrollbar-color: var(--color-gray-line) transparent; }
 .pf-scroll:hover { scrollbar-color: var(--color-gray) transparent; }
+/* Liste posée directement sur la page (pas dans un panneau) : fond opaque de la couleur de la page */
+.pf-scroll.pf-scroll-page { @apply bg-gray-bg; }
 
 /* Case d'icône : porte l'état de la ligne (rouge rupture, orange tension, vert sain) */
 .pf-liic { @apply w-11 h-11 rounded-[10px] grid place-items-center flex-none bg-gray-bg text-gray-text text-[14px] font-semibold; }
