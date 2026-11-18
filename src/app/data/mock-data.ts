@@ -28,6 +28,7 @@ export const roleById = (id: RoleId): Role => ROLES.find(r => r.id === id) ?? RO
 export const NAV: Record<RoleId, NavItem[]> = {
   patient: [
     { id: 'search', label: 'Rechercher', icon: 'search' },
+    { id: 'assistant', label: 'Assistant', icon: 'chat' },
     { id: 'resa', label: 'Mes réservations', icon: 'cart', badge: 0 },
     { id: 'cabinet', label: 'Armoire familiale', icon: 'home' },
     { id: 'phar', label: 'Pharmacies', icon: 'pin' },

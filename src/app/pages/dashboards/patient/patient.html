@@ -135,6 +135,8 @@
 
       @case ('inond') { <app-patient-floods/> }
 
+      @case ('assistant') { <app-patient-assistant (navigate)="section.set($event)"/> }
+
       @case ('profil') {
         <app-simple-profile role="patient" title="Mon profil" [name]="auth.user()?.name || 'Mon Profil'" sub="Patiente / Accompagnante" [fields]="profilFields()"/>
       }

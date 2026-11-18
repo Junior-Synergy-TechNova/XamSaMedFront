@@ -90,3 +90,19 @@ export interface DeliveryRow { id: string; zone: string; destination: string; me
 
 /** Périmètre d'un compte distributeur, déduit de structures.type. */
 export type SupplierKind = 'PNA' | 'PRA' | 'PRIVATE';
+
+/* ---- Assistant IA patient ---- */
+/**
+ * Un message du fil de l'assistant. `urgent` = réponse fixe d'urgence (bulle rouge + appels),
+ * `error` = échec d'envoi (la question reste affichée, « Réessayer » la renvoie).
+ */
+export interface ChatMessage {
+  id: number;
+  from: 'me' | 'bot';
+  text: string;
+  kind?: 'urgent' | 'error';
+  /** Question dictée : le texte compris par la transcription. */
+  voice?: boolean;
+  /** Erreur : la question à renvoyer (texte), si elle peut l'être. */
+  retry?: string;
+}
