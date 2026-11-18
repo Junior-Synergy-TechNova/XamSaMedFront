@@ -325,7 +325,7 @@ pf-card:nth-child(n+5) > .pf-block, pf-stat:nth-child(n+5) > .pf-stat { animatio
 }
 .pf-handled[open]::details-content, .pf-morefilters[open]::details-content, .pf-loginhint[open]::details-content { block-size: auto; }
 /* Lignes d'un historique déplié : nouvelle animation à chaque ouverture (nom différent → elle repart) */
-.pf-handled[open] > .pf-li { animation-name: pf-open-row; }
+.pf-handled[open] > .pf-li, .pf-handled[open] > .pf-scroll > .pf-li { animation-name: pf-open-row; }
 .pf-morefilters[open] > :not(summary), .pf-loginhint[open] > :not(summary) { animation: pf-reveal .3s cubic-bezier(.22,1,.36,1) both; }
 .pf-morefilters > summary svg { @apply transition-transform duration-200; }
 .pf-morefilters[open] > summary svg { @apply rotate-180; }
@@ -363,6 +363,10 @@ button.pf-li:hover, label.pf-li:hover, a.pf-li:hover { @apply border-gray; }
 .pf-li-flat { @apply p-0 border-0! rounded-none mb-2; }
 .pf-li-sm { @apply py-3.5; }
 .pf-li-sm + .pf-li-sm { @apply mt-2.5; }
+/* Liste longue dans un panneau : elle défile dans le panneau au lieu d'allonger la page.
+   Le léger débord (-mx/-my + padding) garde visibles bordures et anneaux de focus des lignes. */
+.pf-scroll { @apply relative max-h-[min(600px,68vh)] overflow-y-auto overscroll-contain -mx-2 px-2 -my-1 py-1; scrollbar-width: thin; scrollbar-color: var(--color-gray-line) transparent; }
+.pf-scroll:hover { scrollbar-color: var(--color-gray) transparent; }
 
 /* Case d'icône : porte l'état de la ligne (rouge rupture, orange tension, vert sain) */
 .pf-liic { @apply w-11 h-11 rounded-[10px] grid place-items-center flex-none bg-gray-bg text-gray-text text-[14px] font-semibold; }
