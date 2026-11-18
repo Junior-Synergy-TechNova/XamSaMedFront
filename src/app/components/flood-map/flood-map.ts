@@ -46,7 +46,8 @@ export class FloodMap {
 
   constructor() {
     afterNextRender(() => {
-      import('leaflet').then(L => {
+      // En build de prod, le chunk CommonJS de Leaflet n'expose que `default` ; en dev, les exports nommés.
+      import('leaflet').then(m => ((m as unknown as { default?: typeof Leaflet }).default ?? m)).then(L => {
         const c = this.center();
         this.map = L.map(this.box().nativeElement, { zoomControl: true, attributionControl: true, scrollWheelZoom: false })
           .setView([c.lat, c.lng], 13);
