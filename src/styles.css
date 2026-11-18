@@ -312,6 +312,27 @@ pf-card:nth-child(2) > .pf-block, pf-stat:nth-child(2) > .pf-stat { animation-de
 pf-card:nth-child(3) > .pf-block, pf-stat:nth-child(3) > .pf-stat { animation-delay: .12s; }
 pf-card:nth-child(4) > .pf-block, pf-stat:nth-child(4) > .pf-stat { animation-delay: .18s; }
 pf-card:nth-child(n+5) > .pf-block, pf-stat:nth-child(n+5) > .pf-stat { animation-delay: .22s; }
+/* ---------- Dépliages et contenus révélés ----------
+   Ce qui s'ouvre dans la page (historique replié, filtres, détail d'une ligne, bandeaux) se déplie
+   au lieu d'apparaître d'un coup. Hauteur animée là où le navigateur sait animer `auto`
+   (interpolate-size + ::details-content, Chrome / Edge récents) ; ailleurs, simple fondu. */
+:root { interpolate-size: allow-keywords; }
+@keyframes pf-reveal { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+@keyframes pf-open-row { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.pf-handled::details-content, .pf-morefilters::details-content, .pf-loginhint::details-content {
+  block-size: 0; overflow-y: clip;
+  transition: block-size .32s cubic-bezier(.22,1,.36,1), content-visibility .32s allow-discrete;
+}
+.pf-handled[open]::details-content, .pf-morefilters[open]::details-content, .pf-loginhint[open]::details-content { block-size: auto; }
+/* Lignes d'un historique déplié : nouvelle animation à chaque ouverture (nom différent → elle repart) */
+.pf-handled[open] > .pf-li { animation-name: pf-open-row; }
+.pf-morefilters[open] > :not(summary), .pf-loginhint[open] > :not(summary) { animation: pf-reveal .3s cubic-bezier(.22,1,.36,1) both; }
+.pf-morefilters > summary svg { @apply transition-transform duration-200; }
+.pf-morefilters[open] > summary svg { @apply rotate-180; }
+/* Bandeaux, états vides et notes : arrivent en fondu (ex. erreur après « Réessayer ») */
+.pf-banner, .pf-empty, .pf-note { animation: pf-reveal .3s cubic-bezier(.22,1,.36,1) both; }
+/* Ligne sélectionnée / dépliée : bordure et fond changent en douceur */
+.pf-li, .pf-rowline { transition: border-color .2s ease-out, background-color .2s ease-out; }
 /* Lignes cliquables : la bordure se fonce au survol */
 button.pf-li, label.pf-li, a.pf-li { @apply transition-colors duration-150; }
 button.pf-li:hover, label.pf-li:hover, a.pf-li:hover { @apply border-gray; }

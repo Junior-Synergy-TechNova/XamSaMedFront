@@ -162,3 +162,12 @@ tr:has(> td .pf-more[open]) { @apply relative z-30; }
 @media (max-width: 640px) {
   .pf-level { @apply gap-0; }
 }
+
+/* Menu « Plus » : descend depuis son bouton, le chevron tourne */
+@keyframes pf-menu-drop { from { opacity: 0; transform: translateY(-6px) scale(.98); } to { opacity: 1; transform: none; } }
+.pf-more[open] > .pf-moremenu { transform-origin: top right; animation: pf-menu-drop .18s cubic-bezier(.22,1,.36,1) both; }
+.pf-more > summary svg { @apply transition-transform duration-200; }
+.pf-more[open] > summary svg { @apply rotate-180; }
+/* Panier : une ligne ajoutée glisse depuis la droite */
+@keyframes pf-ticket-in { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
+.pf-ticket-line { animation: pf-ticket-in .3s cubic-bezier(.22,1,.36,1) both; }

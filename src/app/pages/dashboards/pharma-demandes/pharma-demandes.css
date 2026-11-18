@@ -9,3 +9,7 @@
 /* L'officine la plus proche est mise en avant : c'est l'orientation à privilégier. */
 .pf-li-near { @apply border-green; }
 .pf-dm-qty { @apply font-medium text-black; }
+
+/* Panneau « orienter » : se déplie sous la demande */
+@keyframes pf-orient-open { from { max-height: 0; opacity: 0; padding-top: 0; margin-top: 0; } to { max-height: 900px; opacity: 1; } }
+.pf-orient { @apply overflow-hidden; animation: pf-orient-open .4s cubic-bezier(.22,1,.36,1) backwards; }

@@ -6,3 +6,13 @@
 .pf-pharm.on { @apply border-blue; }
 .pf-pharm-main { @apply flex items-center gap-5 w-full text-left px-6 py-5 cursor-pointer bg-transparent border-0 rounded-[12px] font-[inherit] text-[inherit]; }
 .pf-pharm-actions { @apply flex flex-wrap gap-2 px-6 pb-5; }
+
+/* Officine choisie : « Itinéraire » / appel se déplient sous la ligne, le repère passe en bleu en douceur */
+/* Le panneau s'ouvre en hauteur (les officines du dessous descendent en douceur), puis ses boutons apparaissent */
+@keyframes pf-pharm-open { from { max-height: 0; padding-bottom: 0; opacity: 0; } to { max-height: 160px; opacity: 1; } }
+.pf-pharm-actions { @apply overflow-hidden; animation: pf-pharm-open .32s cubic-bezier(.22,1,.36,1) backwards; }
+.pf-pharm-actions > * { animation: pf-reveal .3s cubic-bezier(.22,1,.36,1) both; }
+.pf-pharm-actions > :nth-child(2) { animation-delay: .05s; }
+.pf-pharm-actions > :nth-child(3) { animation-delay: .1s; }
+.pf-pharm .pf-liic { @apply transition-[scale] duration-200 ease-out; }
+.pf-pharm.on .pf-liic { @apply scale-110; }
