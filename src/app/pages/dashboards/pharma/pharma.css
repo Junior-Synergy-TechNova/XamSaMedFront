@@ -18,7 +18,7 @@
 .pf-ticket-empty { @apply flex flex-col items-center gap-1 px-5 py-10 text-center text-gray-text; }
 .pf-ticket-empty p { @apply m-0 mt-1 font-semibold text-black; }
 .pf-ticket-empty span { @apply text-[13.5px]; }
-.pf-ticket-lines { @apply m-0 p-3 list-none flex flex-col gap-2 max-h-[320px] overflow-y-auto overscroll-contain; }
+.pf-ticket-lines { @apply m-0 p-3 list-none flex flex-col gap-2 max-h-[320px] overflow-y-auto; }
 .pf-ticket-line { @apply grid grid-cols-[minmax(0,1fr)_auto_auto] grid-rows-[auto_auto] gap-x-3 gap-y-2 items-center px-3.5 py-3 rounded-[10px] bg-white border border-gray-line; }
 .pf-ticket-name { @apply col-span-2 min-w-0 flex flex-col gap-0.5; }
 .pf-ticket-name strong { @apply text-[14px] leading-snug text-black; }
