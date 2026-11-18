@@ -12,6 +12,7 @@ import { GlobalSearchResult } from '../../interfaces/api';
 import { MedicineService } from '../../services/medicines/medicines';
 import { NotificationService } from '../../services/notifications/notifications';
 import { ToastHost } from '../../components/toast-host/toast-host';
+import { ScrollChain } from '../../directives/scroll-chain/scroll-chain';
 import { PatientDash } from '../dashboards/patient/patient';
 import { PharmaDash } from '../dashboards/pharma/pharma';
 import { DistribDash } from '../dashboards/distrib/distrib';
@@ -22,7 +23,7 @@ import { SanteDash } from '../dashboards/sante/sante';
 @Component({
   selector: 'app-shell',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, Logo, ToastHost, PatientDash, PharmaDash, DistribDash, HopitalDash, SanteDash],
+  imports: [Icon, Logo, ToastHost, ScrollChain, PatientDash, PharmaDash, DistribDash, HopitalDash, SanteDash],
   templateUrl: './shell.html',
   styleUrl: './shell.css',
 })
