@@ -13,6 +13,8 @@ import { MedicineService } from '../../services/medicines/medicines';
 import { NotificationService } from '../../services/notifications/notifications';
 import { ToastHost } from '../../components/toast-host/toast-host';
 import { ScrollChain } from '../../directives/scroll-chain/scroll-chain';
+import { PasswordModal } from '../../components/password-modal/password-modal';
+import { VoiceLangPicker } from '../../components/voice-lang/voice-lang';
 import { PatientDash } from '../dashboards/patient/patient';
 import { PharmaDash } from '../dashboards/pharma/pharma';
 import { DistribDash } from '../dashboards/distrib/distrib';
@@ -23,7 +25,7 @@ import { SanteDash } from '../dashboards/sante/sante';
 @Component({
   selector: 'app-shell',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, Logo, ToastHost, ScrollChain, PatientDash, PharmaDash, DistribDash, HopitalDash, SanteDash],
+  imports: [Icon, Logo, ToastHost, ScrollChain, PasswordModal, VoiceLangPicker, PatientDash, PharmaDash, DistribDash, HopitalDash, SanteDash],
   templateUrl: './shell.html',
   styleUrl: './shell.css',
 })
@@ -75,6 +77,10 @@ export class AppShell {
     return { name: s.name, kind: (kinds[s.type] ?? s.type) + plan };
   });
   readonly userName = computed(() => this.auth.user()?.name ?? '');
+  readonly userEmail = computed(() => this.auth.user()?.email ?? '');
+  /** Page profil / structure de l'espace, si elle existe (patient « Mon profil », officine…). */
+  readonly profileNav = computed(() => this.nav().find(n => n.id === 'profil') ?? null);
+  readonly passwordOpen = signal(false);
   /** Teinte de l'espace (patient bleu, officine teal, distributeur violet, hôpital bleu ciel, santé rose). */
   readonly roleTone = computed(() => ICON_TONE[this.current()?.icon ?? ''] ?? 'blue');
   readonly nav = computed(() => {
@@ -227,6 +233,11 @@ export class AppShell {
   focusGlobalSearch(): void { this.searchFocused.set(true); }
   closeGlobalSearch(): void { window.setTimeout(() => this.searchFocused.set(false), 120); }
   toggleCollapse(): void { this.collapsed.update(c => !c); }
+  /** Menu du compte → section (ferme le menu). */
+  openFromMenu(id: string): void { this.profileOpen.set(false); this.select(id); }
+  openPassword(): void { this.profileOpen.set(false); this.passwordOpen.set(true); }
+  /** Menu du compte → panneau des notifications (même bouton que la cloche). */
+  openNotifFromMenu(e: Event): void { e.stopPropagation(); this.profileOpen.set(false); this.notifOpen.set(true); }
   /** Le logo ramène à la première section de l'espace (la déconnexion est dans le menu du compte). */
   goHome(): void { const first = this.nav()[0]; if (first) this.select(first.id); }
   toggleNotif(e: Event): void { e.stopPropagation(); this.profileOpen.set(false); this.notifOpen.update(o => !o); }

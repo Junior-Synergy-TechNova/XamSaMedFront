@@ -14,6 +14,7 @@ import { MedicineService } from '../../../services/medicines/medicines';
 import { CabinetService, ThermalState } from '../../../services/cabinet/cabinet';
 import { AuthService } from '../../../services/auth/auth';
 import { VOICE_LANGS, VoiceAlertKind, VoiceAlertService, planVoice } from '../../../services/voice-alerts/voice-alerts';
+import { VoiceLangPicker } from '../../../components/voice-lang/voice-lang';
 import { forkJoin } from 'rxjs';
 import {
   ApiCabinetItem, ApiErrorBody, ApiFamilyMember, ApiThermalItem, CabinetItemPayload, CabinetStorage, FamilyRelationship, VoiceLang,
@@ -92,7 +93,7 @@ function medicineLabel(m: { name: string; dosage: string | null; form: string | 
 @Component({
   selector: 'app-patient-cabinet',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, Card, PageHead, Stat, Tag, ExpiryTag, ModalA11y, FieldLabel, DatePipe, DecimalPipe],
+  imports: [Icon, Card, PageHead, Stat, Tag, ExpiryTag, ModalA11y, FieldLabel, DatePipe, DecimalPipe, VoiceLangPicker],
   templateUrl: './patient-cabinet.html',
   styleUrl: './patient-cabinet.css',
 })
@@ -114,7 +115,6 @@ export class PatientCabinet {
     forkJoin([this.voices.alert(r.item.id, kind), this.voices.manifest()]).subscribe({
       next: ([alert, manifest]) => {
         this.voiceLoading.set(null);
-        this.voiceLang.set(alert.lang);
         if (alert.status === 'no_alert' || alert.segments.length === 0) {
           this.platform.notify(kind === 'thermal'
             ? 'Aucune alerte de chaleur à annoncer : pas encore d\'heure d\'exposition comptée.'
@@ -134,29 +134,6 @@ export class PatientCabinet {
 
   stopVoice(): void { this.voices.stop(); }
 
-  /** PATCH /profile/location { preferred_language } : vaut aussi pour l'app mobile. */
-  changeVoiceLang(e: Event): void {
-    const lang = (e.target as HTMLSelectElement).value as VoiceLang;
-    const before = this.voiceLang();
-    if (lang === before) return;
-    this.voiceLang.set(lang);
-    this.voices.stop();
-    this.savingLang.set(true);
-    this.voices.setLanguage(lang).subscribe({
-      next: l => {
-        this.savingLang.set(false);
-        this.voiceLang.set(l);
-        const u = this.auth.user();
-        if (u) this.auth.user.set({ ...u, preferred_language: l });
-        this.platform.notify(`Alertes vocales en ${this.langLabel(l).toLocaleLowerCase('fr')}.`);
-      },
-      error: () => {
-        this.savingLang.set(false);
-        this.voiceLang.set(before);
-        this.platform.notify('La langue n\'a pas pu être enregistrée. Réessayez.', 'alert');
-      },
-    });
-  }
 
   private readonly api = inject(CabinetService);
   private readonly meds = inject(MedicineService);
@@ -201,10 +178,8 @@ export class PatientCabinet {
   readonly locationOpen = signal(false);
 
   // ── Alertes vocales (comme sur l'app mobile) ──────────────────
-  readonly voiceLangs = VOICE_LANGS;
-  /** Langue du profil ; corrigée par la réponse du serveur (`lang`). */
-  readonly voiceLang = signal<VoiceLang>(this.auth.user()?.preferred_language ?? 'fr');
-  readonly savingLang = signal(false);
+  /** Langue du profil (sélecteur partagé `pf-voice-lang`). */
+  readonly voiceLang = computed<VoiceLang>(() => this.auth.user()?.preferred_language ?? 'fr');
   /** Lecture en cours (sous-titres) : `key` = « id:expiry » ou « id:thermal ». */
   readonly voice = this.voices.playing;
   /** Alerte en cours de chargement (bouton verrouillé). */

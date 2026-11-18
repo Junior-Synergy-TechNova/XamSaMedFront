@@ -99,12 +99,6 @@ export class VoiceAlertService {
     return this.http.get<ApiVoiceAlert>(`${this.base}/cabinet/${itemId}/voice-alert${kind === 'thermal' ? '/thermal' : ''}`);
   }
 
-  /** PATCH /profile/location `{ preferred_language }` — langue des alertes vocales. */
-  setLanguage(lang: VoiceLang): Observable<VoiceLang> {
-    return this.http.patch<{ preferred_language?: VoiceLang | null }>(`${this.base}/profile/location`, { preferred_language: lang })
-      .pipe(map(r => r.preferred_language ?? lang));
-  }
-
   /** Manifest du pack audio, lu une seule fois (un échec est réessayé au prochain appel). */
   manifest(): Observable<AudioManifest> {
     // fetch, pas HttpClient : l'intercepteur joindrait le jeton à une requête vers l'hébergeur du site.

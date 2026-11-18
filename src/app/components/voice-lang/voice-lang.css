@@ -1,0 +1,14 @@
+@reference "../../../styles.css";
+:host { @apply contents; }
+
+/* Sélecteur compact (en-tête de l'armoire, profil) */
+.pf-vl-select { @apply inline-flex items-center gap-2 h-9 pl-3 pr-1 rounded-[8px] border border-gray-line bg-white text-[13.5px] text-gray-text; }
+.pf-vl-select nv-icon { @apply text-blue; }
+.pf-vl-select select { @apply h-7 pl-1 pr-6 border-0 bg-transparent font-semibold text-black text-[13.5px] cursor-pointer; }
+
+/* Choix en pastilles (menu du compte) */
+.pf-vl-list { @apply grid grid-cols-2 gap-1.5; }
+.pf-vl-opt { @apply h-8 px-2.5 rounded-[7px] border border-gray-line bg-white text-[13px] text-black cursor-pointer transition-colors duration-150; }
+.pf-vl-opt:hover:not([disabled]) { @apply bg-gray-bg; }
+.pf-vl-opt.on { @apply border-blue bg-blue-soft-2 text-blue-700 font-semibold; }
+.pf-vl-opt[disabled] { @apply cursor-wait; }

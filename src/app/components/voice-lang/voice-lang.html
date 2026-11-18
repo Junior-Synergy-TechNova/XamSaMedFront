@@ -1,0 +1,18 @@
+@if (variant() === 'select') {
+  <label class="pf-vl-select">
+    <nv-icon name="sound" [size]="16"/>
+    <span>Alertes vocales</span>
+    <select (change)="onSelect($event)" [disabled]="saving() !== null" aria-label="Langue des alertes vocales">
+      @for (l of langs; track l.id) { <option [value]="l.id" [selected]="current() === l.id">{{ l.label }}</option> }
+    </select>
+  </label>
+} @else {
+  <div class="pf-vl-list" role="radiogroup" aria-label="Langue des alertes vocales">
+    @for (l of langs; track l.id) {
+      <button type="button" role="radio" class="pf-vl-opt" [class.on]="current() === l.id" [attr.aria-checked]="current() === l.id"
+              [disabled]="saving() !== null" (click)="choose(l.id)">
+        {{ saving() === l.id ? '…' : l.label }}
+      </button>
+    }
+  </div>
+}

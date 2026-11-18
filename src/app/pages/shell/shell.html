@@ -26,7 +26,11 @@
             }
           </nav>
           <div class="pf-sidefoot">
-            <button class="pf-navitem" (click)="toggleCollapse()" title="Réduire">
+            <button type="button" class="pf-navitem pf-navexit" (click)="exit()" title="Se déconnecter">
+              <span class="pf-navic"><nv-icon name="logout" [size]="20"/></span>
+              <span class="pf-collapsible" [class.is-hidden]="compact()">Se déconnecter</span>
+            </button>
+            <button type="button" class="pf-navitem pf-navcollapse" (click)="toggleCollapse()" [title]="collapsed() ? 'Agrandir' : 'Réduire'">
               <span class="pf-navic"><nv-icon name="chevron" [size]="20" [rotate]="collapsed() ? 0 : 180"/></span>
               <span class="pf-collapsible" [class.is-hidden]="compact()">Réduire</span>
             </button>
@@ -87,7 +91,33 @@
                 </button>
                 @if (profileOpen()) {
                   <div class="pf-rolemenu card" (click)="$event.stopPropagation()">
-                    <div class="pf-rolemenuh"><strong>{{ userName() }}</strong><span>{{ identity().name }}</span></div>
+                    <div class="pf-rolemenuh">
+                      <strong>{{ userName() }}</strong>
+                      <span>{{ identity().name }} · {{ identity().kind }}</span>
+                      @if (userEmail()) { <span class="pf-rolemenumail">{{ userEmail() }}</span> }
+                    </div>
+                    @if (profileNav(); as p) {
+                      <button type="button" class="pf-rolemenuit" (click)="openFromMenu(p.id)">
+                        <span class="pf-rolemenuic"><nv-icon [name]="p.icon" [size]="16"/></span>
+                        <span>{{ p.id === 'profil' && r.id === 'patient' ? 'Mon profil' : p.label }}</span>
+                      </button>
+                    }
+                    <button type="button" class="pf-rolemenuit" (click)="openPassword()">
+                      <span class="pf-rolemenuic"><nv-icon name="lock" [size]="16"/></span>
+                      <span>Changer le mot de passe</span>
+                    </button>
+                    <button type="button" class="pf-rolemenuit" (click)="openNotifFromMenu($event)">
+                      <span class="pf-rolemenuic"><nv-icon name="bell" [size]="16"/></span>
+                      <span>Notifications</span>
+                      @if (notifs().length > 0) { <span class="pf-rolemenucount">{{ notifs().length }}</span> }
+                    </button>
+                    @if (r.id === 'patient') {
+                      <div class="pf-rolemenusec">
+                        <span class="pf-rolemenulbl"><nv-icon name="sound" [size]="14"/> Langue des alertes vocales</span>
+                        <pf-voice-lang variant="list"/>
+                      </div>
+                    }
+                    <div class="pf-rolemenusep" role="separator"></div>
                     <button type="button" class="pf-rolemenuit" (click)="exit()">
                       <span class="pf-rolemenuic red"><nv-icon name="logout" [size]="16"/></span>
                       <span>Se déconnecter</span>
@@ -97,6 +127,8 @@
               </div>
             </div>
           </header>
+
+          @if (passwordOpen()) { <pf-password-modal (closed)="passwordOpen.set(false)"/> }
 
           <main class="pf-content" (click)="closeMenus()">
             @switch (r.id) {

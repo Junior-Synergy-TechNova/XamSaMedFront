@@ -1,12 +1,6 @@
 <div>
   <pf-page-head title="Armoire familiale" sub="Les médicaments gardés à la maison, pour vous et vos proches : péremption et chaleur surveillées.">
-    <label actions class="pf-cab-lang">
-      <nv-icon name="sound" [size]="16"/>
-      <span>Alertes vocales</span>
-      <select (change)="changeVoiceLang($event)" [disabled]="savingLang()" aria-label="Langue des alertes vocales">
-        @for (l of voiceLangs; track l.id) { <option [value]="l.id" [selected]="voiceLang() === l.id">{{ l.label }}</option> }
-      </select>
-    </label>
+    <pf-voice-lang actions/>
     <button actions type="button" class="btn btn-outline btn-sm" (click)="openMembers()"><nv-icon name="users" [size]="16"/> Mes proches</button>
     <button actions type="button" class="btn btn-green btn-sm" (click)="openAdd()"><nv-icon name="plus" [size]="16"/> Ajouter un médicament</button>
   </pf-page-head>

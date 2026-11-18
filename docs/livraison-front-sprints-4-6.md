@@ -242,12 +242,29 @@ Fichiers : `services/voice-alerts/`, `public/audio/`.
   - Nom du médicament ou durée absent dans la langue : ce segment en français.
   - Autre phrase absente : tout le message en français.
   - Absent aussi en français : le texte seul, sans audio.
-- **Langue** : sélecteur « Alertes vocales » en haut de la page (Français, Wolof, Pulaar, Sérère).
+- **Langue** : Français, Wolof, Pulaar ou Sérère, au choix à trois endroits (composant partagé `components/voice-lang/`) :
+  - le menu du compte ;
+  - « Mon profil » ;
+  - le sélecteur « Alertes vocales » en haut de l'armoire.
   - Il enregistre la langue avec `PATCH /profile/location { preferred_language }`.
   - La langue vaut aussi pour l'app mobile.
 - **Fichiers audio** : `public/audio/` est une copie du dossier `assets/audio/` du dépôt `XamSaMed-app-mobile`, branche `develop`, au 18 novembre.
   - Contenu : 6,4 Mo, 133 enregistrements en français, wolof et pulaar, plus `manifest.json`.
   - **Quand l'équipe ajoute des enregistrements, recopier ce dossier.**
+
+### Menu du compte et barre latérale (tous les espaces)
+
+Fichiers : `pages/shell/`, `components/password-modal/`.
+
+- **Le menu du compte** (nom en haut à droite) propose :
+  - le nom, la structure et l'adresse e-mail ;
+  - « Mon profil » (« Officine » pour le pharmacien), quand l'espace a une page profil ;
+  - « Changer le mot de passe » (`PUT /me/password`) ;
+  - « Notifications », avec le nombre de non lues ;
+  - pour le patient, la langue des alertes vocales ;
+  - « Se déconnecter ».
+- **« Se déconnecter »** est aussi en bas de la barre latérale, au-dessus de « Réduire ». Sur téléphone, il reste en bas du tiroir.
+- **Fenêtre « Changer le mot de passe »** : un seul composant, ouvert depuis le menu ou depuis la page profil. Les erreurs de l'API s'affichent dans la fenêtre.
 
 ## À vérifier à la main
 
@@ -296,6 +313,6 @@ Si l'API change d'adresse : modifier `API_URL` dans les réglages du projet Verc
 
 ## Tests
 
-`ng test` : 73 tests (Vitest) dans 19 fichiers au 18 novembre, dont `patient-assistant.spec.ts` (6 : envoi, urgence, réessai, dictée relue, repli sur `/ai/voice`, changement de compte) et `services/voice-alerts/voice-alerts.spec.ts` (4 : règles de repli de l'audio). Au 16 novembre : 61 tests dans 17 fichiers (dont le formulaire de vente, le prix exigé au catalogue et l'origine des distances dans les résultats patient). Les premiers de ce lot : `patient-cabinet.spec.ts`, `pharma-thermal.spec.ts`, `patient-floods.spec.ts`, `services/pharmacy/pharmacy.spec.ts` et `pages/dashboards/patient/patient.spec.ts` ; puis auth, guards, connexion, shell, tableaux de bord (distributeur, pharmacien, hôpital, santé publique), résultats patient et `shared-read`.
+`ng test` : 74 tests (Vitest) dans 19 fichiers au 18 novembre, dont le menu du compte (`shell.spec.ts`), dont `patient-assistant.spec.ts` (6 : envoi, urgence, réessai, dictée relue, repli sur `/ai/voice`, changement de compte) et `services/voice-alerts/voice-alerts.spec.ts` (4 : règles de repli de l'audio). Au 16 novembre : 61 tests dans 17 fichiers (dont le formulaire de vente, le prix exigé au catalogue et l'origine des distances dans les résultats patient). Les premiers de ce lot : `patient-cabinet.spec.ts`, `pharma-thermal.spec.ts`, `patient-floods.spec.ts`, `services/pharmacy/pharmacy.spec.ts` et `pages/dashboards/patient/patient.spec.ts` ; puis auth, guards, connexion, shell, tableaux de bord (distributeur, pharmacien, hôpital, santé publique), résultats patient et `shared-read`.
 
 Backend : `PharmacyThermalStatusTest` (6 tests) passe sur `develop` ; `SaleCatalogPriceTest` (2 tests, prix du catalogue imposé à la vente) passe sur la branche `feat/prix-catalogue-medicaments`.
