@@ -54,7 +54,8 @@ export class GeoMap {
 
   constructor() {
     afterNextRender(() => {
-      import('leaflet').then(L => {
+      // En build de prod, le chunk CommonJS de Leaflet n'expose que `default` ; en dev, les exports nommés.
+      import('leaflet').then(m => ((m as unknown as { default?: typeof Leaflet }).default ?? m)).then(L => {
         this.map = L.map(this.box().nativeElement, { zoomControl: true, attributionControl: true, scrollWheelZoom: false })
           .setView([REF.lat, REF.lng], 11);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
