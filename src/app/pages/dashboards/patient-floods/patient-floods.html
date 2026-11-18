@@ -65,14 +65,19 @@
             <div class="pf-fl-tags">
               <pf-tag [s]="r.status === 'confirmed' ? 'crit' : 'low'">{{ r.status_label }}</pf-tag>
               <span class="chip chip-gray">{{ r.confirmations }} / {{ r.confirmations_required }} personnes</span>
+              @if (isDemo(r)) {
+                <span class="chip chip-violet" title="Donnée de démonstration : elle ne peut pas être confirmée et ne pénalise aucune pharmacie">{{ r.source_label ?? 'Démonstration' }}</span>
+              }
             </div>
           </div>
           <div class="pf-li-act tight">
             <button type="button" class="btn btn-ghost btn-sm" (click)="selected.set(r.id)">Voir</button>
-            <button type="button" class="btn btn-outline btn-sm" (click)="confirm(r)" [disabled]="r.confirmed_by_me || confirming() !== null"
-                    [attr.title]="r.confirmed_by_me ? null : 'Vous devez être sur place (moins de 200 m)'">
-              {{ r.confirmed_by_me ? 'Déjà confirmé' : confirming() === r.id ? 'Localisation…' : 'Je confirme' }}
-            </button>
+            @if (!isDemo(r)) {
+              <button type="button" class="btn btn-outline btn-sm" (click)="confirm(r)" [disabled]="r.confirmed_by_me || confirming() !== null"
+                      [attr.title]="r.confirmed_by_me ? null : 'Vous devez être sur place (moins de 200 m)'">
+                {{ r.confirmed_by_me ? 'Déjà confirmé' : confirming() === r.id ? 'Localisation…' : 'Je confirme' }}
+              </button>
+            }
           </div>
         </div>
       }

@@ -927,6 +927,13 @@ export interface ApiFloodReport {
   /** active = signalé, confirmed = ≥ confirmations_required personnes, expired = sans confirmation depuis 6 h. */
   status: 'active' | 'confirmed' | 'expired';
   status_label: string;
+  /**
+   * user = signalé par une personne ; demo = donnée de démonstration (montrée sur la carte,
+   * jamais confirmable — 409 —, ne pénalise pas le score hors DEMO_MODE). Absent sur un ancien backend.
+   */
+  source?: 'user' | 'demo';
+  /** « Signalement d'usager » | « Démonstration ». */
+  source_label?: string;
   confirmations: number;
   confirmations_required: number;
   reported_at: string;
