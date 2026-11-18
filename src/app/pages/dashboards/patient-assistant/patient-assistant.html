@@ -1,0 +1,120 @@
+<div>
+  <pf-page-head title="Assistant" sub="Posez votre question par écrit ou à la voix : où trouver un médicament, faut-il une ordonnance, quelles pharmacies sont proches.">
+    @if (messages().length) {
+      <button actions type="button" class="btn btn-outline btn-sm" (click)="newConversation()" [disabled]="sending()"><nv-icon name="refresh" [size]="15"/> Nouvelle conversation</button>
+    }
+  </pf-page-head>
+
+  <section class="card pf-block pf-as">
+    <div class="pf-as-where">
+      <nv-icon name="pin" [size]="16"/>
+      @if (geo.position()) {
+        <span>Pharmacies proches calculées depuis votre position actuelle.</span>
+      } @else {
+        <span>Pharmacies proches calculées depuis votre domicile enregistré, s'il est renseigné.</span>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="useMyPosition()" [disabled]="geo.locating()">{{ geo.locating() ? 'Localisation…' : 'Utiliser ma position' }}</button>
+      }
+    </div>
+
+    <div class="pf-as-thread" #thread role="log" aria-live="polite" aria-label="Conversation avec l'assistant">
+      @if (!messages().length) {
+        <div class="pf-as-welcome">
+          <span class="pf-as-avatar"><nv-icon name="chat" [size]="22"/></span>
+          <h2>Bonjour{{ firstName() ? ' ' + firstName() : '' }}, que cherchez-vous ?</h2>
+          <p>Je consulte les stocks des pharmacies partenaires. Je ne donne ni diagnostic ni posologie : pour un symptôme, je vous oriente vers un pharmacien.</p>
+          <div class="pf-as-sugg">
+            @for (s of suggestions; track s) {
+              <button type="button" class="pf-as-chip" (click)="send(s)" [disabled]="sending()">{{ s }}</button>
+            }
+          </div>
+        </div>
+      }
+
+      @for (m of messages(); track m.id) {
+        @if (m.from === 'me') {
+          <div class="pf-as-msg me">
+            @if (m.voice) { <span class="pf-as-heard"><nv-icon name="mic" [size]="13"/> J'ai compris :</span> }
+            <p class="pf-as-bubble">{{ m.text }}</p>
+          </div>
+        } @else {
+          <div class="pf-as-msg bot" [class.urgent]="m.kind === 'urgent'" [class.error]="m.kind === 'error'">
+            <span class="pf-as-avatar sm" aria-hidden="true"><nv-icon [name]="m.kind === 'urgent' || m.kind === 'error' ? 'alert' : 'chat'" [size]="16"/></span>
+            <div class="pf-as-bubble" [attr.role]="m.kind === 'urgent' ? 'alert' : null">
+              <p>{{ m.text }}</p>
+              @if (m.kind === 'urgent') {
+                <div class="pf-as-acts">
+                  <a class="btn btn-danger btn-sm" href="tel:1515"><nv-icon name="phoneCall" [size]="15"/> SAMU 1515</a>
+                  <a class="btn btn-danger btn-sm" href="tel:18"><nv-icon name="phoneCall" [size]="15"/> Pompiers 18</a>
+                </div>
+              }
+              @if (m.retry; as q) {
+                <div class="pf-as-acts">
+                  <button type="button" class="btn btn-outline btn-sm" (click)="retry(m.id, q)" [disabled]="sending()"><nv-icon name="refresh" [size]="15"/> Réessayer</button>
+                </div>
+              }
+            </div>
+          </div>
+        }
+      }
+
+      @if (sending()) {
+        <div class="pf-as-msg bot">
+          <span class="pf-as-avatar sm" aria-hidden="true"><nv-icon name="chat" [size]="16"/></span>
+          <p class="pf-as-bubble pf-as-typing"><span class="pf-as-sr">L'assistant rédige sa réponse…</span><i></i><i></i><i></i></p>
+        </div>
+      }
+    </div>
+
+    @if (messages().length) {
+      <div class="pf-as-links">
+        <button type="button" class="btn btn-ghost btn-sm" (click)="navigate.emit('search')"><nv-icon name="search" [size]="15"/> Rechercher et réserver</button>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="navigate.emit('phar')"><nv-icon name="pin" [size]="15"/> Carte des pharmacies</button>
+      </div>
+    }
+
+    @if (recording()) {
+      <div class="pf-as-rec" role="status">
+        <div class="pf-as-rechead">
+          <span class="pf-as-recdot" aria-hidden="true"></span>
+          <span class="pf-as-rectime">Je vous écoute… {{ recordSeconds() }} s</span>
+          <span class="muted">arrêt automatique dans {{ recordLeft() }} s</span>
+        </div>
+        <div class="pf-as-meter" aria-hidden="true">
+          @for (l of levels(); track $index) { <i [style.height.%]="8 + l * 92"></i> }
+        </div>
+        <p class="pf-as-rechint">Parlez normalement. Quand vous avez fini, appuyez sur « Terminer » : vous pourrez relire le texte avant de l'envoyer.</p>
+        <span class="pf-as-recacts">
+          <button type="button" class="btn btn-ghost btn-sm" (click)="stopRecording(false)">Annuler</button>
+          <button type="button" class="btn btn-green btn-sm" (click)="stopRecording(true)"><nv-icon name="stop" [size]="15"/> Terminer</button>
+        </span>
+      </div>
+    } @else {
+      <form class="pf-as-form" (submit)="$event.preventDefault(); send()">
+        @if (transcribing()) {
+          <p class="pf-as-dict" role="status"><span class="pf-as-spin" aria-hidden="true"></span> Transcription de votre question…</p>
+        } @else if (dictated()) {
+          <p class="pf-as-dict" role="status">
+            <nv-icon name="mic" [size]="15"/>
+            <span>Voici ce que j'ai compris. Corrigez si besoin, puis envoyez.</span>
+            <button type="button" class="btn btn-ghost btn-sm" (click)="redo()">Réenregistrer</button>
+          </p>
+        }
+        <div class="pf-as-formrow">
+          <label class="pf-as-sr" for="pf-as-input">Votre question</label>
+          <textarea id="pf-as-input" #input rows="2" [class.dictated]="dictated()" [value]="draft()" (input)="onInput($event)" (keydown)="onKeydown($event)"
+                    [attr.maxlength]="maxChars" placeholder="Ex. : où trouver de la ventoline à Pikine ?" [disabled]="sending() || transcribing()"></textarea>
+          <div class="pf-as-formacts">
+            @if (canRecord) {
+              <button type="button" class="btn btn-outline pf-as-mic" (click)="startRecording()" [disabled]="sending() || transcribing()" aria-label="Dicter la question" title="Dicter la question"><nv-icon name="mic" [size]="18"/></button>
+            }
+            <button type="submit" class="btn btn-green" [disabled]="sending() || transcribing() || !draft().trim()"><nv-icon name="send" [size]="16"/> Envoyer</button>
+          </div>
+        </div>
+      </form>
+      <p class="pf-as-foot">
+        <span>Disponibilités indicatives, confirmées par la pharmacie à la réservation. L'assistant ne remplace pas l'avis d'un pharmacien ou d'un médecin.</span>
+        <span class="pf-as-count" [class.full]="draft().length >= maxChars">{{ draft().length }}/{{ maxChars }}</span>
+      </p>
+    }
+  </section>
+</div>

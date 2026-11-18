@@ -1,5 +1,12 @@
 <div>
   <pf-page-head title="Armoire familiale" sub="Les médicaments gardés à la maison, pour vous et vos proches : péremption et chaleur surveillées.">
+    <label actions class="pf-cab-lang">
+      <nv-icon name="sound" [size]="16"/>
+      <span>Alertes vocales</span>
+      <select (change)="changeVoiceLang($event)" [disabled]="savingLang()" aria-label="Langue des alertes vocales">
+        @for (l of voiceLangs; track l.id) { <option [value]="l.id" [selected]="voiceLang() === l.id">{{ l.label }}</option> }
+      </select>
+    </label>
     <button actions type="button" class="btn btn-outline btn-sm" (click)="openMembers()"><nv-icon name="users" [size]="16"/> Mes proches</button>
     <button actions type="button" class="btn btn-green btn-sm" (click)="openAdd()"><nv-icon name="plus" [size]="16"/> Ajouter un médicament</button>
   </pf-page-head>
@@ -130,8 +137,39 @@
               } @else if (r.item.storage_location === 'car') {
                 <p class="pf-cab-advice">Une voiture au soleil devient vite trop chaude : rangez-le plutôt dans une pièce fraîche.</p>
               }
+              @if (voice(); as v) {
+                @if (v.key === voiceKey(r.item.id, 'expiry') || v.key === voiceKey(r.item.id, 'thermal')) {
+                  <div class="pf-cab-voice" role="status" aria-live="polite">
+                    <div class="pf-cab-voicehead">
+                      <nv-icon [name]="v.plan.audio ? 'sound' : 'doc'" [size]="16"/>
+                      <strong>{{ v.plan.audio ? 'Message vocal' : 'Message (audio indisponible)' }}</strong>
+                      @if (v.plan.audio) { <span class="muted">en {{ langLabel(v.plan.lang).toLocaleLowerCase('fr') }}@if (v.plan.lang !== voiceLang()) { (pas encore enregistré en {{ langLabel(voiceLang()).toLocaleLowerCase('fr') }}) }</span> }
+                      <button type="button" class="btn btn-ghost btn-sm" (click)="stopVoice()"><nv-icon [name]="v.plan.audio ? 'stop' : 'x'" [size]="14"/> {{ v.plan.audio ? 'Arrêter' : 'Fermer' }}</button>
+                    </div>
+                    <p class="pf-cab-voicetext">
+                      @for (l of v.plan.lines; track $index; let i = $index) {
+                        <span [class.on]="i === v.index" [class.done]="v.index >= 0 && i < v.index">{{ l.text }} </span>
+                      }
+                    </p>
+                  </div>
+                }
+              }
             </div>
             <div class="pf-li-act tight">
+              @if (hasExpiryAlert(r.item)) {
+                <button type="button" class="btn btn-outline btn-sm" (click)="listen(r, 'expiry')" [disabled]="voiceLoading() === voiceKey(r.item.id, 'expiry')"
+                        [attr.aria-pressed]="voice()?.key === voiceKey(r.item.id, 'expiry')">
+                  <nv-icon [name]="voice()?.key === voiceKey(r.item.id, 'expiry') ? 'stop' : 'sound'" [size]="15"/>
+                  {{ voice()?.key === voiceKey(r.item.id, 'expiry') ? 'Arrêter' : voiceLoading() === voiceKey(r.item.id, 'expiry') ? 'Chargement…' : 'Écouter' }}
+                </button>
+              }
+              @if (hasHeatAlert(r)) {
+                <button type="button" class="btn btn-outline btn-sm" (click)="listen(r, 'thermal')" [disabled]="voiceLoading() === voiceKey(r.item.id, 'thermal')"
+                        [attr.aria-pressed]="voice()?.key === voiceKey(r.item.id, 'thermal')">
+                  <nv-icon [name]="voice()?.key === voiceKey(r.item.id, 'thermal') ? 'stop' : 'thermo'" [size]="15"/>
+                  {{ voice()?.key === voiceKey(r.item.id, 'thermal') ? 'Arrêter' : voiceLoading() === voiceKey(r.item.id, 'thermal') ? 'Chargement…' : 'Alerte chaleur' }}
+                </button>
+              }
               @if (!r.item.opened && r.item.expiry_level !== 'expired') {
                 <button type="button" class="btn btn-outline btn-sm" (click)="markOpened(r.item)" [disabled]="isBusy(r.item.id)">Ouvert aujourd'hui</button>
               }

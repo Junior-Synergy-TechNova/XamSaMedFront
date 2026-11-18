@@ -37,7 +37,7 @@ Fichiers : `pages/dashboards/patient-cabinet/`, `services/cabinet/`.
   - Météo indisponible : bandeau orange.
 - Endpoints : `GET/POST/PUT/DELETE /cabinet`, `POST /cabinet/{id}/open`, `/cabinet/members`, `GET /cabinet/thermal-status`, `PATCH /profile/location`.
 - Les notifications `thermal_alert` du backend ouvrent directement cette page.
-- **Pas de bouton « Écouter » sur le web** : `/cabinet/{id}/voice-alert` ne renvoie que des identifiants de segments audio, joués par l'application mobile qui embarque les fichiers (`docs/mobile.md` côté backend).
+- **Alertes vocales** : depuis le 18 novembre, boutons « Écouter » et « Alerte chaleur », comme sur l'app (voir « Mise à jour du 18 novembre »).
 
 ### Conservation thermique (pharmacien)
 
@@ -204,6 +204,51 @@ Une couleur = une catégorie, appliquée partout pareil ; le rouge reste réserv
 - Sans aucune position, plus aucune distance n'est affichée : elle aurait été calculée depuis un point fixe de Dakar.
 - Backend (#105, en ligne) : chaque structure de démo a des coordonnées réelles. Avant, la Pharmacie Centrale et la Pharmacie de l'Indépendance étaient sur le même point, d'où les « 0 m ».
 
+## Mise à jour du 18 novembre
+
+### Assistant IA (patient)
+
+Fichiers : `pages/dashboards/patient-assistant/`, `services/assistant/`. Entrée « Assistant » dans le menu patient (`/app?s=assistant`).
+
+- **Question écrite** : Entrée envoie (500 caractères au plus), suggestions de départ, fil de conversation.
+- **Question dictée** :
+  - une jauge montre le niveau du micro pendant que le patient parle, calculée dans le navigateur ;
+  - au bouton « Terminer », le texte compris arrive dans la zone de saisie : le patient le relit, le corrige ou réenregistre, puis l'envoie.
+- **Urgence** (`urgence: true`) : réponse en rouge avec les boutons d'appel SAMU 1515 et pompiers 18.
+- **Erreurs** : elles restent dans le fil.
+  - IA indisponible, trop de questions ou réseau coupé : bouton « Réessayer », qui renvoie la même question.
+  - IA non configurée sur le serveur : message qui renvoie vers la recherche, sans nouvel essai.
+- **Position** : celle du navigateur si le patient l'a partagée (bouton « Utiliser ma position »), sinon le serveur prend son domicile enregistré.
+- **Conversation** :
+  - « Nouvelle conversation » efface aussi la conversation côté serveur ;
+  - le fil survit à un changement de section, pas à un rechargement ;
+  - un autre compte connecté repart d'un fil vide.
+- **Endpoints** : `POST /ai/chat` (avec `client: "web"`), `POST /ai/transcribe`, `DELETE /ai/chat/{session_id}`.
+- **Backend** (PR #114, `feat/assistant-web`) : `client: "web"` fait citer à l'assistant les écrans du site au lieu de ceux de l'app. `POST /ai/transcribe` renvoie le texte seul.
+- **Avant la fusion de #114** : le site marche aussi.
+  - Sans `/ai/transcribe` (404), la dictée repasse par `POST /ai/voice`, qui transcrit et répond d'un coup.
+  - Sans `client`, l'assistant cite les écrans de l'app.
+
+### Alertes vocales de l'armoire familiale
+
+Fichiers : `services/voice-alerts/`, `public/audio/`.
+
+- **Sur chaque médicament** :
+  - « Écouter » pour la péremption (à 30 jours ou moins) : `GET /cabinet/{id}/voice-alert` ;
+  - « Alerte chaleur » quand le médicament est exposé : `GET /cabinet/{id}/voice-alert/thermal`.
+- **Lecture** : le serveur ne renvoie que des identifiants de segments. Le site joue les fichiers l'un après l'autre.
+- **Sous-titres** : sous la ligne, la phrase en cours est en gras. Le nom exact du médicament est toujours écrit, car « insuline » couvre plusieurs insulines.
+- **Repli** : mêmes règles que l'app (`docs/mobile.md` § 14 côté backend).
+  - Nom du médicament ou durée absent dans la langue : ce segment en français.
+  - Autre phrase absente : tout le message en français.
+  - Absent aussi en français : le texte seul, sans audio.
+- **Langue** : sélecteur « Alertes vocales » en haut de la page (Français, Wolof, Pulaar, Sérère).
+  - Il enregistre la langue avec `PATCH /profile/location { preferred_language }`.
+  - La langue vaut aussi pour l'app mobile.
+- **Fichiers audio** : `public/audio/` est une copie du dossier `assets/audio/` du dépôt `XamSaMed-app-mobile`, branche `develop`, au 18 novembre.
+  - Contenu : 6,4 Mo, 133 enregistrements en français, wolof et pulaar, plus `manifest.json`.
+  - **Quand l'équipe ajoute des enregistrements, recopier ce dossier.**
+
 ## À vérifier à la main
 
 Non couvert par les tests automatiques ni par le test dans le navigateur :
@@ -214,6 +259,8 @@ Non couvert par les tests automatiques ni par le test dans le navigateur :
 - **Couleurs des réservations, livraisons expédiées et pertes** dans l'historique : absentes des données de démo, pas vues à l'écran.
 - **Prix de référence en ligne** : vu dans le navigateur en local (libellés, totaux, panier qui défile), sans valider de vente. À refaire sur le site en ligne : ajout d'une fiche avec prix au catalogue, puis une vente de plusieurs médicaments (prix repris, total TTC, reçu PDF).
 - **Animations** : sur le site en ligne, vérifier la page d'accueil (défilement), l'ouverture / fermeture d'une fenêtre et un téléphone avec « réduire les animations » activé (tout doit être immobile).
+- **Dictée dans l'assistant** : vérifiée par les tests seulement. À essayer avec un vrai micro, sur ordinateur et sur téléphone (autorisation du micro, jauge, texte compris, envoi).
+- **Alertes vocales en wolof et en pulaar** : seul le français a été écouté. Choisir la langue, puis vérifier les replis en français (par exemple le paracétamol en wolof).
 - **Tuiles OpenStreetMap** : avant une vraie mise en production, vérifier que leurs conditions d'usage couvrent notre trafic, ou passer par un fournisseur de tuiles.
 
 ## En ligne
@@ -249,6 +296,6 @@ Si l'API change d'adresse : modifier `API_URL` dans les réglages du projet Verc
 
 ## Tests
 
-`ng test` : 61 tests (Vitest) dans 17 fichiers au 16 novembre (dont le formulaire de vente, le prix exigé au catalogue et l'origine des distances dans les résultats patient). Les premiers de ce lot : `patient-cabinet.spec.ts`, `pharma-thermal.spec.ts`, `patient-floods.spec.ts`, `services/pharmacy/pharmacy.spec.ts` et `pages/dashboards/patient/patient.spec.ts` ; puis auth, guards, connexion, shell, tableaux de bord (distributeur, pharmacien, hôpital, santé publique), résultats patient et `shared-read`.
+`ng test` : 73 tests (Vitest) dans 19 fichiers au 18 novembre, dont `patient-assistant.spec.ts` (6 : envoi, urgence, réessai, dictée relue, repli sur `/ai/voice`, changement de compte) et `services/voice-alerts/voice-alerts.spec.ts` (4 : règles de repli de l'audio). Au 16 novembre : 61 tests dans 17 fichiers (dont le formulaire de vente, le prix exigé au catalogue et l'origine des distances dans les résultats patient). Les premiers de ce lot : `patient-cabinet.spec.ts`, `pharma-thermal.spec.ts`, `patient-floods.spec.ts`, `services/pharmacy/pharmacy.spec.ts` et `pages/dashboards/patient/patient.spec.ts` ; puis auth, guards, connexion, shell, tableaux de bord (distributeur, pharmacien, hôpital, santé publique), résultats patient et `shared-read`.
 
 Backend : `PharmacyThermalStatusTest` (6 tests) passe sur `develop` ; `SaleCatalogPriceTest` (2 tests, prix du catalogue imposé à la vente) passe sur la branche `feat/prix-catalogue-medicaments`.
