@@ -8,7 +8,7 @@ import { Card } from '../../../components/card/card';
 import { PageHead } from '../../../components/page-head/page-head';
 import { Stat } from '../../../components/stat/stat';
 import { Tag } from '../../../components/tag/tag';
-import { FLOOD_ZONE_RADIUS_M, FloodMap } from '../../../components/flood-map/flood-map';
+import { FLOOD_ZONE_RADIUS_M, FloodMap, isDemoFlood } from '../../../components/flood-map/flood-map';
 import { ModalA11y } from '../../../directives/modal-a11y/modal-a11y';
 import { PlatformState } from '../../../services/platform/platform';
 import { FloodService } from '../../../services/floods/floods';
@@ -88,6 +88,8 @@ export class PatientFloods {
 
   // ── Dérivés ───────────────────────────────────────────────────
   readonly confirmed = computed(() => this.reports().filter(r => r.status === 'confirmed'));
+  /** Inondations qui pénalisent une officine : confirmées et réelles (une démo ne compte pas dans le score). */
+  readonly penalizing = computed(() => this.confirmed().filter(r => !isDemoFlood(r)));
 
   readonly counts = computed(() => ({
     total: this.reports().length,
@@ -98,7 +100,7 @@ export class PatientFloods {
 
   /** Officines du rayon dont l'accès est gêné (même règle que le score d'accessibilité). */
   readonly affected = computed<AffectedPharmacy[]>(() => {
-    const floods = this.confirmed();
+    const floods = this.penalizing();
     if (!floods.length) return [];
     const out: AffectedPharmacy[] = [];
     for (const p of this.pharmacies()) {
@@ -123,6 +125,7 @@ export class PatientFloods {
 
   // ── Libellés ──────────────────────────────────────────────────
   distance(r: ApiFloodReport): string { return r.distance_metres === undefined ? '' : kmLabel(r.distance_metres / 1000); }
+  isDemo(r: ApiFloodReport): boolean { return isDemoFlood(r); }
   tone(r: ApiFloodReport): 'red' | 'amber' { return r.severity === 'impassable' ? 'red' : 'amber'; }
   plural(n: number, one: string, many: string): string { return `${n} ${n > 1 ? many : one}`; }
 

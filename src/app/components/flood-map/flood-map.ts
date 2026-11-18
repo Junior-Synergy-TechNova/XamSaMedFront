@@ -8,6 +8,9 @@ import { GeoPoint, PharmacyPoint } from '../../services/structures/structures';
 /** Rayon autour d'un signalement confirmé dans lequel une pharmacie est pénalisée (config/score.php). */
 export const FLOOD_ZONE_RADIUS_M = 500;
 
+/** Signalement de démonstration (source = demo) : affiché, jamais confirmable, ne pénalise aucune officine. */
+export function isDemoFlood(r: ApiFloodReport): boolean { return r.source === 'demo'; }
+
 /**
  * Carte des routes inondées (Leaflet + fond OpenStreetMap), chargée à la demande :
  * la bibliothèque n'entre dans le bundle que quand une page l'affiche.
@@ -97,9 +100,9 @@ export class FloodMap {
 
     L.circle([center.lat, center.lng], { radius, className: 'pf-fm-area', interactive: false }).addTo(layer);
 
-    // Zones pénalisantes autour des inondations confirmées, sous les points.
+    // Zones pénalisantes autour des inondations confirmées (réelles), sous les points.
     for (const r of reports) {
-      if (r.status !== 'confirmed') continue;
+      if (r.status !== 'confirmed' || isDemoFlood(r)) continue;
       pop(L.circle([r.latitude, r.longitude], { radius: FLOOD_ZONE_RADIUS_M, className: 'pf-fm-zone', interactive: false }).addTo(layer).getElement());
     }
 
@@ -113,7 +116,7 @@ export class FloodMap {
     for (const r of reports) {
       const cls = `pf-fm-flood pf-fm-${r.severity}${r.status === 'confirmed' ? '' : ' pf-fm-unconfirmed'}${r.id === selected ? ' pf-fm-selected' : ''}`;
       pop(L.circleMarker([r.latitude, r.longitude], { radius: r.id === selected ? 13 : 10, className: cls })
-        .bindTooltip(`${r.severity_label} · ${r.status_label} (${r.confirmations}/${r.confirmations_required})`, { direction: 'top' })
+        .bindTooltip(`${r.severity_label} · ${r.status_label} (${r.confirmations}/${r.confirmations_required})${isDemoFlood(r) ? ' · Démonstration' : ''}`, { direction: 'top' })
         .on('click', () => this.selectReport.emit(r.id))
         .addTo(layer).getElement());
     }

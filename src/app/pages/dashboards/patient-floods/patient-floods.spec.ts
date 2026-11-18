@@ -52,6 +52,23 @@ describe('PatientFloods', () => {
     expect(text).toContain('3 / 3 personnes');
   });
 
+  it('montre une démo sans bouton « Je confirme » et sans gêner les pharmacies voisines', async () => {
+    const fixture = TestBed.createComponent(PatientFloods);
+    await fixture.whenStable();
+    http.expectOne(r => r.url === `${api}/flood-reports`).flush({ data: [flood({ source: 'demo', source_label: 'Démonstration' })] });
+    http.expectOne(`${api}/pharmacies`).flush({ data: [
+      { id: 10, name: 'Pharmacie du Port', city: 'Dakar', latitude: 14.6950, longitude: -17.4441 },
+    ] });
+    await fixture.whenStable();
+
+    const c = fixture.componentInstance;
+    expect(c.counts().confirmed).toBe(1);
+    expect(c.affected()).toEqual([]);
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('.pf-fl-row .chip-violet')?.textContent).toContain('Démonstration');
+    expect(el.querySelector('.pf-fl-row')?.textContent).not.toContain('Je confirme');
+  });
+
   it('affiche une erreur au lieu de « aucune route inondée » si la lecture échoue', async () => {
     const fixture = TestBed.createComponent(PatientFloods);
     await fixture.whenStable();
