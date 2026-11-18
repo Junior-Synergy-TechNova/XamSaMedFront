@@ -119,4 +119,14 @@ describe('AppShell — navigation', { timeout: 20_000 }, () => {
     escape();
     expect(shell.drawerOpen()).toBe(false);
   });
+
+  it('tiroir (téléphone) : le bouton « Fermer le menu » le referme', async () => {
+    const { shell, harness } = await open('/app');
+    shell.openDrawer();
+    await harness.fixture.whenStable();
+    const close = harness.routeNativeElement?.querySelector<HTMLButtonElement>('.pf-drawerclose');
+    expect(close?.getAttribute('aria-label')).toBe('Fermer le menu');
+    close?.click();
+    expect(shell.drawerOpen()).toBe(false);
+  });
 });
