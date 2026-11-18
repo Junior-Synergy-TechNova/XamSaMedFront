@@ -1,5 +1,5 @@
     @if (current(); as r) {
-      <div class="pf-app" [class.col]="compact()" [class.drawer]="drawerOpen()" (keydown.escape)="onEscape()">
+      <div class="pf-app" pfScrollChain [class.col]="compact()" [class.drawer]="drawerOpen()" (keydown.escape)="onEscape()">
         <pf-toast-host/>
 
         <!-- Sidebar (tiroir sur téléphone) -->
