@@ -45,6 +45,25 @@ describe('AppShell — navigation', { timeout: 20_000 }, () => {
     return { harness, shell };
   }
 
+  it('menu du compte : mot de passe, notifications et déconnexion ; « Se déconnecter » aussi dans la sidebar', async () => {
+    const { shell, harness } = await open('/app');
+    const el = harness.routeNativeElement as HTMLElement;
+    expect(el.querySelector('.pf-sidefoot .pf-navexit')?.textContent).toContain('Se déconnecter');
+
+    shell.toggleProfile(new Event('click'));
+    await harness.fixture.whenStable();
+    const items = [...el.querySelectorAll('.pf-rolemenu .pf-rolemenuit')].map(b => b.textContent?.trim());
+    expect(items).toEqual(expect.arrayContaining(['Changer le mot de passe', 'Se déconnecter']));
+    expect(items.some(t => t?.startsWith('Notifications'))).toBe(true);
+    // La langue des alertes vocales ne concerne que le patient.
+    expect(el.querySelector('.pf-rolemenu pf-voice-lang')).toBeNull();
+
+    shell.openPassword();
+    await harness.fixture.whenStable();
+    expect(shell.profileOpen()).toBe(false);
+    expect(el.querySelector('pf-password-modal h2')?.textContent).toContain('Changer le mot de passe');
+  });
+
   it('la section de l\'URL l\'emporte sur la section mémorisée', async () => {
     TestBed.inject(PlatformState).saveSection('hopital', 'history');
     const { shell } = await open('/app?s=stock');

@@ -112,6 +112,14 @@
 .pf-rolemenuit.on { @apply text-blue; }
 .pf-rolemenuic { @apply grid place-items-center flex-none text-gray-text; }
 .pf-rolemenuic.red { @apply text-red-text; }
+.pf-rolemenumail { @apply truncate; }
+.pf-rolemenucount { @apply ml-auto min-w-5 h-5 px-1.5 grid place-items-center rounded-full bg-red text-white text-[11.5px] font-semibold tabular-nums; }
+.pf-rolemenusec { @apply flex flex-col gap-2 px-2.5 pt-2.5 pb-2 mt-1 border-t border-gray-line; }
+.pf-rolemenulbl { @apply inline-flex items-center gap-1.5 text-[12.5px] font-medium text-gray-text; }
+.pf-rolemenusep { @apply h-px my-1 bg-gray-line; }
+/* Déconnexion dans la sidebar : rouge doux, comme dans le menu du compte */
+.pf-navexit { @apply text-white/75; }
+.pf-navexit:hover { @apply bg-red/20 text-white; }
 .pf-rolemenuit:hover .pf-rolemenuic.red { @apply translate-x-0.5; }
 .pf-rolemenuic { @apply transition-[translate] duration-150; }
 .pf-content { @apply px-12 py-10 max-w-[1360px] w-full mx-auto; }
@@ -146,8 +154,8 @@
   .pf-drawerclose { @apply grid place-items-center w-11 h-11 -mr-2 flex-none rounded-[10px] text-white/80 transition-colors duration-150; }
   .pf-drawerclose:hover { @apply bg-white/10 text-white; }
   .pf-drawerclose:focus-visible { @apply outline-2 outline-white outline-offset-2; }
-  /* « Réduire » n'a pas de sens dans un tiroir : le pied de la barre est vide */
-  .pf-sidefoot { @apply hidden; }
+  /* « Réduire » n'a pas de sens dans un tiroir : seul « Se déconnecter » reste en pied */
+  .pf-navcollapse { @apply hidden; }
   .pf-burger { @apply grid place-items-center w-11 h-11 -ml-1.5 flex-none rounded-[10px] text-blue transition-colors duration-150; }
   .pf-burger:hover { @apply bg-gray-bg; }
   .pf-top { @apply px-3 gap-2 h-16; }
