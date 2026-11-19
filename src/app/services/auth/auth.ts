@@ -5,7 +5,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import { PlatformState } from '../platform/platform';
 import { RoleId } from '../../interfaces/models';
-import { ApiUser, ApiUserStructure, BackendRole, LoginResponse, OtpChannel, OtpRequestResponse } from '../../interfaces/api';
+import { ApiUser, ApiUserStructure, BackendRole, LoginResponse, OtpChannel, OtpRequestResponse, VoiceLang } from '../../interfaces/api';
 
 const TOKEN_KEY = 'nova-token';
 const USER_KEY = 'nova-user';
@@ -73,6 +73,20 @@ export class AuthService {
     return this.http.put<{ status: string; user: ApiUser }>(`${this.base}/me`, payload).pipe(
       map(r => r.user),
       tap(user => { this.user.set(user); this.persistUser(user); }),
+    );
+  }
+
+  /**
+   * PATCH /profile/location { preferred_language } → langue des alertes vocales de
+   * l'armoire (fr, wo, ff, srr), commune au site et à l'app mobile.
+   */
+  setVoiceLanguage(lang: VoiceLang): Observable<VoiceLang> {
+    return this.http.patch<{ preferred_language?: VoiceLang | null }>(`${this.base}/profile/location`, { preferred_language: lang }).pipe(
+      map(r => r.preferred_language ?? lang),
+      tap(l => {
+        const u = this.user();
+        if (u) { const next = { ...u, preferred_language: l }; this.user.set(next); this.persistUser(next); }
+      }),
     );
   }
 

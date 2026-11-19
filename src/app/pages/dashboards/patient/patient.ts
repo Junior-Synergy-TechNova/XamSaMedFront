@@ -23,6 +23,7 @@ import { PatientPharmacies } from '../patient-pharmacies/patient-pharmacies';
 import { SimpleProfile } from '../profile/profile';
 import { PatientCabinet } from '../patient-cabinet/patient-cabinet';
 import { PatientFloods } from '../patient-floods/patient-floods';
+import { PatientAssistant } from '../patient-assistant/patient-assistant';
 
 import { ModalA11y } from '../../../directives/modal-a11y/modal-a11y';
 import { FieldLabel } from '../../../directives/field-label/field-label';
@@ -34,7 +35,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 @Component({
   selector: 'app-patient-dash',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ModalA11y, FieldLabel, Icon, Card, PageHead, Tag, PatientResults, PatientPharmacies, PatientCabinet, PatientFloods, SimpleProfile, DatePipe],
+  imports: [ModalA11y, FieldLabel, Icon, Card, PageHead, Tag, PatientResults, PatientPharmacies, PatientCabinet, PatientFloods, PatientAssistant, SimpleProfile, DatePipe],
   templateUrl: './patient.html',
   styleUrl: './patient.css',
 })

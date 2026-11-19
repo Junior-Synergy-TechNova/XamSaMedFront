@@ -12,8 +12,12 @@ import { FieldLabel } from '../../../directives/field-label/field-label';
 import { PlatformState } from '../../../services/platform/platform';
 import { MedicineService } from '../../../services/medicines/medicines';
 import { CabinetService, ThermalState } from '../../../services/cabinet/cabinet';
+import { AuthService } from '../../../services/auth/auth';
+import { VOICE_LANGS, VoiceAlertKind, VoiceAlertService, planVoice } from '../../../services/voice-alerts/voice-alerts';
+import { VoiceLangPicker } from '../../../components/voice-lang/voice-lang';
+import { forkJoin } from 'rxjs';
 import {
-  ApiCabinetItem, ApiErrorBody, ApiFamilyMember, ApiThermalItem, CabinetItemPayload, CabinetStorage, FamilyRelationship,
+  ApiCabinetItem, ApiErrorBody, ApiFamilyMember, ApiThermalItem, CabinetItemPayload, CabinetStorage, FamilyRelationship, VoiceLang,
 } from '../../../interfaces/api';
 
 type CatalogueItem = { id: number; name: string; label: string };
@@ -89,14 +93,53 @@ function medicineLabel(m: { name: string; dosage: string | null; form: string | 
 @Component({
   selector: 'app-patient-cabinet',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, Card, PageHead, Stat, Tag, ExpiryTag, ModalA11y, FieldLabel, DatePipe, DecimalPipe],
+  imports: [Icon, Card, PageHead, Stat, Tag, ExpiryTag, ModalA11y, FieldLabel, DatePipe, DecimalPipe, VoiceLangPicker],
   templateUrl: './patient-cabinet.html',
   styleUrl: './patient-cabinet.css',
 })
 export class PatientCabinet {
+  /** Un message à annoncer : péremption à 30 jours ou moins (même seuil que le serveur). */
+  hasExpiryAlert(item: ApiCabinetItem): boolean { return item.expiry_level !== 'ok'; }
+  /** Chaleur : article à risque ou déjà des heures d'exposition comptées. */
+  hasHeatAlert(r: CabinetRow): boolean { return r.heat || (r.thermal?.hours_above_threshold ?? 0) > 0; }
+  voiceKey(id: number, kind: VoiceAlertKind): string { return `${id}:${kind}`; }
+  langLabel(id: VoiceLang): string { return VOICE_LANGS.find(l => l.id === id)?.label ?? id; }
+
+  /** « Écouter » : relit l'alerte au serveur, puis la joue avec le pack audio du site. Re-cliquer arrête. */
+  listen(r: CabinetRow, kind: VoiceAlertKind): void {
+    const key = this.voiceKey(r.item.id, kind);
+    if (this.voice()?.key === key) { this.voices.stop(); return; }
+    if (this.voiceLoading()) return;
+    this.voices.stop();
+    this.voiceLoading.set(key);
+    forkJoin([this.voices.alert(r.item.id, kind), this.voices.manifest()]).subscribe({
+      next: ([alert, manifest]) => {
+        this.voiceLoading.set(null);
+        if (alert.status === 'no_alert' || alert.segments.length === 0) {
+          this.platform.notify(kind === 'thermal'
+            ? 'Aucune alerte de chaleur à annoncer : pas encore d\'heure d\'exposition comptée.'
+            : 'Aucune alerte à annoncer : la péremption est à plus de 30 jours.', 'info');
+          return;
+        }
+        this.voices.play(key, planVoice(manifest, alert.lang, alert.segments, r.label));
+      },
+      error: (e: unknown) => {
+        this.voiceLoading.set(null);
+        this.platform.notify(e instanceof HttpErrorResponse && e.status !== 0
+          ? 'L\'alerte vocale n\'a pas pu être lue. Réessayez.'
+          : 'Connexion impossible : l\'alerte vocale n\'a pas pu être lue.', 'alert');
+      },
+    });
+  }
+
+  stopVoice(): void { this.voices.stop(); }
+
+
   private readonly api = inject(CabinetService);
   private readonly meds = inject(MedicineService);
   private readonly platform = inject(PlatformState);
+  private readonly voices = inject(VoiceAlertService);
+  private readonly auth = inject(AuthService);
   /** Liste relue : le tableau de bord patient met à jour la pastille « Armoire familiale ». */
   readonly itemsChange = output<ApiCabinetItem[]>();
 
@@ -133,6 +176,14 @@ export class PatientCabinet {
   readonly memberEdit = signal<{ id: number | null; name: string; relationship: FamilyRelationship } | null>(null);
   readonly memberError = signal<string | null>(null);
   readonly locationOpen = signal(false);
+
+  // ── Alertes vocales (comme sur l'app mobile) ──────────────────
+  /** Langue du profil (sélecteur partagé `pf-voice-lang`). */
+  readonly voiceLang = computed<VoiceLang>(() => this.auth.user()?.preferred_language ?? 'fr');
+  /** Lecture en cours (sous-titres) : `key` = « id:expiry » ou « id:thermal ». */
+  readonly voice = this.voices.playing;
+  /** Alerte en cours de chargement (bouton verrouillé). */
+  readonly voiceLoading = signal<string | null>(null);
 
   constructor() {
     this.reload();

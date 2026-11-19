@@ -3,6 +3,8 @@ import { Icon } from '../../../components/icon/icon';
 import { Card } from '../../../components/card/card';
 import { PageHead } from '../../../components/page-head/page-head';
 import { Qr } from '../../../components/qr/qr';
+import { PasswordModal } from '../../../components/password-modal/password-modal';
+import { VoiceLangPicker } from '../../../components/voice-lang/voice-lang';
 import { roleById } from '../../../data/mock-data';
 import { RoleId } from '../../../interfaces/models';
 import { AuthService } from '../../../services/auth/auth';
@@ -14,7 +16,7 @@ import { FieldLabel } from '../../../directives/field-label/field-label';
 @Component({
   selector: 'app-simple-profile',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ModalA11y, FieldLabel, Icon, Card, PageHead, Qr],
+  imports: [ModalA11y, FieldLabel, Icon, Card, PageHead, Qr, PasswordModal, VoiceLangPicker],
   templateUrl: './profile.html',
   styleUrl: './profile.css',
 })
@@ -31,16 +33,6 @@ export class SimpleProfile {
 
   readonly editModal = signal(false);
   readonly pwdModal = signal(false);
-  // Affichage en clair de chaque champ du formulaire mot de passe.
-  readonly showCur = signal(false);
-  readonly showNew = signal(false);
-  readonly showConf = signal(false);
-
-  // À chaque ouverture, les champs repartent masqués.
-  openPwdModal(): void {
-    this.showCur.set(false); this.showNew.set(false); this.showConf.set(false);
-    this.pwdModal.set(true);
-  }
 
   submitProfile(name: string, phone: string, email: string): void {
     const payload: { name?: string; phone?: string; email?: string } = {};
@@ -53,13 +45,4 @@ export class SimpleProfile {
     });
   }
 
-  submitPassword(current: string, password: string, confirm: string): void {
-    if (!current || !password) { this.platform.notify('Renseignez les deux mots de passe', 'alert'); return; }
-    if (password !== confirm) { this.platform.notify('Les mots de passe ne correspondent pas', 'alert'); return; }
-    if (password.length < 6) { this.platform.notify('Le mot de passe doit faire au moins 6 caractères', 'alert'); return; }
-    this.auth.updatePassword(current, password).subscribe({
-      next: () => { this.platform.notify('Mot de passe modifié', 'ok'); this.pwdModal.set(false); },
-      error: () => this.platform.notify('Mot de passe actuel incorrect', 'alert'),
-    });
-  }
 }

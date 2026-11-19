@@ -14,8 +14,8 @@ export type ThermalState =
 /**
  * Armoire familiale du patient (`/cabinet/*`) : médicaments gardés à la maison,
  * proches, statut thermique (météo du domicile) et localisation du domicile.
- * Les alertes vocales (`/cabinet/{id}/voice-alert`) ne renvoient que des segments
- * joués par l'application mobile, qui embarque les fichiers audio : rien à lire ici.
+ * Les alertes vocales (`/cabinet/{id}/voice-alert`) sont dans `services/voice-alerts`
+ * (segments du serveur joués avec le pack audio copié dans `public/audio/`).
  * Les erreurs de lecture remontent à la page (écran « Réessayer »), jamais une liste vide trompeuse.
  */
 @Injectable({ providedIn: 'root' })

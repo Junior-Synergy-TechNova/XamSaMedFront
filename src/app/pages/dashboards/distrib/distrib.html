@@ -42,21 +42,23 @@
           <div class="pf-cols">
             <pf-card title="À traiter maintenant" [sub]="todo().length ? 'Les plus urgents en premier' : 'Tout est à jour'">
               @if (todo().length) { <span right class="chip chip-blue">{{ todo().length }}</span> }
-              @for (t of visibleTodo(); track t.key) {
-                <div class="pf-li">
-                  <span class="pf-liic {{ t.tone }}"><nv-icon [name]="t.icon" [size]="18"/></span>
-                  <div class="pf-libody">
-                    <strong>{{ t.title }} @if (t.controlled) { <span class="chip chip-ctrl chip-inline">Contrôlé</span> }</strong>
-                    <span>{{ t.detail }}</span>
+              <div class="pf-scroll">
+                @for (t of visibleTodo(); track t.key) {
+                  <div class="pf-li">
+                    <span class="pf-liic {{ t.tone }}"><nv-icon [name]="t.icon" [size]="18"/></span>
+                    <div class="pf-libody">
+                      <strong>{{ t.title }} @if (t.controlled) { <span class="chip chip-ctrl chip-inline">Contrôlé</span> }</strong>
+                      <span>{{ t.detail }}</span>
+                    </div>
+                    <div class="pf-li-act">
+                      <button type="button" class="btn btn-sm" [class.btn-green]="t.primary" [class.btn-outline]="!t.primary"
+                              [disabled]="isBusy(t.busyKey)" (click)="t.run()">
+                        @if (isBusy(t.busyKey)) { <span class="pf-spin pf-spin-sm" aria-hidden="true"></span> }{{ t.action }}
+                      </button>
+                    </div>
                   </div>
-                  <div class="pf-li-act">
-                    <button type="button" class="btn btn-sm" [class.btn-green]="t.primary" [class.btn-outline]="!t.primary"
-                            [disabled]="isBusy(t.busyKey)" (click)="t.run()">
-                      @if (isBusy(t.busyKey)) { <span class="pf-spin pf-spin-sm" aria-hidden="true"></span> }{{ t.action }}
-                    </button>
-                  </div>
-                </div>
-              }
+                }
+              </div>
               @if (hiddenTodo() > 0) {
                 <button type="button" class="btn btn-ghost btn-sm pf-todo-more" (click)="showAllTodo.set(true)">Voir {{ plural(hiddenTodo(), 'autre élément', 'autres éléments') }}</button>
               }
@@ -70,24 +72,28 @@
             <div>
               <pf-card title="Livraisons à venir" sub="Les plus proches d'abord">
                 <button right type="button" class="btn btn-ghost btn-sm" (click)="section.set('livraisons')">Toutes</button>
-                @for (d of upcomingDeliveries(); track d.id) {
-                  <div class="pf-li pf-li-sm">
-                    <span class="pf-liic blue"><nv-icon name="truck" [size]="18"/></span>
-                    <div class="pf-libody"><strong>{{ d.med }}</strong><span><span class="pf-tx teal"><nv-icon name="pin" [size]="13"/>{{ d.destination }}</span> · {{ plural(d.qty, 'unité', 'unités') }}</span></div>
-                    <span class="pf-upcoming-date">{{ dayMonth(d.date) }}</span>
-                  </div>
-                }
+                <div class="pf-scroll">
+                  @for (d of upcomingDeliveries(); track d.id) {
+                    <div class="pf-li pf-li-sm">
+                      <span class="pf-liic blue"><nv-icon name="truck" [size]="18"/></span>
+                      <div class="pf-libody"><strong>{{ d.med }}</strong><span><span class="pf-tx teal"><nv-icon name="pin" [size]="13"/>{{ d.destination }}</span> · {{ plural(d.qty, 'unité', 'unités') }}</span></div>
+                      <span class="pf-upcoming-date">{{ dayMonth(d.date) }}</span>
+                    </div>
+                  }
+                </div>
                 @if (upcomingDeliveries().length === 0) { <div class="pf-note">Aucune livraison planifiée pour les prochains jours.</div> }
               </pf-card>
               <pf-card title="Tensions du périmètre" sub="Les zones les plus tendues">
                 <button right type="button" class="btn btn-ghost btn-sm" (click)="section.set('zones')">Carte</button>
-                @for (z of topZones(); track z.nom) {
-                  <div class="pf-li pf-li-sm">
-                    <span class="pf-liic {{ zoneTile(z.niveau) }}"><nv-icon name="pin" [size]="18"/></span>
-                    <div class="pf-libody"><strong>{{ z.nom }}</strong><span>{{ plural(z.ruptures, 'rupture signalée', 'ruptures signalées') }}</span></div>
-                    <pf-tag [s]="ztag(z.niveau)">{{ zoneLabel(z.niveau) }}</pf-tag>
-                  </div>
-                }
+                <div class="pf-scroll">
+                  @for (z of topZones(); track z.nom) {
+                    <div class="pf-li pf-li-sm">
+                      <span class="pf-liic {{ zoneTile(z.niveau) }}"><nv-icon name="pin" [size]="18"/></span>
+                      <div class="pf-libody"><strong>{{ z.nom }}</strong><span>{{ plural(z.ruptures, 'rupture signalée', 'ruptures signalées') }}</span></div>
+                      <pf-tag [s]="ztag(z.niveau)">{{ zoneLabel(z.niveau) }}</pf-tag>
+                    </div>
+                  }
+                </div>
                 @if (topZones().length === 0) { <div class="pf-note">Aucune tension dans votre périmètre.</div> }
               </pf-card>
             </div>
@@ -101,59 +107,65 @@
 
           <pf-card title="Demandes reçues" sub="Envoyées par les structures qui vous ont choisi">
             @if (pendingRequests().length) { <span right class="chip chip-blue">{{ pendingRequests().length }} en attente</span> }
-            @for (r of pendingRequests(); track r.id) {
-              <div class="pf-li">
-                <span class="pf-liic {{ r.kind === 'hospital' ? 'sky' : 'teal' }}"><nv-icon [name]="r.kind === 'hospital' ? 'hospital' : 'pill'" [size]="18"/></span>
-                <div class="pf-libody">
-                  <strong>{{ r.medicine }} @if (r.is_controlled) { <span class="chip chip-ctrl chip-inline">Contrôlé</span> } @if (r.quantity_requested) { <span class="muted">· {{ r.quantity_requested }} u. demandées</span> }</strong>
-                  <span><span class="pf-tx {{ r.kind === 'hospital' ? 'sky' : 'teal' }}"><nv-icon [name]="r.kind === 'hospital' ? 'hospital' : 'pill'" [size]="13"/>{{ r.structure }}</span>{{ r.service ? ' · ' + r.service : '' }} · <span class="pf-tx {{ restTone(r.available) }}">reste {{ r.available ?? '—' }}</span>{{ r.threshold ? ' / seuil ' + r.threshold : '' }}{{ r.message ? ' — ' + r.message : '' }}</span>
+            <div class="pf-scroll">
+              @for (r of pendingRequests(); track r.id) {
+                <div class="pf-li">
+                  <span class="pf-liic {{ r.kind === 'hospital' ? 'sky' : 'teal' }}"><nv-icon [name]="r.kind === 'hospital' ? 'hospital' : 'pill'" [size]="18"/></span>
+                  <div class="pf-libody">
+                    <strong>{{ r.medicine }} @if (r.is_controlled) { <span class="chip chip-ctrl chip-inline">Contrôlé</span> } @if (r.quantity_requested) { <span class="muted">· {{ r.quantity_requested }} u. demandées</span> }</strong>
+                    <span><span class="pf-tx {{ r.kind === 'hospital' ? 'sky' : 'teal' }}"><nv-icon [name]="r.kind === 'hospital' ? 'hospital' : 'pill'" [size]="13"/>{{ r.structure }}</span>{{ r.service ? ' · ' + r.service : '' }} · <span class="pf-tx {{ restTone(r.available) }}">reste {{ r.available ?? '—' }}</span>{{ r.threshold ? ' / seuil ' + r.threshold : '' }}{{ r.message ? ' — ' + r.message : '' }}</span>
+                  </div>
+                  <div class="pf-li-act">
+                    @if (!r.targeted) { <pf-tag s="gray">Réseau</pf-tag> }
+                    @if (r.reminders) { <span class="chip chip-amber" [title]="'Le demandeur a relancé ' + r.reminders + ' fois'">Relancée</span> }
+                    <button class="btn btn-outline btn-sm" (click)="rejectModal.set(r)">Refuser</button>
+                    <button class="btn btn-green btn-sm" (click)="fulfillRequest(r)"><nv-icon name="truck" [size]="15"/> Traiter</button>
+                  </div>
                 </div>
-                <div class="pf-li-act">
-                  @if (!r.targeted) { <pf-tag s="gray">Réseau</pf-tag> }
-                  @if (r.reminders) { <span class="chip chip-amber" [title]="'Le demandeur a relancé ' + r.reminders + ' fois'">Relancée</span> }
-                  <button class="btn btn-outline btn-sm" (click)="rejectModal.set(r)">Refuser</button>
-                  <button class="btn btn-green btn-sm" (click)="fulfillRequest(r)"><nv-icon name="truck" [size]="15"/> Traiter</button>
-                </div>
-              </div>
-            }
+              }
+            </div>
             @if (pendingRequests().length === 0) { <div class="pf-note">Aucune demande en attente.</div> }
             @if (handledRequests().length > 0) {
               <details class="pf-handled">
                 <summary>{{ plural(handledRequests().length, 'demande traitée', 'demandes traitées') }} <nv-icon name="chevD" [size]="14"/></summary>
-                @for (r of handledRequests(); track r.id) {
-                  <div class="pf-li pf-li-sm">
-                    <span class="pf-liic {{ pastTone(r) }}"><nv-icon [name]="r.kind === 'hospital' ? 'hospital' : 'pill'" [size]="18"/></span>
-                    <div class="pf-libody"><strong>{{ r.medicine }}</strong><span><span class="pf-tx {{ r.kind === 'hospital' ? 'sky' : 'teal' }}">{{ r.structure }}</span></span></div>
-                    <div class="pf-li-act"><pf-tag [s]="pastTone(r)">{{ requestStatusLabel(r) }}</pf-tag></div>
-                  </div>
-                }
+                <div class="pf-scroll">
+                  @for (r of handledRequests(); track r.id) {
+                    <div class="pf-li pf-li-sm">
+                      <span class="pf-liic {{ pastTone(r) }}"><nv-icon [name]="r.kind === 'hospital' ? 'hospital' : 'pill'" [size]="18"/></span>
+                      <div class="pf-libody"><strong>{{ r.medicine }}</strong><span><span class="pf-tx {{ r.kind === 'hospital' ? 'sky' : 'teal' }}">{{ r.structure }}</span></span></div>
+                      <div class="pf-li-act"><pf-tag [s]="pastTone(r)">{{ requestStatusLabel(r) }}</pf-tag></div>
+                    </div>
+                  }
+                </div>
               </details>
             }
           </pf-card>
 
           <pf-card title="Tensions détectées par zone" sub="Sur les stocks réels des structures que vous livrez">
             @if (urgentes()) { <span right class="chip chip-red">{{ plural(urgentes(), 'urgente', 'urgentes') }}</span> }
-            @for (d of demandes(); track d.id) {
-              <div class="pf-li">
-                <span class="pf-liic {{ d.tension === 'haute' ? 'red' : d.tension === 'moyenne' ? 'amber' : 'green' }}"><nv-icon name="pin" [size]="18"/></span>
-                <div class="pf-libody">
-                  <strong>{{ d.med }} <pf-tag [s]="tcol(d.tension)">Tension {{ d.tension }}</pf-tag> @if (d.controlled) { <span class="chip chip-ctrl chip-inline">Contrôlé</span> }</strong>
-                  <span><span class="pf-tx blue"><nv-icon name="pin" [size]="13"/>{{ d.zone }}</span> · {{ plural(d.officines, 'structure', 'structures') }} : {{ pharmacyNames(d) }}</span>
+            <div class="pf-scroll">
+              @for (d of demandes(); track d.id) {
+                <div class="pf-li">
+                  <span class="pf-liic {{ d.tension === 'haute' ? 'red' : d.tension === 'moyenne' ? 'amber' : 'green' }}"><nv-icon name="pin" [size]="18"/></span>
+                  <div class="pf-libody">
+                    <strong>{{ d.med }} <pf-tag [s]="tcol(d.tension)">Tension {{ d.tension }}</pf-tag> @if (d.controlled) { <span class="chip chip-ctrl chip-inline">Contrôlé</span> }</strong>
+                    <span><span class="pf-tx blue"><nv-icon name="pin" [size]="13"/>{{ d.zone }}</span> · {{ plural(d.officines, 'structure', 'structures') }} : {{ pharmacyNames(d) }}</span>
+                  </div>
+                  <div class="pf-need" title="Quantité pour ramener ces structures au-dessus de leur seuil">
+                    @if (d.need > 0) {
+                      <span class="pf-need-val">{{ d.need }}</span>
+                      <span class="pf-need-lbl">unités à livrer</span>
+                    } @else {
+                      <span class="pf-need-val pf-need-zero">—</span>
+                      <span class="pf-need-lbl">au seuil</span>
+                    }
+                  </div>
+                  <div class="pf-li-act">
+                    <button class="btn btn-green btn-sm" (click)="plan(d)" title="Planifier une livraison vers une officine de cette zone">Planifier</button>
+                  </div>
                 </div>
-                <div class="pf-need" title="Quantité pour ramener ces structures au-dessus de leur seuil">
-                  @if (d.need > 0) {
-                    <span class="pf-need-val">{{ d.need }}</span>
-                    <span class="pf-need-lbl">unités à livrer</span>
-                  } @else {
-                    <span class="pf-need-val pf-need-zero">—</span>
-                    <span class="pf-need-lbl">au seuil</span>
-                  }
-                </div>
-                <div class="pf-li-act">
-                  <button class="btn btn-green btn-sm" (click)="plan(d)" title="Planifier une livraison vers une officine de cette zone">Planifier</button>
-                </div>
-              </div>
-            }
+              }
+            </div>
             @if (demandes().length === 0) {
               <div class="pf-empty">
                 <nv-icon name="checkC" [size]="30" color="var(--color-green)"/>
@@ -176,13 +188,15 @@
               }
             </pf-card>
             <pf-card [title]="sel() || 'Toutes les zones'" [sub]="sel() ? 'Détail de la zone' : 'Cliquez une zone sur la carte'">
-              @for (z of zonesList(); track z.nom) {
-                <div class="pf-li">
-                  <span class="pf-liic {{ zoneTile(z.niveau) }}"><nv-icon name="pin" [size]="18"/></span>
-                  <div class="pf-libody"><strong>{{ z.nom }}</strong><span>{{ plural(z.ruptures, 'rupture signalée', 'ruptures signalées') }}</span></div>
-                  <pf-tag [s]="ztag(z.niveau)">{{ zoneLabel(z.niveau) }}</pf-tag>
-                </div>
-              }
+              <div class="pf-scroll">
+                @for (z of zonesList(); track z.nom) {
+                  <div class="pf-li">
+                    <span class="pf-liic {{ zoneTile(z.niveau) }}"><nv-icon name="pin" [size]="18"/></span>
+                    <div class="pf-libody"><strong>{{ z.nom }}</strong><span>{{ plural(z.ruptures, 'rupture signalée', 'ruptures signalées') }}</span></div>
+                    <pf-tag [s]="ztag(z.niveau)">{{ zoneLabel(z.niveau) }}</pf-tag>
+                  </div>
+                }
+              </div>
               @if (zonesList().length === 0) { <div class="pf-note">Aucune zone en tension.</div> }
             </pf-card>
           </div>
@@ -307,23 +321,25 @@
               </div>
 
               <pf-card title="Commandes des PRA" sub="Réapprovisionnements régionaux à livrer">
-                @for (o of pnaRequests(); track o.id) {
-                  <div class="pf-li">
-                    <span class="pf-liic {{ o.urgency === 'critical' ? 'red' : o.urgency === 'urgent' ? 'amber' : 'blue' }}"><nv-icon name="layers" [size]="18"/></span>
-                    <div class="pf-libody">
-                      <strong>{{ o.medicine }} · {{ o.quantity }} u. <pf-tag [s]="instUrgencyTag(o.urgency)">{{ urgencyTitle(o.urgency) }}</pf-tag></strong>
-                      <span><span class="pf-tx rose">{{ o.pra }}</span>{{ o.pra_region ? ' · région ' + o.pra_region : '' }}{{ o.notes ? ' — ' + o.notes : '' }}</span>
+                <div class="pf-scroll">
+                  @for (o of pnaRequests(); track o.id) {
+                    <div class="pf-li">
+                      <span class="pf-liic {{ o.urgency === 'critical' ? 'red' : o.urgency === 'urgent' ? 'amber' : 'blue' }}"><nv-icon name="layers" [size]="18"/></span>
+                      <div class="pf-libody">
+                        <strong>{{ o.medicine }} · {{ o.quantity }} u. <pf-tag [s]="instUrgencyTag(o.urgency)">{{ urgencyTitle(o.urgency) }}</pf-tag></strong>
+                        <span><span class="pf-tx rose">{{ o.pra }}</span>{{ o.pra_region ? ' · région ' + o.pra_region : '' }}{{ o.notes ? ' — ' + o.notes : '' }}</span>
+                      </div>
+                      <div class="pf-li-act">
+                        @if (o.status === 'pending') {
+                          <button class="btn btn-outline btn-sm" [disabled]="isBusy('inst-' + o.id)" (click)="rejectInstitutional(o)">Rejeter</button>
+                          <button class="btn btn-green btn-sm" (click)="fulfillModal.set(o)"><nv-icon name="truck" [size]="15"/> Livrer</button>
+                        } @else {
+                          <pf-tag [s]="o.status === 'resolved' ? 'ok' : o.status === 'rejected' ? 'crit' : 'new'">{{ instStatusLabel(o) }}</pf-tag>
+                        }
+                      </div>
                     </div>
-                    <div class="pf-li-act">
-                      @if (o.status === 'pending') {
-                        <button class="btn btn-outline btn-sm" [disabled]="isBusy('inst-' + o.id)" (click)="rejectInstitutional(o)">Rejeter</button>
-                        <button class="btn btn-green btn-sm" (click)="fulfillModal.set(o)"><nv-icon name="truck" [size]="15"/> Livrer</button>
-                      } @else {
-                        <pf-tag [s]="o.status === 'resolved' ? 'ok' : o.status === 'rejected' ? 'crit' : 'new'">{{ instStatusLabel(o) }}</pf-tag>
-                      }
-                    </div>
-                  </div>
-                }
+                  }
+                </div>
                 @if (pnaRequests().length === 0) { <div class="pf-note">Aucune commande de PRA.</div> }
               </pf-card>
 
@@ -353,37 +369,41 @@
               </pf-page-head>
 
               <pf-card title="Commandes reçues des hôpitaux" sub="À livrer depuis votre stock régional">
-                @for (o of praOrders(); track o.id) {
-                  <div class="pf-li">
-                    <span class="pf-liic {{ o.urgency === 'critical' ? 'red' : o.urgency === 'urgent' ? 'amber' : 'blue' }}"><nv-icon name="hospital" [size]="18"/></span>
-                    <div class="pf-libody">
-                      <strong>{{ o.medicine }} · {{ o.quantity }} u. <pf-tag [s]="instUrgencyTag(o.urgency)">{{ urgencyTitle(o.urgency) }}</pf-tag></strong>
-                      <span><span class="pf-tx sky"><nv-icon name="hospital" [size]="13"/>{{ o.hospital }}</span>{{ o.service ? ' · ' + o.service : '' }}{{ o.notes ? ' — ' + o.notes : '' }}</span>
+                <div class="pf-scroll">
+                  @for (o of praOrders(); track o.id) {
+                    <div class="pf-li">
+                      <span class="pf-liic {{ o.urgency === 'critical' ? 'red' : o.urgency === 'urgent' ? 'amber' : 'blue' }}"><nv-icon name="hospital" [size]="18"/></span>
+                      <div class="pf-libody">
+                        <strong>{{ o.medicine }} · {{ o.quantity }} u. <pf-tag [s]="instUrgencyTag(o.urgency)">{{ urgencyTitle(o.urgency) }}</pf-tag></strong>
+                        <span><span class="pf-tx sky"><nv-icon name="hospital" [size]="13"/>{{ o.hospital }}</span>{{ o.service ? ' · ' + o.service : '' }}{{ o.notes ? ' — ' + o.notes : '' }}</span>
+                      </div>
+                      <div class="pf-li-act">
+                        @if (o.status === 'pending') {
+                          <button class="btn btn-outline btn-sm" [disabled]="isBusy('inst-' + o.id)" (click)="rejectInstitutional(o)">Rejeter</button>
+                          <button class="btn btn-green btn-sm" (click)="fulfillModal.set(o)"><nv-icon name="truck" [size]="15"/> Livrer</button>
+                        } @else {
+                          <pf-tag [s]="o.status === 'resolved' ? 'ok' : o.status === 'rejected' ? 'crit' : 'new'">{{ instStatusLabel(o) }}</pf-tag>
+                        }
+                      </div>
                     </div>
-                    <div class="pf-li-act">
-                      @if (o.status === 'pending') {
-                        <button class="btn btn-outline btn-sm" [disabled]="isBusy('inst-' + o.id)" (click)="rejectInstitutional(o)">Rejeter</button>
-                        <button class="btn btn-green btn-sm" (click)="fulfillModal.set(o)"><nv-icon name="truck" [size]="15"/> Livrer</button>
-                      } @else {
-                        <pf-tag [s]="o.status === 'resolved' ? 'ok' : o.status === 'rejected' ? 'crit' : 'new'">{{ instStatusLabel(o) }}</pf-tag>
-                      }
-                    </div>
-                  </div>
-                }
+                  }
+                </div>
                 @if (praOrders().length === 0) { <div class="pf-note">Aucune commande institutionnelle reçue.</div> }
               </pf-card>
 
               <pf-card title="Mes commandes à la PNA" sub="Réapprovisionnement de votre stock régional">
-                @for (o of praPnaOrders(); track o.id) {
-                  <div class="pf-li">
-                    <span class="pf-liic {{ o.status === 'resolved' ? 'green' : o.status === 'rejected' ? 'red' : 'amber' }}"><nv-icon name="layers" [size]="18"/></span>
-                    <div class="pf-libody">
-                      <strong>{{ o.medicine }} · {{ o.quantity }} u. <pf-tag [s]="instUrgencyTag(o.urgency)">{{ urgencyTitle(o.urgency) }}</pf-tag></strong>
-                      <span><span class="pf-tx rose">{{ o.pna }}</span>@if (o.rejection_reason) { — <span class="pf-tx rose">{{ o.rejection_reason }}</span> }</span>
+                <div class="pf-scroll">
+                  @for (o of praPnaOrders(); track o.id) {
+                    <div class="pf-li">
+                      <span class="pf-liic {{ o.status === 'resolved' ? 'green' : o.status === 'rejected' ? 'red' : 'amber' }}"><nv-icon name="layers" [size]="18"/></span>
+                      <div class="pf-libody">
+                        <strong>{{ o.medicine }} · {{ o.quantity }} u. <pf-tag [s]="instUrgencyTag(o.urgency)">{{ urgencyTitle(o.urgency) }}</pf-tag></strong>
+                        <span><span class="pf-tx rose">{{ o.pna }}</span>@if (o.rejection_reason) { — <span class="pf-tx rose">{{ o.rejection_reason }}</span> }</span>
+                      </div>
+                      <pf-tag [s]="o.status === 'resolved' ? 'ok' : o.status === 'rejected' ? 'crit' : 'low'">{{ instStatusLabel(o) }}</pf-tag>
                     </div>
-                    <pf-tag [s]="o.status === 'resolved' ? 'ok' : o.status === 'rejected' ? 'crit' : 'low'">{{ instStatusLabel(o) }}</pf-tag>
-                  </div>
-                }
+                  }
+                </div>
                 @if (praPnaOrders().length === 0) { <div class="pf-note">Aucune commande envoyée à la PNA.</div> }
               </pf-card>
             }

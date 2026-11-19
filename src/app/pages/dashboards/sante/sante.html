@@ -87,13 +87,15 @@
               }
             </pf-card>
             <pf-card title="Classement des zones">
-              @for (z of sortedZones(); track z.nom; let i = $index) {
-                <div class="pf-li">
-                  <span class="pf-liic pf-rank {{ zoneTile(z.niveau) }}">{{ i + 1 }}</span>
-                  <div class="pf-libody"><strong>{{ z.nom }}</strong><span>{{ plural(z.ruptures, 'rupture signalée', 'ruptures signalées') }}</span></div>
-                  <pf-tag [s]="ztag(z.niveau)">{{ zoneLabel(z.niveau) }}</pf-tag>
-                </div>
-              }
+              <div class="pf-scroll">
+                @for (z of sortedZones(); track z.nom; let i = $index) {
+                  <div class="pf-li">
+                    <span class="pf-liic pf-rank {{ zoneTile(z.niveau) }}">{{ i + 1 }}</span>
+                    <div class="pf-libody"><strong>{{ z.nom }}</strong><span>{{ plural(z.ruptures, 'rupture signalée', 'ruptures signalées') }}</span></div>
+                    <pf-tag [s]="ztag(z.niveau)">{{ zoneLabel(z.niveau) }}</pf-tag>
+                  </div>
+                }
+              </div>
               @if (sortedZones().length === 0) { <div class="pf-note">Aucune zone en tension.</div> }
             </pf-card>
           </div>
@@ -212,16 +214,18 @@
             <button actions class="btn btn-green btn-sm" (click)="generateReport()"><nv-icon name="doc" [size]="16"/> Générer un rapport</button>
           </pf-page-head>
           <pf-card>
-            @for (r of reports(); track r.id) {
-              <div class="pf-li">
-                <span class="pf-liic {{ tileOf(r.s) }}"><nv-icon name="doc" [size]="18"/></span>
-                <div class="pf-libody"><strong>{{ reportTitle(r) }}</strong><span><span class="pf-tx blue"><nv-icon name="clock" [size]="13"/>{{ periodLabel(r.period) }}</span>{{ r.generated_at ? ' · ' + longDate(r.generated_at) : '' }}</span></div>
-                <div class="pf-li-act">
-                  <pf-tag [s]="r.s">{{ r.statusLabel }}</pf-tag>
-                  <button class="btn btn-outline btn-sm" [disabled]="r.status !== 'completed'" (click)="exportReport(r.id)"><nv-icon name="doc" [size]="15"/> Consulter</button>
+            <div class="pf-scroll">
+              @for (r of reports(); track r.id) {
+                <div class="pf-li">
+                  <span class="pf-liic {{ tileOf(r.s) }}"><nv-icon name="doc" [size]="18"/></span>
+                  <div class="pf-libody"><strong>{{ reportTitle(r) }}</strong><span><span class="pf-tx blue"><nv-icon name="clock" [size]="13"/>{{ periodLabel(r.period) }}</span>{{ r.generated_at ? ' · ' + longDate(r.generated_at) : '' }}</span></div>
+                  <div class="pf-li-act">
+                    <pf-tag [s]="r.s">{{ r.statusLabel }}</pf-tag>
+                    <button class="btn btn-outline btn-sm" [disabled]="r.status !== 'completed'" (click)="exportReport(r.id)"><nv-icon name="doc" [size]="15"/> Consulter</button>
+                  </div>
                 </div>
-              </div>
-            }
+              }
+            </div>
             @if (reports().length === 0) { <div class="pf-note">Aucun rapport généré. « Générer un rapport » produit un PDF national, régional, par médicament ou sur les tensions.</div> }
           </pf-card>
         </div>

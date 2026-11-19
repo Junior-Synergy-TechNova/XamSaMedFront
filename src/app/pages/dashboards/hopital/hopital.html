@@ -44,13 +44,15 @@
           <div class="pf-cols">
             <pf-card title="Alertes internes par service" [sub]="alertes().length ? 'Ruptures en tête' : ''">
               @if (alertes().length) { <span right class="chip chip-red">{{ plural(alertes().length, 'active', 'actives') }}</span> }
-              @for (a of alertes(); track a.id) {
-                <div class="pf-li">
-                  <span class="pf-liic {{ a.severity === 'rupture' ? 'red' : 'amber' }}"><nv-icon name="hospital" [size]="18"/></span>
-                  <div class="pf-libody"><strong>{{ a.med }} @if (a.controlled) { <span class="chip chip-ctrl chip-inline">Contrôlé</span> }</strong><span><span class="pf-tx sky"><nv-icon name="hospital" [size]="13"/>{{ a.service }}{{ a.unit ? ' → ' + a.unit : '' }}</span> · <span class="pf-tx {{ a.severity === 'rupture' ? 'red' : 'amber' }}">{{ a.reste }}</span> · {{ a.quand }}</span></div>
-                  <pf-tag [s]="sevTag(a.severity)">{{ sevLabel(a.severity) }}</pf-tag>
-                </div>
-              }
+              <div class="pf-scroll">
+                @for (a of alertes(); track a.id) {
+                  <div class="pf-li">
+                    <span class="pf-liic {{ a.severity === 'rupture' ? 'red' : 'amber' }}"><nv-icon name="hospital" [size]="18"/></span>
+                    <div class="pf-libody"><strong>{{ a.med }} @if (a.controlled) { <span class="chip chip-ctrl chip-inline">Contrôlé</span> }</strong><span><span class="pf-tx sky"><nv-icon name="hospital" [size]="13"/>{{ a.service }}{{ a.unit ? ' → ' + a.unit : '' }}</span> · <span class="pf-tx {{ a.severity === 'rupture' ? 'red' : 'amber' }}">{{ a.reste }}</span> · {{ a.quand }}</span></div>
+                    <pf-tag [s]="sevTag(a.severity)">{{ sevLabel(a.severity) }}</pf-tag>
+                  </div>
+                }
+              </div>
               @if (alertes().length === 0) { <div class="pf-note">Aucune alerte interne active.</div> }
             </pf-card>
             <pf-card title="Médicaments contrôlés" sub="Pharmacie interne">
@@ -113,31 +115,35 @@
 
           <pf-card title="Demandes de réapprovisionnement" [sub]="isPublic() ? 'Suivi des demandes envoyées à votre PRA' : 'Suivi des demandes envoyées à vos distributeurs privés'">
             @if (pendingRequests().length) { <span right class="chip chip-blue">{{ pendingRequests().length }} en attente</span> }
-            @for (r of activeRequests(); track r.id) {
-              <div class="pf-li">
-                <span class="pf-liic {{ requestTile(r) }}"><nv-icon name="truck" [size]="18"/></span>
-                <div class="pf-libody"><strong>{{ r.medicine }}</strong><span><span class="pf-tx violet"><nv-icon name="truck" [size]="13"/>{{ requestTarget(r) }}</span>@if (r.service) { · <span class="pf-tx sky">{{ r.service }}</span> }{{ r.quantity ? ' · ' + r.quantity + ' u. demandées' : '' }}{{ r.created_at ? ' · envoyée le ' + dayMonth(r.created_at) + ' (' + ageLabel(r) + ')' : '' }}@if (r.rejection_reason) { — motif : <span class="pf-tx rose">{{ r.rejection_reason }}</span> }</span></div>
-                <div class="pf-li-act">
-                  <pf-tag [s]="requestTag(r)">{{ requestStatusLabel(r) }}</pf-tag>
-                  @if (r.status === 'pending') {
-                    <button type="button" class="btn btn-outline btn-sm" (click)="remindRequest(r)" [disabled]="!r.can_remind || busyRequests().has(r.id)" [title]="remindHint(r)">Relancer</button>
-                    <button type="button" class="btn btn-ghost btn-danger btn-sm" (click)="cancelRequest(r)" [disabled]="busyRequests().has(r.id)" title="Le fournisseur est prévenu ; vous pourrez renvoyer une demande">Annuler</button>
-                  }
+            <div class="pf-scroll">
+              @for (r of activeRequests(); track r.id) {
+                <div class="pf-li">
+                  <span class="pf-liic {{ requestTile(r) }}"><nv-icon name="truck" [size]="18"/></span>
+                  <div class="pf-libody"><strong>{{ r.medicine }}</strong><span><span class="pf-tx violet"><nv-icon name="truck" [size]="13"/>{{ requestTarget(r) }}</span>@if (r.service) { · <span class="pf-tx sky">{{ r.service }}</span> }{{ r.quantity ? ' · ' + r.quantity + ' u. demandées' : '' }}{{ r.created_at ? ' · envoyée le ' + dayMonth(r.created_at) + ' (' + ageLabel(r) + ')' : '' }}@if (r.rejection_reason) { — motif : <span class="pf-tx rose">{{ r.rejection_reason }}</span> }</span></div>
+                  <div class="pf-li-act">
+                    <pf-tag [s]="requestTag(r)">{{ requestStatusLabel(r) }}</pf-tag>
+                    @if (r.status === 'pending') {
+                      <button type="button" class="btn btn-outline btn-sm" (click)="remindRequest(r)" [disabled]="!r.can_remind || busyRequests().has(r.id)" [title]="remindHint(r)">Relancer</button>
+                      <button type="button" class="btn btn-ghost btn-danger btn-sm" (click)="cancelRequest(r)" [disabled]="busyRequests().has(r.id)" title="Le fournisseur est prévenu ; vous pourrez renvoyer une demande">Annuler</button>
+                    }
+                  </div>
                 </div>
-              </div>
-            }
+              }
+            </div>
             @if (restockRequests().length === 0) { <div class="pf-note">Aucune demande envoyée pour le moment.</div> }
             @else if (activeRequests().length === 0) { <div class="pf-note">Aucune demande en cours.</div> }
             @if (pastRequests().length > 0) {
               <details class="pf-handled">
                 <summary>Historique · {{ plural(pastRequests().length, 'demande terminée', 'demandes terminées') }} <nv-icon name="chevD" [size]="14"/></summary>
-                @for (r of pastRequests(); track r.id) {
-                  <div class="pf-li pf-li-sm">
-                    <span class="pf-liic {{ pastTone(r) }}"><nv-icon name="truck" [size]="18"/></span>
-                    <div class="pf-libody"><strong>{{ r.medicine }}</strong><span><span class="pf-tx violet">{{ requestTarget(r) }}</span>@if (r.service) { · <span class="pf-tx sky">{{ r.service }}</span> }{{ r.created_at ? ' · envoyée le ' + dayMonth(r.created_at) : '' }}@if (r.rejection_reason) { — motif : <span class="pf-tx rose">{{ r.rejection_reason }}</span> }</span></div>
-                    <div class="pf-li-act"><pf-tag [s]="pastTone(r)">{{ requestStatusLabel(r) }}</pf-tag></div>
-                  </div>
-                }
+                <div class="pf-scroll">
+                  @for (r of pastRequests(); track r.id) {
+                    <div class="pf-li pf-li-sm">
+                      <span class="pf-liic {{ pastTone(r) }}"><nv-icon name="truck" [size]="18"/></span>
+                      <div class="pf-libody"><strong>{{ r.medicine }}</strong><span><span class="pf-tx violet">{{ requestTarget(r) }}</span>@if (r.service) { · <span class="pf-tx sky">{{ r.service }}</span> }{{ r.created_at ? ' · envoyée le ' + dayMonth(r.created_at) : '' }}@if (r.rejection_reason) { — motif : <span class="pf-tx rose">{{ r.rejection_reason }}</span> }</span></div>
+                      <div class="pf-li-act"><pf-tag [s]="pastTone(r)">{{ requestStatusLabel(r) }}</pf-tag></div>
+                    </div>
+                  }
+                </div>
               </details>
             }
           </pf-card>
@@ -197,22 +203,26 @@
 
           <div class="pf-cols">
             <pf-card title="Sorties par service" sub="30 derniers jours">
-              @for (b of byService(); track b.service) {
-                <div class="pf-li">
-                  <span class="pf-liic sky"><nv-icon name="hospital" [size]="18"/></span>
-                  <div class="pf-libody"><strong>{{ b.service }}</strong><span>{{ plural(b.count, 'sortie', 'sorties') }}{{ b.units.length ? ' · unités : ' + b.units.join(', ') : '' }}</span></div>
-                  <strong class="pf-num-sm pf-tx rose">−{{ b.quantity }} u.</strong>
-                </div>
-              }
+              <div class="pf-scroll">
+                @for (b of byService(); track b.service) {
+                  <div class="pf-li">
+                    <span class="pf-liic sky"><nv-icon name="hospital" [size]="18"/></span>
+                    <div class="pf-libody"><strong>{{ b.service }}</strong><span>{{ plural(b.count, 'sortie', 'sorties') }}{{ b.units.length ? ' · unités : ' + b.units.join(', ') : '' }}</span></div>
+                    <strong class="pf-num-sm pf-tx rose">−{{ b.quantity }} u.</strong>
+                  </div>
+                }
+              </div>
               @if (byService().length === 0) { <div class="pf-note">Aucune sortie enregistrée.</div> }
             </pf-card>
             <pf-card title="Journal des sorties" sub="Qui, quoi, quand, vers où">
-              @for (d of dispensations().slice(0, 12); track d.id) {
-                <div class="pf-li">
-                  <span class="pf-liic rose"><nv-icon name="send" [size]="16"/></span>
-                  <div class="pf-libody"><strong>{{ d.quantity }} × {{ d.medicine }}</strong><span><span class="pf-tx sky">{{ d.service }}{{ d.unit ? ' → ' + d.unit : '' }}</span> · {{ d.user }} · {{ when(d.created_at) }}</span></div>
-                </div>
-              }
+              <div class="pf-scroll">
+                @for (d of dispensations().slice(0, 12); track d.id) {
+                  <div class="pf-li">
+                    <span class="pf-liic rose"><nv-icon name="send" [size]="16"/></span>
+                    <div class="pf-libody"><strong>{{ d.quantity }} × {{ d.medicine }}</strong><span><span class="pf-tx sky">{{ d.service }}{{ d.unit ? ' → ' + d.unit : '' }}</span> · {{ d.user }} · {{ when(d.created_at) }}</span></div>
+                  </div>
+                }
+              </div>
               @if (dispensations().length === 0) { <div class="pf-note">Aucune sortie enregistrée.</div> }
             </pf-card>
           </div>

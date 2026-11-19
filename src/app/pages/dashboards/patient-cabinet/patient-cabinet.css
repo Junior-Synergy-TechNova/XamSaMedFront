@@ -28,3 +28,15 @@
   .pf-cab-row { @apply flex-wrap; }
   .pf-cab-row .pf-li-act { @apply basis-full justify-start flex-wrap; }
 }
+
+/* Message vocal en cours : sous-titres, la phrase dite est surlignée */
+.pf-cab-voice { @apply mt-4 px-4 py-3.5 rounded-[10px] border border-blue/40 bg-blue-soft-2 animate-[fadein_.2s_ease-out]; }
+.pf-cab-voicehead { @apply flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13.5px]; }
+.pf-cab-voicehead nv-icon { @apply text-blue; }
+.pf-cab-voicehead .muted { @apply text-[13px]; }
+.pf-cab-voicehead .btn { @apply ml-auto -my-1; }
+.pf-cab-voicetext { @apply mt-2.5 text-[15px] leading-relaxed text-gray-text; }
+.pf-cab-voicetext span { @apply transition-colors duration-200 rounded-[4px]; }
+.pf-cab-voicetext span.done { @apply text-black; }
+.pf-cab-voicetext span.on { @apply text-black font-semibold bg-white px-1; }
+.pf-cab-row:has(.pf-cab-voice) { @apply items-start; }

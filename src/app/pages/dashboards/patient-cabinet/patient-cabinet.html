@@ -1,5 +1,6 @@
 <div>
   <pf-page-head title="Armoire familiale" sub="Les médicaments gardés à la maison, pour vous et vos proches : péremption et chaleur surveillées.">
+    <pf-voice-lang actions/>
     <button actions type="button" class="btn btn-outline btn-sm" (click)="openMembers()"><nv-icon name="users" [size]="16"/> Mes proches</button>
     <button actions type="button" class="btn btn-green btn-sm" (click)="openAdd()"><nv-icon name="plus" [size]="16"/> Ajouter un médicament</button>
   </pf-page-head>
@@ -106,39 +107,72 @@
         </div>
       </pf-card>
     } @else {
-      @for (r of visibleRows(); track r.item.id) {
-        <div class="pf-li pf-cab-row">
-          <span class="pf-liic {{ r.tone }}"><nv-icon [name]="r.heat ? 'thermo' : 'pill'" [size]="20"/></span>
-          <div class="pf-libody">
-            <strong>{{ r.label }} @if (r.item.medicine.is_controlled) { <span class="chip chip-ctrl chip-inline">Contrôlé</span> }</strong>
-            <span>Pour {{ forWhom(r.item) }} · {{ r.item.storage_label }}@if (r.item.storage_location === 'fridge' && r.item.fridge_power_cuts) { (coupures de courant) }@if (r.item.opened_at) { · ouvert le {{ r.item.opened_at | date:'d MMM y' }} }</span>
-            <div class="pf-cab-tags">
-              <pf-expiry [level]="r.item.expiry_level" [date]="r.item.expiry_date" [days]="r.item.days_to_expiry"/>
-              @if (r.thermal; as th) {
-                @if (r.heat) {
-                  <pf-tag s="crit">Trop chaud : {{ th.current_temp | number:'1.0-1' }} °C, {{ th.max_temp_c | number:'1.0-0' }} °C max@if (th.hours_above_threshold) { · {{ plural(th.hours_above_threshold, 'heure', 'heures') }} d'exposition }</pf-tag>
-                } @else if (r.item.storage_location === 'fridge' && !r.item.fridge_power_cuts) {
-                  <pf-tag s="vue">Au frais</pf-tag>
-                } @else {
-                  <pf-tag s="vue">Supporte jusqu'à {{ th.max_temp_c | number:'1.0-0' }} °C</pf-tag>
+      <div class="pf-scroll pf-scroll-page">
+        @for (r of visibleRows(); track r.item.id) {
+          <div class="pf-li pf-cab-row">
+            <span class="pf-liic {{ r.tone }}"><nv-icon [name]="r.heat ? 'thermo' : 'pill'" [size]="20"/></span>
+            <div class="pf-libody">
+              <strong>{{ r.label }} @if (r.item.medicine.is_controlled) { <span class="chip chip-ctrl chip-inline">Contrôlé</span> }</strong>
+              <span>Pour {{ forWhom(r.item) }} · {{ r.item.storage_label }}@if (r.item.storage_location === 'fridge' && r.item.fridge_power_cuts) { (coupures de courant) }@if (r.item.opened_at) { · ouvert le {{ r.item.opened_at | date:'d MMM y' }} }</span>
+              <div class="pf-cab-tags">
+                <pf-expiry [level]="r.item.expiry_level" [date]="r.item.expiry_date" [days]="r.item.days_to_expiry"/>
+                @if (r.thermal; as th) {
+                  @if (r.heat) {
+                    <pf-tag s="crit">Trop chaud : {{ th.current_temp | number:'1.0-1' }} °C, {{ th.max_temp_c | number:'1.0-0' }} °C max@if (th.hours_above_threshold) { · {{ plural(th.hours_above_threshold, 'heure', 'heures') }} d'exposition }</pf-tag>
+                  } @else if (r.item.storage_location === 'fridge' && !r.item.fridge_power_cuts) {
+                    <pf-tag s="vue">Au frais</pf-tag>
+                  } @else {
+                    <pf-tag s="vue">Supporte jusqu'à {{ th.max_temp_c | number:'1.0-0' }} °C</pf-tag>
+                  }
+                }
+              </div>
+              @if (r.item.expiry_level === 'expired') {
+                <p class="pf-cab-advice">Ne l'utilisez plus : rapportez-le à votre pharmacie pour qu'il soit détruit sans risque.</p>
+              } @else if (r.item.storage_location === 'car') {
+                <p class="pf-cab-advice">Une voiture au soleil devient vite trop chaude : rangez-le plutôt dans une pièce fraîche.</p>
+              }
+              @if (voice(); as v) {
+                @if (v.key === voiceKey(r.item.id, 'expiry') || v.key === voiceKey(r.item.id, 'thermal')) {
+                  <div class="pf-cab-voice" role="status" aria-live="polite">
+                    <div class="pf-cab-voicehead">
+                      <nv-icon [name]="v.plan.audio ? 'sound' : 'doc'" [size]="16"/>
+                      <strong>{{ v.plan.audio ? 'Message vocal' : 'Message (audio indisponible)' }}</strong>
+                      @if (v.plan.audio) { <span class="muted">en {{ langLabel(v.plan.lang).toLocaleLowerCase('fr') }}@if (v.plan.lang !== voiceLang()) { (pas encore enregistré en {{ langLabel(voiceLang()).toLocaleLowerCase('fr') }}) }</span> }
+                      <button type="button" class="btn btn-ghost btn-sm" (click)="stopVoice()"><nv-icon [name]="v.plan.audio ? 'stop' : 'x'" [size]="14"/> {{ v.plan.audio ? 'Arrêter' : 'Fermer' }}</button>
+                    </div>
+                    <p class="pf-cab-voicetext">
+                      @for (l of v.plan.lines; track $index; let i = $index) {
+                        <span [class.on]="i === v.index" [class.done]="v.index >= 0 && i < v.index">{{ l.text }} </span>
+                      }
+                    </p>
+                  </div>
                 }
               }
             </div>
-            @if (r.item.expiry_level === 'expired') {
-              <p class="pf-cab-advice">Ne l'utilisez plus : rapportez-le à votre pharmacie pour qu'il soit détruit sans risque.</p>
-            } @else if (r.item.storage_location === 'car') {
-              <p class="pf-cab-advice">Une voiture au soleil devient vite trop chaude : rangez-le plutôt dans une pièce fraîche.</p>
-            }
+            <div class="pf-li-act tight">
+              @if (hasExpiryAlert(r.item)) {
+                <button type="button" class="btn btn-outline btn-sm" (click)="listen(r, 'expiry')" [disabled]="voiceLoading() === voiceKey(r.item.id, 'expiry')"
+                        [attr.aria-pressed]="voice()?.key === voiceKey(r.item.id, 'expiry')">
+                  <nv-icon [name]="voice()?.key === voiceKey(r.item.id, 'expiry') ? 'stop' : 'sound'" [size]="15"/>
+                  {{ voice()?.key === voiceKey(r.item.id, 'expiry') ? 'Arrêter' : voiceLoading() === voiceKey(r.item.id, 'expiry') ? 'Chargement…' : 'Écouter' }}
+                </button>
+              }
+              @if (hasHeatAlert(r)) {
+                <button type="button" class="btn btn-outline btn-sm" (click)="listen(r, 'thermal')" [disabled]="voiceLoading() === voiceKey(r.item.id, 'thermal')"
+                        [attr.aria-pressed]="voice()?.key === voiceKey(r.item.id, 'thermal')">
+                  <nv-icon [name]="voice()?.key === voiceKey(r.item.id, 'thermal') ? 'stop' : 'thermo'" [size]="15"/>
+                  {{ voice()?.key === voiceKey(r.item.id, 'thermal') ? 'Arrêter' : voiceLoading() === voiceKey(r.item.id, 'thermal') ? 'Chargement…' : 'Alerte chaleur' }}
+                </button>
+              }
+              @if (!r.item.opened && r.item.expiry_level !== 'expired') {
+                <button type="button" class="btn btn-outline btn-sm" (click)="markOpened(r.item)" [disabled]="isBusy(r.item.id)">Ouvert aujourd'hui</button>
+              }
+              <button type="button" class="btn btn-outline btn-sm" (click)="openEdit(r.item)" [disabled]="isBusy(r.item.id)">Modifier</button>
+              <button type="button" class="btn btn-ghost btn-sm btn-danger" (click)="toDelete.set(r.item)" [disabled]="isBusy(r.item.id)">Retirer</button>
+            </div>
           </div>
-          <div class="pf-li-act tight">
-            @if (!r.item.opened && r.item.expiry_level !== 'expired') {
-              <button type="button" class="btn btn-outline btn-sm" (click)="markOpened(r.item)" [disabled]="isBusy(r.item.id)">Ouvert aujourd'hui</button>
-            }
-            <button type="button" class="btn btn-outline btn-sm" (click)="openEdit(r.item)" [disabled]="isBusy(r.item.id)">Modifier</button>
-            <button type="button" class="btn btn-ghost btn-sm btn-danger" (click)="toDelete.set(r.item)" [disabled]="isBusy(r.item.id)">Retirer</button>
-          </div>
-        </div>
-      }
+        }
+      </div>
     }
   }
 </div>

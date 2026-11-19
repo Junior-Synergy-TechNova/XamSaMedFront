@@ -42,6 +42,8 @@ export interface ApiUser {
   /** Le périmètre distributeur (PNA / PRA / privé) se lit ici, en base. */
   structure?: ApiUserStructure | null;
   profile_meta?: Record<string, unknown> | null;
+  /** Langue des alertes vocales de l'armoire (PATCH /profile/location). */
+  preferred_language?: VoiceLang | null;
   email_verified_at?: string | null;
   created_at?: string;
   updated_at?: string;
@@ -946,3 +948,36 @@ export interface ApiFloodReport {
 
 /** POST /flood-reports — merged = compté comme confirmation d'un signalement existant à moins de 200 m. */
 export interface ApiFloodReportCreated extends ApiFloodReport { merged: boolean; }
+
+/* ── Assistant IA patient (POST /ai/chat, POST /ai/voice) ────────── */
+
+/** Réponse de l'assistant. `urgence` = réponse fixe SAMU / pompiers, sans IA. */
+export interface ApiAiReply {
+  reply: string;
+  session_id: string;
+  urgence?: boolean;
+  /** POST /ai/voice seulement : le texte compris, à montrer au patient. */
+  transcription?: string;
+}
+/** Erreurs : 503 `ai_not_configured` | `ai_unavailable` | `transcription_unavailable`, 422 `transcription_empty`, 429. */
+export interface ApiAiErrorBody extends ApiErrorBody { session_id?: string; }
+
+/* ── Alertes vocales de l'armoire (GET /cabinet/{id}/voice-alert[/thermal]) ── */
+
+/** fr = français, wo = wolof, ff = pulaar, srr = sérère. */
+export type VoiceLang = 'fr' | 'wo' | 'ff' | 'srr';
+
+/** Le serveur ne sert aucun audio : il dit quels segments jouer, dans quel ordre. */
+export interface ApiVoiceAlert {
+  status: 'segments_only' | 'no_alert';
+  lang: VoiceLang;
+  fallback_lang: VoiceLang;
+  segments: string[];
+}
+
+/** `public/audio/manifest.json` (copié du pack audio de l'app mobile). */
+export interface AudioManifest {
+  version: number;
+  fallback_lang: VoiceLang;
+  languages: Partial<Record<VoiceLang, { segments: { id: string; file: string; format: string }[]; unmapped_files?: string[] }>>;
+}

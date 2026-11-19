@@ -31,10 +31,10 @@ pf-flood-map { @apply block; }
 .pf-fm-pop { transform-box: fill-box; transform-origin: center; animation: pf-fm-pop .5s cubic-bezier(.34,1.56,.64,1) both; }
 /* Route impraticable confirmée : le point pulse */
 @keyframes pf-fm-alert { 50% { fill-opacity: .6; } }
-.pf-fm-impassable:not(.pf-fm-unconfirmed) { animation: pf-fm-alert 1.8s ease-in-out infinite; }
-.pf-fm-impassable.pf-fm-pop:not(.pf-fm-unconfirmed) { animation: pf-fm-pop .5s cubic-bezier(.34,1.56,.64,1) both, pf-fm-alert 1.8s ease-in-out .6s infinite; }
+.pf-fm-impassable:not(.pf-fm-unconfirmed) { animation: pf-fm-alert 1.8s ease-in-out 3; }
+.pf-fm-impassable.pf-fm-pop:not(.pf-fm-unconfirmed) { animation: pf-fm-pop .5s cubic-bezier(.34,1.56,.64,1) both, pf-fm-alert 1.8s ease-in-out .6s 3; }
 @keyframes pf-fm-ring { from { opacity: .6; transform: scale(1); } to { opacity: 0; transform: scale(2.6); } }
-.pf-fm-me-ring { @apply fill-blue [stroke-width:0]; transform-box: fill-box; transform-origin: center; animation: pf-fm-ring 2s ease-out infinite; pointer-events: none; }
+.pf-fm-me-ring { @apply fill-blue [stroke-width:0]; transform-box: fill-box; transform-origin: center; animation: pf-fm-ring 2s ease-out 3 forwards; pointer-events: none; }
 .pf-fm-flood, .pf-fm-pharm { transform-box: fill-box; transform-origin: center; transition: scale .15s ease-out; }
 .pf-fm-flood:hover, .pf-fm-pharm:hover { scale: 1.25; }
 

@@ -1,0 +1,102 @@
+@reference "../../../../styles.css";
+/* ===================== PATIENT — assistant IA ===================== */
+:host { @apply contents; }
+
+.pf-as-sr { @apply sr-only; }
+
+.pf-as { @apply flex flex-col p-0 overflow-hidden; }
+
+/* Position utilisée pour les pharmacies proches */
+.pf-as-where { @apply flex flex-wrap items-center gap-x-3 gap-y-1 px-7 py-3.5 border-b border-gray-line text-[13.5px] text-gray-text; }
+.pf-as-where nv-icon { @apply text-blue; }
+.pf-as-where .btn { @apply -my-1; }
+
+/* Fil de la conversation : défile dans le panneau, fond opaque (défilement GPU) */
+.pf-as-thread { @apply flex flex-col gap-5 px-7 py-7 overflow-y-auto bg-white h-[min(560px,58vh)] min-h-[320px]; scrollbar-width: thin; }
+
+.pf-as-welcome { @apply flex flex-col items-center text-center max-w-[560px] mx-auto my-auto py-4 animate-[fadein_.3s_ease-out]; }
+.pf-as-welcome h2 { @apply font-title text-[20px] font-semibold text-black mt-4; }
+.pf-as-welcome p { @apply text-[14.5px] leading-relaxed text-gray-text mt-2; }
+.pf-as-sugg { @apply flex flex-wrap justify-center gap-2.5 mt-6; }
+.pf-as-chip { @apply text-left text-[14px] text-black bg-white border border-gray-line rounded-[10px] px-4 py-2.5 transition-colors duration-150 cursor-pointer; }
+.pf-as-chip:hover:not([disabled]) { @apply bg-blue-soft-2 border-blue; }
+.pf-as-chip[disabled] { @apply opacity-45 cursor-not-allowed; }
+
+.pf-as-avatar { @apply inline-flex items-center justify-center shrink-0 w-12 h-12 rounded-full bg-teal-soft text-teal-text; }
+.pf-as-avatar.sm { @apply w-8 h-8; }
+
+/* Bulles */
+.pf-as-msg { @apply flex gap-3 max-w-[min(720px,88%)] animate-[pf-as-in_.22s_ease-out]; }
+.pf-as-msg.me { @apply self-end flex-col items-end gap-1; }
+.pf-as-msg.bot { @apply self-start items-start; }
+.pf-as-bubble { @apply text-[15px] leading-relaxed rounded-[14px] px-4 py-3 whitespace-pre-line break-words; }
+.pf-as-msg.me .pf-as-bubble { @apply bg-blue text-white rounded-br-[4px]; }
+/* Question posée à la voix : bulle « message vocal » (icône, onde, durée) — le texte transcrit n'est pas affiché */
+/* « Écouter » sous une réponse : lecture par la voix de l'appareil ; pendant la lecture, le bouton devient « Arrêter » (plein) */
+.pf-as-listen { @apply inline-flex items-center gap-1.5 mt-2 -ml-1 h-9 px-2.5 rounded-full text-[13.5px] font-medium text-blue transition-colors duration-150; }
+.pf-as-listen:hover, .pf-as-listen:active { @apply bg-blue-soft; }
+.pf-as-listen.on { @apply bg-blue text-white; }
+.pf-as-msg.urgent .pf-as-listen { @apply text-red-text; }
+.pf-as-msg.urgent .pf-as-listen.on { @apply bg-red text-white; }
+.pf-as-voicenote { @apply flex items-center gap-2.5 py-2.5 pl-2.5 pr-4 font-medium tabular-nums; }
+.pf-as-voiceic { @apply grid place-items-center w-8 h-8 rounded-full bg-white/15 flex-none; }
+.pf-as-wave { @apply flex items-center gap-[3px] h-6; }
+.pf-as-wave i { @apply block w-[3px] rounded-full bg-white/70 h-[40%]; }
+.pf-as-wave i:nth-child(3n+1) { @apply h-[70%]; }
+.pf-as-wave i:nth-child(4n+2) { @apply h-full; }
+.pf-as-wave i:nth-child(5n+3) { @apply h-[55%]; }
+.pf-as-msg.bot .pf-as-bubble { @apply bg-gray-bg text-black border border-gray-line rounded-tl-[4px]; }
+
+.pf-as-msg.urgent .pf-as-avatar { @apply bg-red-soft text-red-text; }
+.pf-as-msg.urgent .pf-as-bubble { @apply bg-red-soft border-red text-red-text font-medium; }
+.pf-as-msg.error .pf-as-avatar { @apply bg-amber-soft text-amber-text; }
+.pf-as-msg.error .pf-as-bubble { @apply bg-amber-soft border-amber; }
+.pf-as-acts { @apply flex flex-wrap gap-2 mt-3; }
+
+/* « L'assistant écrit… » */
+.pf-as-typing { @apply inline-flex items-center gap-1.5 py-4; }
+.pf-as-typing i { @apply block w-2 h-2 rounded-full bg-gray-text animate-[pf-as-dot_1.2s_ease-in-out_infinite]; }
+.pf-as-typing i:nth-of-type(2) { animation-delay: .15s; }
+.pf-as-typing i:nth-of-type(3) { animation-delay: .3s; }
+
+/* Raccourcis vers les écrans qui agissent */
+.pf-as-links { @apply flex flex-wrap gap-2 px-6 py-2.5 border-t border-gray-line; }
+
+/* Saisie */
+.pf-as-form { @apply flex flex-col gap-3 px-7 pt-5 border-t border-gray-line; }
+.pf-as-formrow { @apply flex items-end gap-3; }
+.pf-as-form textarea { @apply flex-1 min-w-0 font-body text-[15px] text-black border border-gray-line rounded-[10px] px-4 py-3 bg-white resize-none min-h-12 max-h-40 transition-[border-color,box-shadow] duration-150; field-sizing: content; }
+.pf-as-form textarea:focus { @apply outline-none border-blue shadow-[0_0_0_3px_var(--color-blue-soft)]; }
+.pf-as-form textarea[disabled] { @apply bg-gray-bg; }
+
+/* Dictée : transcription en cours, puis texte à relire */
+.pf-as-formacts { @apply flex gap-2; }
+.pf-as-mic { @apply w-11 px-0; }
+.pf-as-foot { @apply flex justify-between gap-4 px-7 pt-2.5 pb-5 text-[12.5px] leading-snug text-gray-text; }
+.pf-as-count { @apply shrink-0 tabular-nums; }
+.pf-as-count.full { @apply text-red-text; }
+
+/* Enregistrement en cours */
+.pf-as-rec { @apply flex flex-col gap-3 px-7 py-5 border-t border-gray-line bg-red-soft/40; }
+.pf-as-rechead { @apply flex flex-wrap items-center gap-x-4 gap-y-1; }
+.pf-as-rechint { @apply text-[13.5px] leading-relaxed text-gray-text; }
+
+/* Niveau du micro : la barre bouge quand le patient parle */
+.pf-as-meter { @apply flex items-center gap-[3px] h-12 px-4 rounded-[10px] bg-white border border-gray-line; }
+.pf-as-meter i { @apply block flex-1 min-h-[3px] rounded-full bg-red transition-[height] duration-75; }
+.pf-as-recdot { @apply w-3 h-3 rounded-full bg-red animate-[pf-breathe_1.4s_ease-in-out_infinite]; }
+.pf-as-rectime { @apply font-semibold text-black tabular-nums; }
+.pf-as-rec .muted { @apply text-[13px]; }
+.pf-as-recacts { @apply flex justify-end gap-2; }
+
+@keyframes pf-as-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes pf-as-dot { 0%, 80%, 100% { opacity: .3; transform: none; } 40% { opacity: 1; transform: translateY(-3px); } }
+
+@media (max-width: 760px) {
+  .pf-as-where, .pf-as-thread, .pf-as-form, .pf-as-foot, .pf-as-rec { @apply px-4; }
+  .pf-as-thread { @apply h-[60vh]; }
+  .pf-as-msg { @apply max-w-[94%]; }
+  .pf-as-formrow { @apply flex-col items-stretch; }
+  .pf-as-formacts { @apply justify-end; }
+  .pf-as-foot { @apply flex-col gap-1; }
+}

@@ -4,6 +4,7 @@ import { catchError, combineLatest, forkJoin, map, of, switchMap } from 'rxjs';
 import { Icon } from '../icon/icon';
 import { Card } from '../card/card';
 import { FieldLabel } from '../../directives/field-label/field-label';
+import { ScrollActive } from '../../directives/scroll-active/scroll-active';
 import { GeoMap, GeoMarker, GeoTone } from '../geo-map/geo-map';
 import { ApiSupplier } from '../../interfaces/api';
 import { AvailabilityRow } from '../../interfaces/models';
@@ -33,7 +34,7 @@ interface PharmacyPin { key: string; id: number; name: string; city: string; poi
 @Component({
   selector: 'pf-network-map',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, Card, FieldLabel, GeoMap],
+  imports: [Icon, Card, FieldLabel, GeoMap, ScrollActive],
   templateUrl: './network-map.html',
   styleUrl: './network-map.css',
 })

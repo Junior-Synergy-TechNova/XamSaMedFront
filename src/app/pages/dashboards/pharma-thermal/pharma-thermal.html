@@ -87,19 +87,21 @@
         <div class="pf-empty"><p>Aucun médicament à conserver au froid dans votre stock.</p></div>
       } @else {
         <p class="pf-note pf-th-note">Relevez le thermomètre du réfrigérateur matin et soir. En cas de coupure de courant, n'ouvrez pas la porte et notez la durée de la coupure : au-delà de quelques heures hors de la plage, demandez l'avis du fabricant avant de délivrer.</p>
-        @for (r of fridgeRows(); track r.item.stock_id) {
-          <div class="pf-li pf-li-sm">
-            <span class="pf-liic blue"><nv-icon name="thermo" [size]="18"/></span>
-            <div class="pf-libody">
-              <strong>{{ r.label }}</strong>
-              <span>{{ plural(r.item.quantity, 'unité', 'unités') }}@if (r.source) { · source {{ r.source }} }</span>
+        <div class="pf-scroll">
+          @for (r of fridgeRows(); track r.item.stock_id) {
+            <div class="pf-li pf-li-sm">
+              <span class="pf-liic blue"><nv-icon name="thermo" [size]="18"/></span>
+              <div class="pf-libody">
+                <strong>{{ r.label }}</strong>
+                <span>{{ plural(r.item.quantity, 'unité', 'unités') }}@if (r.source) { · source {{ r.source }} }</span>
+              </div>
+              <div class="pf-li-act">
+                <span class="pf-tx sky"><nv-icon name="thermo" [size]="14"/>{{ (r.item.min_temp_c ?? 2) | number:'1.0-1' }} – {{ r.item.max_temp_c | number:'1.0-1' }} °C</span>
+                @if (!r.item.validated) { <span class="chip chip-amber">Seuil à valider</span> }
+              </div>
             </div>
-            <div class="pf-li-act">
-              <span class="pf-tx sky"><nv-icon name="thermo" [size]="14"/>{{ (r.item.min_temp_c ?? 2) | number:'1.0-1' }} – {{ r.item.max_temp_c | number:'1.0-1' }} °C</span>
-              @if (!r.item.validated) { <span class="chip chip-amber">Seuil à valider</span> }
-            </div>
-          </div>
-        }
+          }
+        </div>
       }
     </pf-card>
 

@@ -3,6 +3,7 @@ import { Icon } from '../../../components/icon/icon';
 import { Card } from '../../../components/card/card';
 import { PageHead } from '../../../components/page-head/page-head';
 import { GeoMap, GeoMarker } from '../../../components/geo-map/geo-map';
+import { ScrollActive } from '../../../directives/scroll-active/scroll-active';
 import { PharmacyPoint, REF, StructureService, haversineKm, kmLabel } from '../../../services/structures/structures';
 import { GeoService } from '../../../services/geo/geo';
 import { PlatformState } from '../../../services/platform/platform';
@@ -16,7 +17,7 @@ interface NearPharmacy extends PharmacyPoint { key: string; km: number; dist: st
 @Component({
   selector: 'app-patient-pharmacies',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, Card, PageHead, GeoMap],
+  imports: [Icon, Card, PageHead, GeoMap, ScrollActive],
   templateUrl: './patient-pharmacies.html',
   styleUrl: './patient-pharmacies.css',
 })

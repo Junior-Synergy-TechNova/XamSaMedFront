@@ -18,7 +18,7 @@
 .pf-ticket-empty { @apply flex flex-col items-center gap-1 px-5 py-10 text-center text-gray-text; }
 .pf-ticket-empty p { @apply m-0 mt-1 font-semibold text-black; }
 .pf-ticket-empty span { @apply text-[13.5px]; }
-.pf-ticket-lines { @apply m-0 p-3 list-none flex flex-col gap-2 max-h-[320px] overflow-y-auto overscroll-contain; }
+.pf-ticket-lines { @apply m-0 p-3 list-none flex flex-col gap-2 max-h-[320px] overflow-y-auto; }
 .pf-ticket-line { @apply grid grid-cols-[minmax(0,1fr)_auto_auto] grid-rows-[auto_auto] gap-x-3 gap-y-2 items-center px-3.5 py-3 rounded-[10px] bg-white border border-gray-line; }
 .pf-ticket-name { @apply col-span-2 min-w-0 flex flex-col gap-0.5; }
 .pf-ticket-name strong { @apply text-[14px] leading-snug text-black; }
@@ -171,3 +171,8 @@ tr:has(> td .pf-more[open]) { @apply relative z-30; }
 /* Panier : une ligne ajoutée glisse depuis la droite */
 @keyframes pf-ticket-in { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
 .pf-ticket-line { animation: pf-ticket-in .3s cubic-bezier(.22,1,.36,1) both; }
+
+/* Alertes groupées : confirmation « J'ai en stock » quand le stock enregistré est à 0 */
+.pf-grouped-ask { @apply flex flex-wrap items-center justify-end gap-2; animation: pf-grouped-ask-in .2s ease-out backwards; }
+.pf-grouped-q { @apply text-[14px] font-semibold text-amber-text; }
+@keyframes pf-grouped-ask-in { from { opacity: 0; transform: translateY(-2px); } }

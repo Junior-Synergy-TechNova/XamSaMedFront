@@ -4,8 +4,18 @@
   <meta charset="utf-8">
   <title>XamSaMed — Accès aux médicaments en temps réel</title>
   <base href="/">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- viewport-fit=cover : l'app occupe tout l'écran de l'iPhone (encoche, barre d'accueil gérées par env(safe-area-inset-*)) -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="Trouvez un médicament disponible près de chez vous, réservez-le et suivez vos stocks.">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <!-- Installable sur l'écran d'accueil (iPhone : Partager → « Sur l'écran d'accueil ») : plein écran, sans barre Safari -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="XamSaMed">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="theme-color" content="#ffffff">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">

@@ -6,46 +6,52 @@
     @if (toAnswer().length > 0) {
       <pf-card title="Invitations reçues" sub="Acceptez pour rejoindre le réseau de ces structures">
         <span right class="chip chip-blue">{{ toAnswer().length }} à traiter</span>
-        @for (p of toAnswer(); track p.id) {
-          <div class="pf-li">
-            <span class="pf-liic {{ tone(p.type) }}"><nv-icon [name]="icon(p.type)" [size]="18"/></span>
-            <div class="pf-libody"><strong>{{ p.partner }}</strong><span>{{ p.kind }} · {{ p.city || '—' }}</span></div>
-            <div class="pf-li-act">
-              <button class="btn btn-ghost btn-sm" (click)="reject(p)">Refuser</button>
-              <button class="btn btn-green btn-sm" (click)="accept(p)"><nv-icon name="checkC" [size]="15"/> Accepter</button>
+        <div class="pf-scroll">
+          @for (p of toAnswer(); track p.id) {
+            <div class="pf-li">
+              <span class="pf-liic {{ tone(p.type) }}"><nv-icon [name]="icon(p.type)" [size]="18"/></span>
+              <div class="pf-libody"><strong>{{ p.partner }}</strong><span>{{ p.kind }} · {{ p.city || '—' }}</span></div>
+              <div class="pf-li-act">
+                <button class="btn btn-ghost btn-sm" (click)="reject(p)">Refuser</button>
+                <button class="btn btn-green btn-sm" (click)="accept(p)"><nv-icon name="checkC" [size]="15"/> Accepter</button>
+              </div>
             </div>
-          </div>
-        }
+          }
+        </div>
       </pf-card>
     }
 
     <pf-card title="Partenaires connectés" [sub]="active().length + (active().length > 1 ? ' structures' : ' structure') + ' dans votre réseau'">
       @if (loading()) { <div class="pf-note-sm"><span class="pf-spin pf-spin-sm"></span> Chargement…</div> }
       @if (!loading() && listError()) { <div class="pf-banner red" role="alert"><div class="pf-banner-body"><p>Votre réseau de partenaires n'a pas pu être chargé.</p></div><button type="button" class="btn btn-white btn-sm" (click)="reload()"><nv-icon name="refresh" [size]="15"/> Réessayer</button></div> }
-      @for (p of active(); track p.id) {
-        <div class="pf-li">
-          <span class="pf-liic {{ tone(p.type) }}"><nv-icon [name]="icon(p.type)" [size]="18"/></span>
-          <div class="pf-libody"><strong>{{ p.partner }}</strong><span><span class="pf-tx" [class.sky]="p.sector === 'public'" [class.violet]="p.sector !== 'public'">{{ p.sector === 'public' ? 'Public' : 'Privé' }}</span> · {{ p.kind }} · {{ p.city || '—' }}{{ p.phone ? ' · ' + p.phone : '' }}</span></div>
-          <div class="pf-li-act">
-            <button class="btn btn-ghost btn-sm btn-danger" [attr.aria-label]="'Retirer ' + p.partner + ' du réseau'" title="Retirer du réseau" (click)="remove(p)"><nv-icon name="x" [size]="14"/></button>
+      <div class="pf-scroll">
+        @for (p of active(); track p.id) {
+          <div class="pf-li">
+            <span class="pf-liic {{ tone(p.type) }}"><nv-icon [name]="icon(p.type)" [size]="18"/></span>
+            <div class="pf-libody"><strong>{{ p.partner }}</strong><span><span class="pf-tx" [class.sky]="p.sector === 'public'" [class.violet]="p.sector !== 'public'">{{ p.sector === 'public' ? 'Public' : 'Privé' }}</span> · {{ p.kind }} · {{ p.city || '—' }}{{ p.phone ? ' · ' + p.phone : '' }}</span></div>
+            <div class="pf-li-act">
+              <button class="btn btn-ghost btn-sm btn-danger" [attr.aria-label]="'Retirer ' + p.partner + ' du réseau'" title="Retirer du réseau" (click)="remove(p)"><nv-icon name="x" [size]="14"/></button>
+            </div>
           </div>
-        </div>
-      }
+        }
+      </div>
       @if (!loading() && !listError() && active().length === 0) { <div class="pf-note">Aucun partenaire connecté pour le moment.</div> }
     </pf-card>
 
     @if (waiting().length > 0) {
       <pf-card title="Invitations envoyées" sub="En attente de réponse">
-        @for (p of waiting(); track p.id) {
-          <div class="pf-li">
-            <span class="pf-liic {{ tone(p.type) }}"><nv-icon [name]="icon(p.type)" [size]="18"/></span>
-            <div class="pf-libody"><strong>{{ p.partner }}</strong><span>{{ p.kind }} · {{ p.city || '—' }}</span></div>
-            <div class="pf-li-act">
-              <pf-tag s="low">En attente</pf-tag>
-              <button class="btn btn-ghost btn-sm" (click)="remove(p)">Annuler</button>
+        <div class="pf-scroll">
+          @for (p of waiting(); track p.id) {
+            <div class="pf-li">
+              <span class="pf-liic {{ tone(p.type) }}"><nv-icon [name]="icon(p.type)" [size]="18"/></span>
+              <div class="pf-libody"><strong>{{ p.partner }}</strong><span>{{ p.kind }} · {{ p.city || '—' }}</span></div>
+              <div class="pf-li-act">
+                <pf-tag s="low">En attente</pf-tag>
+                <button class="btn btn-ghost btn-sm" (click)="remove(p)">Annuler</button>
+              </div>
             </div>
-          </div>
-        }
+          }
+        </div>
       </pf-card>
     }
 

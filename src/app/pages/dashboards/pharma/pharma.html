@@ -36,15 +36,17 @@
           <div class="pf-cols">
             <pf-card title="À traiter maintenant" [sub]="todo().length ? 'Les plus urgents en premier' : 'Tout est à jour'">
               @if (todo().length) { <span right class="chip chip-blue">{{ todo().length }}</span> }
-              @for (t of todo(); track t.key) {
-                <div class="pf-li">
-                  <span class="pf-liic {{ t.tone }}"><nv-icon [name]="t.icon" [size]="18"/></span>
-                  <div class="pf-libody"><strong>{{ t.title }}</strong><span>{{ t.detail }}</span></div>
-                  <div class="pf-li-act">
-                    <button type="button" class="btn btn-sm" [class.btn-green]="t.primary" [class.btn-outline]="!t.primary" (click)="t.run()">{{ t.action }}</button>
+              <div class="pf-scroll">
+                @for (t of todo(); track t.key) {
+                  <div class="pf-li">
+                    <span class="pf-liic {{ t.tone }}"><nv-icon [name]="t.icon" [size]="18"/></span>
+                    <div class="pf-libody"><strong>{{ t.title }}</strong><span>{{ t.detail }}</span></div>
+                    <div class="pf-li-act">
+                      <button type="button" class="btn btn-sm" [class.btn-green]="t.primary" [class.btn-outline]="!t.primary" (click)="t.run()">{{ t.action }}</button>
+                    </div>
                   </div>
-                </div>
-              }
+                }
+              </div>
               @if (todo().length === 0) {
                 <div class="pf-empty ok">
                   <nv-icon name="checkC" [size]="30"/>
@@ -192,26 +194,28 @@
             </div>
           }
           <pf-card>
-            @for (s of alerts(); track s.stockId) {
-              <div class="pf-li">
-                <span class="pf-liic {{ s.s === 'low' ? 'amber' : 'red' }}"><nv-icon name="alert" [size]="18"/></span>
-                <div class="pf-libody"><strong>{{ s.name }} @if (s.controlled) { <span class="chip chip-ctrl chip-inline">Contrôlé</span> }</strong><span>{{ plural(s.q, 'unité restante', 'unités restantes') }} · seuil fixé à {{ s.seuil }}</span></div>
-                <div class="pf-li-act">
-                  <pf-tag [s]="s.s">{{ alertLabel(s.s) }}</pf-tag>
-                  @if (requested(s)) {
-                    <span class="chip chip-blue"><nv-icon name="truck" [size]="13"/> {{ requestedLabel(s) }}</span>
-                  }
-                  @if (nextDelivery().get(s.medId); as day) {
-                    <span class="chip chip-green">Livraison le {{ dayMonth(day) }}</span>
-                  }
-                  @if (requested(s)) {
-                    <button class="btn btn-outline btn-sm" (click)="alertDistrib(s)"><nv-icon name="truck" [size]="15"/> Demander à d'autres</button>
-                  } @else {
-                    <button class="btn btn-green btn-sm" (click)="alertDistrib(s)"><nv-icon name="truck" [size]="15"/> Demander aux distributeurs</button>
-                  }
+            <div class="pf-scroll">
+              @for (s of alerts(); track s.stockId) {
+                <div class="pf-li">
+                  <span class="pf-liic {{ s.s === 'low' ? 'amber' : 'red' }}"><nv-icon name="alert" [size]="18"/></span>
+                  <div class="pf-libody"><strong>{{ s.name }} @if (s.controlled) { <span class="chip chip-ctrl chip-inline">Contrôlé</span> }</strong><span>{{ plural(s.q, 'unité restante', 'unités restantes') }} · seuil fixé à {{ s.seuil }}</span></div>
+                  <div class="pf-li-act">
+                    <pf-tag [s]="s.s">{{ alertLabel(s.s) }}</pf-tag>
+                    @if (requested(s)) {
+                      <span class="chip chip-blue"><nv-icon name="truck" [size]="13"/> {{ requestedLabel(s) }}</span>
+                    }
+                    @if (nextDelivery().get(s.medId); as day) {
+                      <span class="chip chip-green">Livraison le {{ dayMonth(day) }}</span>
+                    }
+                    @if (requested(s)) {
+                      <button class="btn btn-outline btn-sm" (click)="alertDistrib(s)"><nv-icon name="truck" [size]="15"/> Demander à d'autres</button>
+                    } @else {
+                      <button class="btn btn-green btn-sm" (click)="alertDistrib(s)"><nv-icon name="truck" [size]="15"/> Demander aux distributeurs</button>
+                    }
+                  </div>
                 </div>
-              </div>
-            }
+              }
+            </div>
             @if (alerts().length === 0) {
               <div class="pf-empty ok">
                 <nv-icon name="checkC" [size]="34"/>
@@ -222,37 +226,41 @@
 
           <pf-card title="Demandes envoyées aux distributeurs" sub="Réponse, date de livraison prévue ou motif de refus">
             <span right class="chip" [class.chip-blue]="pendingRequests().length > 0" [class.chip-gray]="pendingRequests().length === 0">{{ pendingRequests().length }} en attente</span>
-            @for (r of activeRequests(); track r.id) {
-              <div class="pf-li">
-                <span class="pf-liic {{ requestTile(r) }}"><nv-icon name="truck" [size]="18"/></span>
-                <div class="pf-libody">
-                  <strong>{{ r.medicine ?? 'Médicament non précisé' }}</strong>
-                  <span>{{ requestTarget(r) }}{{ r.quantity ? ' · ' + r.quantity + ' u. demandées' : '' }}{{ r.created_at ? ' · envoyée le ' + dayMonth(r.created_at) + ' (' + ageLabel(r) + ')' : '' }}@if (r.reminders) { · relancée {{ r.reminders > 1 ? r.reminders + ' fois' : 'une fois' }} }{{ r.rejection_reason ? ' — motif : ' + r.rejection_reason : '' }}@if (r.outside_rules && !r.rejection_reason) { — ancien circuit, non autorisé depuis les règles actuelles }</span>
+            <div class="pf-scroll">
+              @for (r of activeRequests(); track r.id) {
+                <div class="pf-li">
+                  <span class="pf-liic {{ requestTile(r) }}"><nv-icon name="truck" [size]="18"/></span>
+                  <div class="pf-libody">
+                    <strong>{{ r.medicine ?? 'Médicament non précisé' }}</strong>
+                    <span>{{ requestTarget(r) }}{{ r.quantity ? ' · ' + r.quantity + ' u. demandées' : '' }}{{ r.created_at ? ' · envoyée le ' + dayMonth(r.created_at) + ' (' + ageLabel(r) + ')' : '' }}@if (r.reminders) { · relancée {{ r.reminders > 1 ? r.reminders + ' fois' : 'une fois' }} }{{ r.rejection_reason ? ' — motif : ' + r.rejection_reason : '' }}@if (r.outside_rules && !r.rejection_reason) { — ancien circuit, non autorisé depuis les règles actuelles }</span>
+                  </div>
+                  <div class="pf-li-act">
+                    <pf-tag [s]="requestTag(r)">{{ requestStatusLabel(r) }}</pf-tag>
+                    @if (r.status === 'pending') {
+                      <button type="button" class="btn btn-outline btn-sm" (click)="remindRequest(r)" [disabled]="!r.can_remind || busyRequests().has(r.id)" [title]="remindHint(r)">Relancer</button>
+                      <button type="button" class="btn btn-ghost btn-danger btn-sm" (click)="cancelRequest(r)" [disabled]="busyRequests().has(r.id)" title="Le distributeur est prévenu ; vous pourrez renvoyer une demande">Annuler</button>
+                    }
+                  </div>
                 </div>
-                <div class="pf-li-act">
-                  <pf-tag [s]="requestTag(r)">{{ requestStatusLabel(r) }}</pf-tag>
-                  @if (r.status === 'pending') {
-                    <button type="button" class="btn btn-outline btn-sm" (click)="remindRequest(r)" [disabled]="!r.can_remind || busyRequests().has(r.id)" [title]="remindHint(r)">Relancer</button>
-                    <button type="button" class="btn btn-ghost btn-danger btn-sm" (click)="cancelRequest(r)" [disabled]="busyRequests().has(r.id)" title="Le distributeur est prévenu ; vous pourrez renvoyer une demande">Annuler</button>
-                  }
-                </div>
-              </div>
-            }
+              }
+            </div>
             @if (restockRequests().length === 0) { <div class="pf-note">Aucune demande envoyée. Utilisez « Demander aux distributeurs » sur un médicament en alerte.</div> }
             @else if (activeRequests().length === 0) { <div class="pf-note">Aucune demande en cours.</div> }
             @if (pastRequests().length > 0) {
               <details class="pf-handled">
                 <summary>Historique · {{ plural(pastRequests().length, 'demande terminée', 'demandes terminées') }} <nv-icon name="chevD" [size]="14"/></summary>
-                @for (r of pastRequests(); track r.id) {
-                  <div class="pf-li pf-li-sm">
-                    <span class="pf-liic {{ pastTone(r) }}"><nv-icon name="truck" [size]="18"/></span>
-                    <div class="pf-libody">
-                      <strong>{{ r.medicine ?? 'Médicament non précisé' }}</strong>
-                      <span>{{ requestTarget(r) }}{{ r.created_at ? ' · envoyée le ' + dayMonth(r.created_at) : '' }}{{ r.rejection_reason ? ' — motif : ' + r.rejection_reason : '' }}@if (r.outside_rules && !r.rejection_reason) { — ancien circuit, non autorisé depuis les règles actuelles }</span>
+                <div class="pf-scroll">
+                  @for (r of pastRequests(); track r.id) {
+                    <div class="pf-li pf-li-sm">
+                      <span class="pf-liic {{ pastTone(r) }}"><nv-icon name="truck" [size]="18"/></span>
+                      <div class="pf-libody">
+                        <strong>{{ r.medicine ?? 'Médicament non précisé' }}</strong>
+                        <span>{{ requestTarget(r) }}{{ r.created_at ? ' · envoyée le ' + dayMonth(r.created_at) : '' }}{{ r.rejection_reason ? ' — motif : ' + r.rejection_reason : '' }}@if (r.outside_rules && !r.rejection_reason) { — ancien circuit, non autorisé depuis les règles actuelles }</span>
+                      </div>
+                      <div class="pf-li-act"><pf-tag [s]="pastTone(r)">{{ requestStatusLabel(r) }}</pf-tag></div>
                     </div>
-                    <div class="pf-li-act"><pf-tag [s]="pastTone(r)">{{ requestStatusLabel(r) }}</pf-tag></div>
-                  </div>
-                }
+                  }
+                </div>
               </details>
             }
           </pf-card>
@@ -282,16 +290,22 @@
                   }
                 </div>
                 <div class="pf-li-act">
-                  @if (ownQty(a) > 0) {
-                    <button class="btn btn-outline btn-sm" (click)="respondGrouped(a, false)" [disabled]="respondingGrouped().has(a.response_id)">Je n'ai pas</button>
-                    <button class="btn btn-green btn-sm" (click)="respondGrouped(a, true)" [disabled]="respondingGrouped().has(a.response_id)"><nv-icon name="checkC" [size]="15"/> J'ai en stock</button>
+                  @if (confirmingGrouped() === a.response_id) {
+                    <span class="pf-grouped-ask" role="group" aria-label="Confirmer la disponibilité">
+                      <span class="pf-grouped-q">Votre stock enregistré est à 0 — vous l'avez bien en rayon ?</span>
+                      <button class="btn btn-ghost btn-sm" (click)="confirmingGrouped.set(null)">Annuler</button>
+                      <button class="btn btn-green btn-sm" (click)="respondGrouped(a, true, true)" [disabled]="respondingGrouped().has(a.response_id)"><nv-icon name="checkC" [size]="15"/> Oui, je l'ai</button>
+                    </span>
                   } @else {
-                    @if (stockFor(a); as st) {
-                      @if (!requested(st)) {
-                        <button class="btn btn-outline btn-sm" (click)="alertDistrib(st)"><nv-icon name="truck" [size]="15"/> Demander aux distributeurs</button>
+                    @if (ownQty(a) === 0) {
+                      @if (stockFor(a); as st) {
+                        @if (!requested(st)) {
+                          <button class="btn btn-outline btn-sm" (click)="alertDistrib(st)"><nv-icon name="truck" [size]="15"/> Demander aux distributeurs</button>
+                        }
                       }
                     }
-                    <button class="btn btn-primary btn-sm" (click)="respondGrouped(a, false)" [disabled]="respondingGrouped().has(a.response_id)">Je n'ai pas</button>
+                    <button class="btn btn-outline btn-sm" (click)="respondGrouped(a, false)" [disabled]="respondingGrouped().has(a.response_id)">Je n'ai pas</button>
+                    <button class="btn btn-green btn-sm" (click)="respondGrouped(a, true)" [disabled]="respondingGrouped().has(a.response_id)"><nv-icon name="checkC" [size]="15"/> J'ai en stock</button>
                   }
                 </div>
               </div>

@@ -36,6 +36,8 @@ export interface NavItem {
   types?: readonly string[];
   /** Restreint l'entrée à un secteur (ex. « Commandes PRA » : hôpitaux publics). */
   sector?: 'public' | 'private';
+  /** Onglet de la barre du bas sur téléphone (4 par espace) et son libellé court ; les autres entrées vont dans « Plus ». */
+  tab?: string;
 }
 /** Teinte affichée dans la cloche : une couleur par type d'événement (rouge réservé aux alertes). */
 export type NotifTone = 'red' | 'amber' | 'green' | 'blue' | 'violet' | 'teal' | 'sky' | 'rose';
@@ -90,3 +92,21 @@ export interface DeliveryRow { id: string; zone: string; destination: string; me
 
 /** Périmètre d'un compte distributeur, déduit de structures.type. */
 export type SupplierKind = 'PNA' | 'PRA' | 'PRIVATE';
+
+/* ---- Assistant IA patient ---- */
+/**
+ * Un message du fil de l'assistant. `urgent` = réponse fixe d'urgence (bulle rouge + appels),
+ * `error` = échec d'envoi (la question reste affichée, « Réessayer » la renvoie).
+ */
+export interface ChatMessage {
+  id: number;
+  from: 'me' | 'bot';
+  text: string;
+  kind?: 'urgent' | 'error';
+  /** Question posée à la voix : affichée comme un message vocal (durée), sans le texte transcrit. */
+  voice?: boolean;
+  /** Durée du message vocal, en secondes. */
+  seconds?: number;
+  /** Erreur : la question à renvoyer (texte), si elle peut l'être. */
+  retry?: string;
+}
