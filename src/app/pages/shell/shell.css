@@ -219,6 +219,7 @@
   }
   .pf-sheet-overlay.pf-sheet-out { animation: sh-fade-out .2s ease-in both; }
   .pf-sheet-out .pf-sheet { animation: sh-sheet-out .2s ease-in both; }
+  .pf-sheet:focus { @apply outline-none; }
   .pf-sheetgrip { @apply block mx-auto mt-2.5 w-10 h-1.5 rounded-full bg-gray-line; }
   .pf-sheethead { @apply flex items-center gap-3 px-5 pt-3 pb-2; }
   .pf-sheetid { @apply flex-1 min-w-0; }

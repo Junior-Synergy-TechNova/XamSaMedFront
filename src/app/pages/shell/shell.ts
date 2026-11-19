@@ -206,11 +206,11 @@ export class AppShell {
     try { localStorage.setItem('nova-install-hint', 'off'); } catch { /* navigation privée : ignoré */ }
   }
 
-  /** Feuille « Plus » : le focus entre sur la première entrée, et revient à l'onglet « Plus » à la fermeture. */
+  /** Feuille « Plus » : le focus entre dans la feuille (pas de contour sur une entrée au doigt), et revient à l'onglet « Plus » à la fermeture. */
   openMore(): void {
     this.closeMenus();
     this.moreOpen.set(true);
-    afterNextRender({ read: () => document.querySelector<HTMLElement>('.pf-sheet .pf-sheetit')?.focus() }, { injector: this.injector });
+    afterNextRender({ read: () => document.querySelector<HTMLElement>('.pf-sheet')?.focus() }, { injector: this.injector });
   }
   closeMore(restoreFocus = true): void {
     this.moreOpen.set(false);
