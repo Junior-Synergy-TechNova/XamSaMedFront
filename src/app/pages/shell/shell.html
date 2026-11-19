@@ -198,7 +198,7 @@
 
         @if (moreOpen()) {
           <div class="pf-sheet-overlay" (click)="closeMore()" animate.leave="pf-sheet-out">
-            <div class="pf-sheet" role="dialog" aria-modal="true" aria-labelledby="pf-sheet-title" (click)="$event.stopPropagation()">
+            <div class="pf-sheet" role="dialog" aria-modal="true" aria-labelledby="pf-sheet-title" tabindex="-1" (click)="$event.stopPropagation()">
               <span class="pf-sheetgrip" aria-hidden="true"></span>
               <div class="pf-sheethead">
                 <span class="pf-avatar lg {{ roleTone() }}"><nv-icon [name]="r.icon" [size]="20"/></span>
