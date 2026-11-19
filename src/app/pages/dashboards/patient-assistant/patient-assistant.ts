@@ -36,6 +36,12 @@ export const ASSISTANT_SUGGESTIONS: readonly string[] = [
    PATIENT — Assistant IA (POST /ai/chat, POST /ai/voice)
    Disponibilités, pharmacies proches ; urgences = réponse fixe.
    ============================================================ */
+/**
+ * Dictée vocale (micro → /ai/transcribe) désactivée pour l'instant : la transcription
+ * n'est pas assez fiable pour la démo. Le code reste en place — repasser à `true` pour la rétablir.
+ */
+export const VOICE_DICTATION_ENABLED = false;
+
 @Component({
   selector: 'app-patient-assistant',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -60,8 +66,8 @@ export class PatientAssistant {
   readonly sending = signal(false);
   readonly firstName = computed(() => (this.auth.user()?.name ?? '').trim().split(' ')[0] ?? '');
 
-  /** Micro : seulement si le navigateur sait enregistrer. */
-  readonly canRecord = typeof window !== 'undefined' && typeof MediaRecorder !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
+  /** Micro : seulement si la dictée est activée et que le navigateur sait enregistrer. */
+  readonly canRecord = VOICE_DICTATION_ENABLED && typeof window !== 'undefined' && typeof MediaRecorder !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
   readonly recording = signal(false);
   readonly recordSeconds = signal(0);
   readonly recordLeft = computed(() => MAX_RECORD_S - this.recordSeconds());

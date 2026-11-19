@@ -290,16 +290,22 @@
                   }
                 </div>
                 <div class="pf-li-act">
-                  @if (ownQty(a) > 0) {
-                    <button class="btn btn-outline btn-sm" (click)="respondGrouped(a, false)" [disabled]="respondingGrouped().has(a.response_id)">Je n'ai pas</button>
-                    <button class="btn btn-green btn-sm" (click)="respondGrouped(a, true)" [disabled]="respondingGrouped().has(a.response_id)"><nv-icon name="checkC" [size]="15"/> J'ai en stock</button>
+                  @if (confirmingGrouped() === a.response_id) {
+                    <span class="pf-grouped-ask" role="group" aria-label="Confirmer la disponibilité">
+                      <span class="pf-grouped-q">Votre stock enregistré est à 0 — vous l'avez bien en rayon ?</span>
+                      <button class="btn btn-ghost btn-sm" (click)="confirmingGrouped.set(null)">Annuler</button>
+                      <button class="btn btn-green btn-sm" (click)="respondGrouped(a, true, true)" [disabled]="respondingGrouped().has(a.response_id)"><nv-icon name="checkC" [size]="15"/> Oui, je l'ai</button>
+                    </span>
                   } @else {
-                    @if (stockFor(a); as st) {
-                      @if (!requested(st)) {
-                        <button class="btn btn-outline btn-sm" (click)="alertDistrib(st)"><nv-icon name="truck" [size]="15"/> Demander aux distributeurs</button>
+                    @if (ownQty(a) === 0) {
+                      @if (stockFor(a); as st) {
+                        @if (!requested(st)) {
+                          <button class="btn btn-outline btn-sm" (click)="alertDistrib(st)"><nv-icon name="truck" [size]="15"/> Demander aux distributeurs</button>
+                        }
                       }
                     }
-                    <button class="btn btn-primary btn-sm" (click)="respondGrouped(a, false)" [disabled]="respondingGrouped().has(a.response_id)">Je n'ai pas</button>
+                    <button class="btn btn-outline btn-sm" (click)="respondGrouped(a, false)" [disabled]="respondingGrouped().has(a.response_id)">Je n'ai pas</button>
+                    <button class="btn btn-green btn-sm" (click)="respondGrouped(a, true)" [disabled]="respondingGrouped().has(a.response_id)"><nv-icon name="checkC" [size]="15"/> J'ai en stock</button>
                   }
                 </div>
               </div>

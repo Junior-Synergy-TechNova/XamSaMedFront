@@ -1,5 +1,5 @@
 <div>
-  <pf-page-head title="Assistant" sub="Posez votre question par écrit ou à la voix : où trouver un médicament, faut-il une ordonnance, quelles pharmacies sont proches.">
+  <pf-page-head title="Assistant" [sub]="(canRecord ? 'Posez votre question par écrit ou à la voix' : 'Posez votre question') + ' : où trouver un médicament, faut-il une ordonnance, quelles pharmacies sont proches.'">
     @if (messages().length) {
       <button actions type="button" class="btn btn-outline btn-sm" (click)="newConversation()" [disabled]="sending()"><nv-icon name="refresh" [size]="15"/> Nouvelle conversation</button>
     }

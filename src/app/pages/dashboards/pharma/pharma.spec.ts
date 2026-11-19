@@ -82,4 +82,27 @@ describe('PharmaDash — ordonnances et ventes', () => {
     expect(c.cart()[1]).toEqual(expect.objectContaining({ stockId: 2, qty: 2, price: 750 }));
     expect(c.salePriceInput()).toBe('');
   });
+
+  it("alerte groupée : « J'ai en stock » même à 0 u. enregistré, après confirmation, sans quantité", async () => {
+    const fixture = TestBed.createComponent(PharmaDash);
+    fixture.componentRef.setInput('section', 'grouped');
+    await fixture.whenStable();
+    http.match(r => r.url === `${api}/pharmacy/stock`).forEach(r => r.flush({ data: [] }));
+    http.match(r => r.url === `${api}/pharmacy/grouped-alerts`).forEach(r => r.flush({ data: [
+      { response_id: 7, search_id: 3, medicine_id: 9, medicine: 'Ventoline', form: 'spray', dosage: '100µg', created_at: null },
+    ] }));
+    await fixture.whenStable();
+    const el = fixture.nativeElement as HTMLElement;
+    const yes = [...el.querySelectorAll('button')].find(b => b.textContent?.includes("J'ai en stock"));
+    expect(yes).toBeTruthy();
+
+    yes!.click();
+    await fixture.whenStable();
+    expect(http.match(r => r.url.includes('/grouped-alerts/7/respond')).length).toBe(0); // confirmation d'abord
+    expect(el.textContent).toContain("vous l'avez bien en rayon ?");
+
+    [...el.querySelectorAll('button')].find(b => b.textContent?.includes("Oui, je l'ai"))!.click();
+    const req = http.expectOne(`${api}/pharmacy/grouped-alerts/7/respond`);
+    expect(req.request.body).toEqual({ available: true, available_quantity: null });
+  });
 });

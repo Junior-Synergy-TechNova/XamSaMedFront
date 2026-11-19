@@ -171,3 +171,8 @@ tr:has(> td .pf-more[open]) { @apply relative z-30; }
 /* Panier : une ligne ajoutée glisse depuis la droite */
 @keyframes pf-ticket-in { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
 .pf-ticket-line { animation: pf-ticket-in .3s cubic-bezier(.22,1,.36,1) both; }
+
+/* Alertes groupées : confirmation « J'ai en stock » quand le stock enregistré est à 0 */
+.pf-grouped-ask { @apply flex flex-wrap items-center justify-end gap-2; animation: pf-grouped-ask-in .2s ease-out backwards; }
+.pf-grouped-q { @apply text-[14px] font-semibold text-amber-text; }
+@keyframes pf-grouped-ask-in { from { opacity: 0; transform: translateY(-2px); } }
