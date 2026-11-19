@@ -47,3 +47,10 @@
   .pf-resa-side { @apply basis-full flex flex-wrap items-center gap-x-3 gap-y-2 text-left; }
   .pf-resa-when, .pf-resa-cancel { @apply mt-0; }
 }
+
+/* Téléphone : l'intitulé passe au-dessus des suggestions, qui forment une bande de puces défilante */
+@media (max-width: 640px) {
+  .pf-suggest { @apply flex-nowrap overflow-x-auto -mx-4 px-4 pb-1 [scrollbar-width:none]; }
+  .pf-suggest > * { @apply flex-none; }
+  .pf-suggest-label { @apply self-center; }
+}

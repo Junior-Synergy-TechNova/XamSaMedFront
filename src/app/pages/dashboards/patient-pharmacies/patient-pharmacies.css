@@ -16,3 +16,10 @@
 .pf-pharm-actions > :nth-child(3) { animation-delay: .1s; }
 .pf-pharm .pf-liic { @apply transition-[scale] duration-200 ease-out; }
 .pf-pharm.on .pf-liic { @apply scale-110; }
+
+/* Téléphone : le nom et l'adresse gardent toute la largeur, la distance passe dessous (même règle que .pf-li) */
+@media (max-width: 640px) {
+  .pf-pharm-main { @apply grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3.5 gap-y-2 px-4 py-4; }
+  .pf-pharm-main > .pf-tx { @apply col-start-2 justify-self-start; }
+  .pf-pharm-actions { @apply px-4 pb-4; }
+}

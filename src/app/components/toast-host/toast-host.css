@@ -14,3 +14,8 @@
 .pf-toastclose { @apply w-9 h-9 grid place-items-center flex-none rounded-[8px] text-gray-text transition-colors duration-150; }
 .pf-toastclose:hover { @apply bg-gray-bg text-black; }
 @keyframes toastin { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: none } }
+/* Téléphone : au-dessus de la barre d'onglets et de la barre d'accueil de l'iPhone */
+@media (max-width: 760px) {
+  .pf-toasts { @apply left-3 right-3; bottom: calc(76px + env(safe-area-inset-bottom)); }
+  .pf-toast { @apply min-w-0 max-w-none rounded-[14px]; }
+}

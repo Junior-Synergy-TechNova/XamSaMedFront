@@ -298,3 +298,10 @@
 /* Contenu illustratif (chiffres, partenaires, témoignages) : signalé comme tel */
 .s-example { @apply mt-4 text-[13.5px] text-gray-text; }
 .s-example-inline { @apply text-[13.5px]; }
+
+/* Téléphone : boutons d'action à pleine largeur, à portée de pouce ; profils en bande de puces défilante */
+@media (max-width: 640px) {
+  .s-herobtns { @apply flex-col items-stretch; }
+  .s-herobtns .btn { @apply w-full justify-center h-[52px]; }
+  .s-feattabs { @apply flex-nowrap justify-start overflow-x-auto -mx-5 px-5 pb-1 [scrollbar-width:none]; }
+}

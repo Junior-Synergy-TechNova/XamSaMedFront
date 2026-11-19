@@ -13,3 +13,10 @@
 .pf-nm-act { @apply px-6 pb-5 -mt-1 flex; }
 .pf-nm-asked { @apply inline-flex items-center gap-1.5 text-[14px] font-medium text-green-text; }
 
+
+/* Téléphone : nom du fournisseur sur toute la largeur, le stock passe dessous (même règle que .pf-li) */
+@media (max-width: 640px) {
+  .pf-nm-row { @apply grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3.5 gap-y-2 px-4 py-4; }
+  .pf-nm-row > .chip { @apply col-start-2 justify-self-start; }
+  .pf-nm-act { @apply px-0 pb-4 pl-[54px]; }
+}

@@ -497,6 +497,28 @@ button.pf-li:hover, label.pf-li:hover, a.pf-li:hover { @apply border-gray; }
   .pf-li { @apply flex-wrap px-4 py-4 gap-4; }
   .pf-li-act { @apply w-full justify-start; }
   .pf-li-act.tight { @apply flex-wrap; }
+  /* Ligne icône + texte : le texte garde toute la largeur restante ; pastille d'état et actions passent
+     dessous, alignées sur le texte (sinon le texte était écrasé entre l'icône et la pastille). */
+  .pf-li:not(.pf-li-pick):has(> .pf-liic) { @apply grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3.5 gap-y-3; }
+  .pf-li:not(.pf-li-pick):has(> .pf-liic) > :not(.pf-liic, .pf-libody, pf-tag),
+  .pf-li:not(.pf-li-pick):has(> .pf-liic) > pf-tag > * { @apply col-start-2 justify-self-start w-auto; }
+  .pf-li:not(.pf-li-pick):has(> .pf-liic) > .pf-li-act { @apply w-full; }
+  .pf-liic, .pf-liic.lg { @apply w-10 h-10; }
+  /* Pas de défilement imbriqué au doigt : la liste suit la page (elle tronquait la dernière ligne visible) */
+  .pf-scroll { @apply max-h-none overflow-y-visible; }
+  /* Dans un panneau, pas de carte dans la carte : les lignes deviennent une liste séparée par des filets
+     (comme une liste native) ; la ligne choisie se teinte au lieu d'être encadrée. */
+  .card .pf-li:not(.pf-li-flat), .card .pf-rowline { @apply px-0 bg-transparent border-0 border-b border-gray-line rounded-none; }
+  .card .pf-li + .pf-li, .card .pf-rowline + .pf-rowline { @apply mt-0; }
+  .card .pf-li:last-child, .card .pf-rowline:last-child { @apply border-b-0; }
+  .card .pf-li:not(.pf-li-flat).on { @apply -mx-3 px-3 bg-blue-soft-2 rounded-[12px] border-b-transparent; }
+  .card .pf-li > .pf-pharm-main, .card .pf-li > .pf-nm-row { @apply px-0; }
+  .card .pf-li > .pf-pharm-actions { @apply px-0; }
+  .card .pf-li.on > .pf-pharm-main, .card .pf-li.on > .pf-nm-row, .card .pf-li.on > .pf-pharm-actions { @apply px-1; }
+  .card:not(:has(> .pf-table:only-child)) .pf-table tbody tr { @apply px-0 border-0 border-b border-gray-line rounded-none; }
+  .card:not(:has(> .pf-table:only-child)) .pf-table tbody tr + tr { @apply mt-0; }
+  .card:not(:has(> .pf-table:only-child)) .pf-table tbody tr:last-child { @apply border-b-0; }
+  .pf-sync { @apply -mt-1 mb-2 min-h-8 text-[13px]; }
   /* Liste cochable (fournisseurs) : case + nom sur toute la largeur, l'état (stock, « Déjà demandé ») passe dessous, aligné sur le nom */
   .pf-li-pick { @apply grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3.5 gap-y-2.5; }
   .pf-li-pick .pf-check { @apply m-0 mt-[3px]; }
@@ -507,10 +529,21 @@ button.pf-li:hover, label.pf-li:hover, a.pf-li:hover { @apply border-gray; }
   .pf-rowline { @apply px-4 py-5; }
   .pf-banner { @apply flex-wrap px-5 py-5 gap-4; }
   .pf-banner .btn { @apply ml-0 w-full; }
+  /* Actions d'en-tête de page (projetées dans <pf-page-head>) : pleine largeur, côte à côte */
+  .pf-pagehead-act .btn { @apply flex-1 justify-center h-12; }
+  /* Filtres en puces : une bande qui défile au doigt, bord à bord, au lieu de s'empiler sur plusieurs lignes
+     (pas quand la rangée contient un champ : il serait à moitié hors de l'écran) */
+  .pf-filters:not(:has(input, select)) { @apply flex-nowrap overflow-x-auto -mx-4 px-4 pb-1 [scrollbar-width:none]; }
+  .pf-filters:not(:has(input, select)) > * { @apply flex-none; }
+  /* Rangée mixte (puces + liste + champ) : les champs prennent chacun la largeur, le séparateur disparaît */
+  .pf-filters:has(input, select) .pf-filter-sep { @apply hidden; }
+  .pf-filters input, .pf-filters select { @apply basis-full h-11; }
 
   /* Tableaux → fiches : chaque ligne devient un bloc « libellé : valeur » (libellés posés par TableLabels).
      Plus de défilement horizontal, les actions restent visibles en bas de la fiche. */
   .card:has(> .pf-table) { @apply overflow-x-visible; }
+  /* Tableau seul dans son panneau : les fiches se posent sur la page (pas de cadre dans un cadre) */
+  .card:has(> .pf-table:only-child) { @apply bg-transparent border-0 p-0; }
   .pf-table, .pf-table tbody, .pf-table tr, .pf-table td { @apply block; }
   .pf-table thead { @apply sr-only; }
   .pf-table tbody tr { @apply border border-gray-line rounded-[12px] px-4 py-2 bg-white; }
@@ -521,6 +554,13 @@ button.pf-li:hover, label.pf-li:hover, a.pf-li:hover { @apply border-gray; }
     @apply flow-root px-0 py-3 border-b border-gray-line whitespace-normal text-right min-w-0 max-w-none;
   }
   .pf-table tr td:last-child { @apply border-b-0; }
+  /* Première colonne (médicament, reçu, structure…) = titre de la fiche : à gauche, sans libellé */
+  .pf-table td:first-child { @apply text-left pt-3.5; }
+  .pf-table td:first-child::before { @apply hidden; }
+  .pf-table td:first-child .pf-medname { @apply text-[16.5px]; }
+  /* Fiche dont la première cellule n'est qu'un numéro (#12) : petite référence en tête, pas un titre */
+  .pf-table td.pf-td-id:first-child { @apply text-[13px] pt-3 pb-0 border-b-0; }
+  .pf-table td { @apply py-2.5; }
   .pf-table td[data-label]:not([data-label=""])::before { content: attr(data-label); @apply float-left mr-4 max-w-[45%] text-[13px] font-medium text-gray-text text-left leading-[1.6]; }
   /* Colonne sans intitulé (actions) : boutons à la suite, alignés à gauche */
   .pf-table td[data-label=""] { @apply flex flex-wrap justify-start gap-2 text-left pt-3.5; }
@@ -528,15 +568,27 @@ button.pf-li:hover, label.pf-li:hover, a.pf-li:hover { @apply border-gray; }
   .pf-table .pf-td-bar .pf-bar { @apply ml-auto w-[55%] mt-2; }
   .pf-table .pf-td-empty { @apply text-center; }
 
-  /* Modales : quasi plein écran, marges réduites */
-  .pf-modal-overlay { @apply p-3 items-end; }
+  /* Modales → feuilles du bas, bord à bord, avec poignée (comme une app) ; le pied respecte la barre d'accueil de l'iPhone */
+  .pf-modal-overlay { @apply p-0 items-end; }
   .pf-modal { animation-name: pf-sheet-in; }
   .pf-modal-out .pf-modal { animation-name: pf-sheet-out; }
-  .pf-modal { @apply max-h-[92dvh]; }
-  .pf-modal-head { @apply px-5 pt-5 pb-4; }
-  .pf-modal-body { @apply px-5 py-5; }
-  .pf-modal-foot { @apply px-5 py-4 flex-wrap; }
-  .pf-modal-foot .btn { @apply flex-1; }
+  .pf-modal { @apply max-w-none max-h-[92dvh] rounded-t-[22px] rounded-b-none; }
+  .pf-modal::before { content: ""; @apply block flex-none mx-auto mt-2.5 w-10 h-1.5 rounded-full bg-gray-line; }
+  .pf-modal-head { @apply px-5 pt-3 pb-4; }
+  .pf-modal-head h2 { @apply text-[19px]; }
+  .pf-modal-body { @apply px-5 py-5 overscroll-contain; }
+  .pf-modal-foot { @apply px-5 pt-3.5 flex-wrap rounded-b-none; padding-bottom: calc(.875rem + env(safe-area-inset-bottom)); }
+  .pf-modal-foot .btn { @apply flex-1 h-12; }
+}
+
+/* Écrans tactiles : retour immédiat au doigt (pas de flash gris du navigateur, pas de délai de double-tap),
+   l'élément pressé réagit comme dans une app native. */
+@media (hover: none) {
+  html { -webkit-tap-highlight-color: transparent; }
+  button, a, label, summary, [role="button"] { touch-action: manipulation; }
+  .btn { @apply transition-[scale,background-color,border-color,color] duration-100; }
+  .btn:active:not(:disabled) { @apply scale-[.97]; }
+  button.pf-li:active, a.pf-li:active, label.pf-li:active, .pf-pharm-main:active, .pf-nm-row:active { @apply bg-gray-bg; }
 }
 
 /* Écrans tactiles : cibles d'au moins 44 px, champs à 16 px (iOS ne zoome plus au focus) */

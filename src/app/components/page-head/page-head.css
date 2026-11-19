@@ -4,3 +4,13 @@
 .pf-pagehead h1 { @apply text-[30px] font-semibold text-blue tracking-[-.01em]; }
 .pf-pagehead p { @apply text-[16px] mt-2 max-w-[720px] leading-relaxed; }
 .pf-pagehead-act { @apply flex gap-3 flex-wrap; }
+
+/* Téléphone : grand titre d'app (il cède la place au titre de la barre haute en défilant), actions en pleine largeur */
+@media (max-width: 640px) {
+  .pf-pagehead { @apply gap-4 mb-6; }
+  .pf-pagehead > div:first-child { @apply min-w-0; }
+  .pf-pagehead h1 { @apply text-[27px] leading-[1.15]; }
+  .pf-pagehead p { @apply text-[15px] mt-1.5; }
+  .pf-pagehead-act { @apply w-full; }
+  .pf-pagehead-act:empty { @apply hidden; }
+}
