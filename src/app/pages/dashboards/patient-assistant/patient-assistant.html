@@ -48,6 +48,13 @@
             <span class="pf-as-avatar sm" aria-hidden="true"><nv-icon [name]="m.kind === 'urgent' || m.kind === 'error' ? 'alert' : 'chat'" [size]="16"/></span>
             <div class="pf-as-bubble" [attr.role]="m.kind === 'urgent' ? 'alert' : null">
               <p>{{ m.text }}</p>
+              @if (speech.supported && m.kind !== 'error') {
+                <button type="button" class="pf-as-listen" [class.on]="speech.speaking() === m.id" (click)="toggleSpeak(m.id, m.text)"
+                        [attr.aria-pressed]="speech.speaking() === m.id">
+                  <nv-icon [name]="speech.speaking() === m.id ? 'stop' : 'sound'" [size]="15"/>
+                  {{ speech.speaking() === m.id ? 'Arrêter' : 'Écouter' }}
+                </button>
+              }
               @if (m.kind === 'urgent') {
                 <div class="pf-as-acts">
                   <a class="btn btn-danger btn-sm" href="tel:1515"><nv-icon name="phoneCall" [size]="15"/> SAMU 1515</a>

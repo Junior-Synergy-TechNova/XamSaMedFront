@@ -93,6 +93,53 @@ describe('PatientAssistant', () => {
     expect(c.draft()).toBe('');
   });
 
+  describe('réponse lue à voix haute (synthèse vocale de l\'appareil)', () => {
+    let spoken: string[];
+    let cancels: number;
+    beforeEach(() => {
+      spoken = []; cancels = 0;
+      class FakeUtterance { lang = ''; volume = 1; voice: unknown = null; onend: (() => void) | null = null; onerror: (() => void) | null = null; constructor(public text: string) {} }
+      vi.stubGlobal('SpeechSynthesisUtterance', FakeUtterance);
+      vi.stubGlobal('speechSynthesis', {
+        speak: (u: FakeUtterance) => { if (u.text) spoken.push(u.text); },
+        cancel: () => { cancels++; },
+        getVoices: () => [{ lang: 'fr-FR', name: 'Amélie' }],
+      });
+    });
+    afterEach(() => vi.unstubAllGlobals());
+
+    it('question vocale : la réponse est lue automatiquement, « Arrêter » coupe la lecture', async () => {
+      const fixture = TestBed.createComponent(PatientAssistant);
+      await fixture.whenStable();
+      const c = fixture.componentInstance;
+      (c as unknown as Voice).sendVoice(new Blob(['x']), 'webm', 4);
+      http.expectOne(`${api}/ai/voice`).flush({ reply: 'Disponible à la Pharmacie Centrale. Elle ferme à 22 h.', session_id: 's' });
+      await fixture.whenStable();
+
+      expect(spoken).toEqual(['Disponible à la Pharmacie Centrale.', 'Elle ferme à 22 h.']);
+      const botId = c.messages()[1].id;
+      expect(c.speech.speaking()).toBe(botId);
+      const btn = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.pf-as-listen')!;
+      expect(btn.textContent).toContain('Arrêter');
+      btn.click();
+      await fixture.whenStable();
+      expect(c.speech.speaking()).toBeNull();
+      expect(btn.textContent).toContain('Écouter');
+    });
+
+    it('question écrite : rien n\'est lu tant que le patient n\'appuie pas sur « Écouter »', async () => {
+      const fixture = TestBed.createComponent(PatientAssistant);
+      await fixture.whenStable();
+      const c = fixture.componentInstance;
+      c.send('Ventoline ?');
+      http.expectOne(`${api}/ai/chat`).flush({ reply: 'Disponible.', session_id: 's' });
+      await fixture.whenStable();
+      expect(spoken).toEqual([]);
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.pf-as-listen')!.click();
+      expect(spoken).toEqual(['Disponible.']);
+    });
+  });
+
   it('mode vocal en échec : message d\'erreur sans « Réessayer » (il faut réenregistrer)', async () => {
     const fixture = TestBed.createComponent(PatientAssistant);
     await fixture.whenStable();

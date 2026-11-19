@@ -32,6 +32,12 @@
 .pf-as-bubble { @apply text-[15px] leading-relaxed rounded-[14px] px-4 py-3 whitespace-pre-line break-words; }
 .pf-as-msg.me .pf-as-bubble { @apply bg-blue text-white rounded-br-[4px]; }
 /* Question posée à la voix : bulle « message vocal » (icône, onde, durée) — le texte transcrit n'est pas affiché */
+/* « Écouter » sous une réponse : lecture par la voix de l'appareil ; pendant la lecture, le bouton devient « Arrêter » (plein) */
+.pf-as-listen { @apply inline-flex items-center gap-1.5 mt-2 -ml-1 h-9 px-2.5 rounded-full text-[13.5px] font-medium text-blue transition-colors duration-150; }
+.pf-as-listen:hover, .pf-as-listen:active { @apply bg-blue-soft; }
+.pf-as-listen.on { @apply bg-blue text-white; }
+.pf-as-msg.urgent .pf-as-listen { @apply text-red-text; }
+.pf-as-msg.urgent .pf-as-listen.on { @apply bg-red text-white; }
 .pf-as-voicenote { @apply flex items-center gap-2.5 py-2.5 pl-2.5 pr-4 font-medium tabular-nums; }
 .pf-as-voiceic { @apply grid place-items-center w-8 h-8 rounded-full bg-white/15 flex-none; }
 .pf-as-wave { @apply flex items-center gap-[3px] h-6; }
