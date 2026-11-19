@@ -1,6 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, catchError, map, of } from 'rxjs';
+import { Observable, catchError, of } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ApiAiReply } from '../../interfaces/api';
 import { ChatMessage } from '../../interfaces/models';
@@ -48,25 +48,18 @@ export class AssistantService {
   drop(id: number): void { this.messages.update(list => list.filter(m => m.id !== id)); }
 
   /** POST /ai/chat — `{ message, session_id?, lat?, lng? }`. */
-  ask(message: string, at: GeoPoint | null, voice = false): Observable<ApiAiReply> {
+  ask(message: string, at: GeoPoint | null): Observable<ApiAiReply> {
     return this.http.post<ApiAiReply>(`${this.base}/ai/chat`, {
       message, client: CLIENT,
-      // Question dictée puis relue : l'assistant tolère les approximations de la transcription.
-      ...(voice ? { source: 'voice' } : {}),
       ...(this.sessionId() ? { session_id: this.sessionId() } : {}),
       ...(at ? { lat: at.lat, lng: at.lng } : {}),
     });
   }
 
-  /** POST /ai/transcribe — texte seul, que le patient relit avant de l'envoyer (404 sur un ancien serveur). */
-  transcribe(audio: Blob, ext: string): Observable<string> {
-    const form = new FormData();
-    form.append('audio', audio, `question.${ext}`);
-    form.append('langue', 'fr');
-    return this.http.post<{ transcription: string }>(`${this.base}/ai/transcribe`, form).pipe(map(r => (r.transcription ?? '').trim()));
-  }
-
-  /** POST /ai/voice — multipart `audio` (10 Mo max) ; la réponse ajoute `transcription`. */
+  /**
+   * POST /ai/voice — multipart `audio` (10 Mo max) : le serveur transcrit et répond d'un coup.
+   * Mode vocal : la question part telle quelle, le patient ne relit pas de texte transcrit.
+   */
   askByVoice(audio: Blob, ext: string, at: GeoPoint | null): Observable<ApiAiReply> {
     const form = new FormData();
     form.append('audio', audio, `question.${ext}`);
