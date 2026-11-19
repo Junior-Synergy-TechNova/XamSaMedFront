@@ -31,8 +31,15 @@
 .pf-as-msg.bot { @apply self-start items-start; }
 .pf-as-bubble { @apply text-[15px] leading-relaxed rounded-[14px] px-4 py-3 whitespace-pre-line break-words; }
 .pf-as-msg.me .pf-as-bubble { @apply bg-blue text-white rounded-br-[4px]; }
+/* Question posée à la voix : bulle « message vocal » (icône, onde, durée) — le texte transcrit n'est pas affiché */
+.pf-as-voicenote { @apply flex items-center gap-2.5 py-2.5 pl-2.5 pr-4 font-medium tabular-nums; }
+.pf-as-voiceic { @apply grid place-items-center w-8 h-8 rounded-full bg-white/15 flex-none; }
+.pf-as-wave { @apply flex items-center gap-[3px] h-6; }
+.pf-as-wave i { @apply block w-[3px] rounded-full bg-white/70 h-[40%]; }
+.pf-as-wave i:nth-child(3n+1) { @apply h-[70%]; }
+.pf-as-wave i:nth-child(4n+2) { @apply h-full; }
+.pf-as-wave i:nth-child(5n+3) { @apply h-[55%]; }
 .pf-as-msg.bot .pf-as-bubble { @apply bg-gray-bg text-black border border-gray-line rounded-tl-[4px]; }
-.pf-as-heard { @apply inline-flex items-center gap-1.5 text-[12.5px] text-gray-text; }
 
 .pf-as-msg.urgent .pf-as-avatar { @apply bg-red-soft text-red-text; }
 .pf-as-msg.urgent .pf-as-bubble { @apply bg-red-soft border-red text-red-text font-medium; }
@@ -55,12 +62,8 @@
 .pf-as-form textarea { @apply flex-1 min-w-0 font-body text-[15px] text-black border border-gray-line rounded-[10px] px-4 py-3 bg-white resize-none min-h-12 max-h-40 transition-[border-color,box-shadow] duration-150; field-sizing: content; }
 .pf-as-form textarea:focus { @apply outline-none border-blue shadow-[0_0_0_3px_var(--color-blue-soft)]; }
 .pf-as-form textarea[disabled] { @apply bg-gray-bg; }
-.pf-as-form textarea.dictated { @apply border-blue bg-blue-soft-2; }
 
 /* Dictée : transcription en cours, puis texte à relire */
-.pf-as-dict { @apply flex flex-wrap items-center gap-2 text-[14px] text-blue-700 animate-[fadein_.2s_ease-out]; }
-.pf-as-dict .btn { @apply -my-1.5; }
-.pf-as-spin { @apply inline-block w-4 h-4 rounded-full border-2 border-blue/30 border-t-blue animate-[pf-spin_.8s_linear_infinite]; }
 .pf-as-formacts { @apply flex gap-2; }
 .pf-as-mic { @apply w-11 px-0; }
 .pf-as-foot { @apply flex justify-between gap-4 px-7 pt-2.5 pb-5 text-[12.5px] leading-snug text-gray-text; }

@@ -1,5 +1,5 @@
 import {
-  ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injector, afterNextRender, afterRenderEffect, computed, inject, output, signal, viewChild,
+  ChangeDetectionStrategy, Component, DestroyRef, ElementRef, afterRenderEffect, computed, inject, output, signal, viewChild,
 } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Icon } from '../../../components/icon/icon';
@@ -11,7 +11,7 @@ import { PlatformState } from '../../../services/platform/platform';
 import { ApiAiErrorBody, ApiAiReply } from '../../../interfaces/api';
 import { Observable } from 'rxjs';
 
-/** Durée maximale d'une question dictée : l'enregistrement s'arrête et part seul. */
+/** Durée maximale d'un message vocal : l'enregistrement s'arrête et part seul. */
 const MAX_RECORD_S = 45;
 
 /** Barres de l'indicateur de niveau du micro. */
@@ -37,10 +37,11 @@ export const ASSISTANT_SUGGESTIONS: readonly string[] = [
    Disponibilités, pharmacies proches ; urgences = réponse fixe.
    ============================================================ */
 /**
- * Dictée vocale (micro → /ai/transcribe) désactivée pour l'instant : la transcription
- * n'est pas assez fiable pour la démo. Le code reste en place — repasser à `true` pour la rétablir.
+ * Mode vocal (micro → POST /ai/voice) : la question enregistrée part directement, sans afficher
+ * ni faire relire le texte transcrit ; elle apparaît dans le fil comme un message vocal.
+ * `false` masque le micro.
  */
-export const VOICE_DICTATION_ENABLED = false;
+export const VOICE_ENABLED = true;
 
 @Component({
   selector: 'app-patient-assistant',
@@ -54,7 +55,6 @@ export class PatientAssistant {
   private readonly platform = inject(PlatformState);
   protected readonly geo = inject(GeoService);
   private readonly auth = inject(AuthService);
-  private readonly injector = inject(Injector);
 
   /** Lien vers une autre section du shell (« Rechercher », « Pharmacies »). */
   readonly navigate = output<string>();
@@ -66,8 +66,8 @@ export class PatientAssistant {
   readonly sending = signal(false);
   readonly firstName = computed(() => (this.auth.user()?.name ?? '').trim().split(' ')[0] ?? '');
 
-  /** Micro : seulement si la dictée est activée et que le navigateur sait enregistrer. */
-  readonly canRecord = VOICE_DICTATION_ENABLED && typeof window !== 'undefined' && typeof MediaRecorder !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
+  /** Micro : seulement si le mode vocal est activé et que le navigateur sait enregistrer. */
+  readonly canRecord = VOICE_ENABLED && typeof window !== 'undefined' && typeof MediaRecorder !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
   readonly recording = signal(false);
   readonly recordSeconds = signal(0);
   readonly recordLeft = computed(() => MAX_RECORD_S - this.recordSeconds());
@@ -81,10 +81,6 @@ export class PatientAssistant {
   readonly levels = signal<number[]>(Array<number>(LEVEL_BARS).fill(0));
   private audioCtx: AudioContext | null = null;
   private meterFrame = 0;
-  /** Transcription en cours (après « Terminer ») : le texte arrive dans la zone de saisie. */
-  readonly transcribing = signal(false);
-  /** Le brouillon vient d'une dictée : le patient le relit, puis il part avec `source = voice`. */
-  readonly dictated = signal(false);
 
   private readonly thread = viewChild<ElementRef<HTMLElement>>('thread');
   private readonly input = viewChild<ElementRef<HTMLTextAreaElement>>('input');
@@ -102,16 +98,7 @@ export class PatientAssistant {
   }
 
   onInput(e: Event): void {
-    const v = (e.target as HTMLTextAreaElement).value.slice(0, ASSISTANT_MAX_CHARS);
-    this.draft.set(v);
-    if (!v.trim()) this.dictated.set(false);
-  }
-
-  /** Efface la dictée et réenregistre. */
-  redo(): void {
-    this.draft.set('');
-    this.dictated.set(false);
-    void this.startRecording();
+    this.draft.set((e.target as HTMLTextAreaElement).value.slice(0, ASSISTANT_MAX_CHARS));
   }
 
   /** Entrée envoie, Maj+Entrée va à la ligne. */
@@ -121,20 +108,17 @@ export class PatientAssistant {
 
   send(text = this.draft()): void {
     const message = text.trim();
-    if (!message || this.sending() || this.recording() || this.transcribing()) return;
-    const voice = this.dictated() && text === this.draft();
+    if (!message || this.sending() || this.recording()) return;
     this.draft.set('');
-    this.dictated.set(false);
-    this.assistant.push({ from: 'me', text: message, ...(voice ? { voice: true } : {}) });
-    this.run(this.assistant.ask(message, this.geo.position(), voice), message, voice);
+    this.assistant.push({ from: 'me', text: message });
+    this.run(this.assistant.ask(message, this.geo.position()), message);
   }
 
   /** Renvoie la question d'un message d'erreur, qui disparaît. */
   retry(id: number, text: string): void {
     if (this.sending()) return;
-    const voice = this.messages().some(m => m.from === 'me' && m.voice === true && m.text === text);
     this.assistant.drop(id);
-    this.run(this.assistant.ask(text, this.geo.position(), voice), text, voice);
+    this.run(this.assistant.ask(text, this.geo.position()), text);
   }
 
   newConversation(): void {
@@ -153,7 +137,7 @@ export class PatientAssistant {
   /* ---------- Question à la voix ---------- */
 
   async startRecording(): Promise<void> {
-    if (!this.canRecord || this.recording() || this.sending() || this.transcribing()) return;
+    if (!this.canRecord || this.recording() || this.sending()) return;
     try {
       this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch (err) {
@@ -173,7 +157,7 @@ export class PatientAssistant {
       const blob = new Blob(this.chunks, { type: rec.mimeType || type?.mime || 'audio/webm' });
       const ext = AUDIO_TYPES.find(t => blob.type.startsWith(t.mime.split(';')[0]))?.ext ?? 'webm';
       this.releaseMic();
-      if (this.keepRecording) this.transcribe(blob, ext);
+      if (this.keepRecording) this.sendVoice(blob, ext, this.recordSeconds());
     };
     rec.start();
     this.startMeter(this.stream);
@@ -232,44 +216,24 @@ export class PatientAssistant {
   }
 
   /**
-   * POST /ai/transcribe : le texte compris arrive dans la zone de saisie, le patient
-   * le relit et le corrige avant d'envoyer. Serveur sans cette route (404) :
-   * on revient à POST /ai/voice, qui transcrit et répond d'un coup.
+   * Mode vocal : la question enregistrée part telle quelle à POST /ai/voice (transcription + réponse
+   * en un appel). Le fil montre un message vocal (durée), jamais le texte transcrit.
    */
-  private transcribe(blob: Blob, ext: string): void {
+  private sendVoice(blob: Blob, ext: string, seconds: number): void {
     if (blob.size === 0) { this.platform.notify('L\'enregistrement est vide. Pouvez-vous réessayer ?', 'alert'); return; }
-    this.transcribing.set(true);
-    this.assistant.transcribe(blob, ext).subscribe({
-      next: text => {
-        this.transcribing.set(false);
-        this.draft.set(text.slice(0, ASSISTANT_MAX_CHARS));
-        this.dictated.set(true);
-        afterNextRender(() => {
-          const el = this.input()?.nativeElement;
-          if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
-        }, { injector: this.injector });
-      },
-      error: (err: unknown) => {
-        this.transcribing.set(false);
-        if (err instanceof HttpErrorResponse && err.status === 404) {
-          this.run(this.assistant.askByVoice(blob, ext, this.geo.position()), null);
-          return;
-        }
-        this.platform.notify(errorText(err, true), 'alert');
-      },
-    });
+    this.assistant.push({ from: 'me', text: '', voice: true, seconds: Math.max(1, seconds) });
+    this.run(this.assistant.askByVoice(blob, ext, this.geo.position()), null);
   }
 
   /* ---------- Envoi commun ---------- */
 
   /** `question` = texte à renvoyer en cas d'échec (null pour la voix : il faut réenregistrer). */
-  private run(call: Observable<ApiAiReply>, question: string | null, voice = false): void {
+  private run(call: Observable<ApiAiReply>, question: string | null): void {
     this.sending.set(true);
     call.subscribe({
       next: r => {
         this.sending.set(false);
         this.assistant.sessionId.set(r.session_id);
-        if (r.transcription) this.assistant.push({ from: 'me', text: r.transcription, voice: true });
         this.assistant.push({ from: 'bot', text: clean(r.reply), ...(r.urgence ? { kind: 'urgent' as const } : {}) });
       },
       error: (err: unknown) => {
@@ -278,7 +242,7 @@ export class PatientAssistant {
         if (body?.session_id) this.assistant.sessionId.set(body.session_id);
         // Pas de nouvel essai possible : assistant non configuré, ou voix (il faut réenregistrer).
         const retryable = question !== null && body?.code !== 'ai_not_configured';
-        this.assistant.push({ from: 'bot', kind: 'error', text: errorText(err, question === null && !voice),
+        this.assistant.push({ from: 'bot', kind: 'error', text: errorText(err, question === null),
           ...(retryable ? { retry: question } : {}) });
       },
     });
@@ -299,5 +263,5 @@ function errorText(err: unknown, voice: boolean): string {
   if (body?.code === 'transcription_empty') return body.message ?? 'Je n\'ai pas compris l\'enregistrement. Pouvez-vous répéter, plus près du micro ?';
   if (err.status === 422 && body?.errors?.['audio']) return 'Enregistrement refusé (format ou taille). Réessayez, ou tapez votre question.';
   if (body?.message) return body.message;
-  return voice ? 'La question dictée n\'a pas pu être traitée. Réessayez ou tapez-la.' : 'L\'assistant n\'a pas pu répondre. Réessayez dans un instant.';
+  return voice ? 'Le message vocal n\'a pas pu être traité. Réenregistrez-le ou tapez votre question.' : 'L\'assistant n\'a pas pu répondre. Réessayez dans un instant.';
 }

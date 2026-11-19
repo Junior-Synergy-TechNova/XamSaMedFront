@@ -70,36 +70,39 @@ describe('PatientAssistant', () => {
     expect(c.messages().some(m => m.kind === 'error')).toBe(false);
   });
 
-  it('dictée : le texte compris arrive dans la saisie, puis part avec source « voice »', async () => {
+  type Voice = { sendVoice(b: Blob, e: string, s: number): void };
+
+  it('mode vocal : la question part directement à /ai/voice, le fil montre un message vocal sans le texte transcrit', async () => {
     const fixture = TestBed.createComponent(PatientAssistant);
     await fixture.whenStable();
     const c = fixture.componentInstance;
-    (c as unknown as { transcribe(b: Blob, e: string): void }).transcribe(new Blob(['x'], { type: 'audio/webm' }), 'webm');
-    expect(c.transcribing()).toBe(true);
-    const t = http.expectOne(`${api}/ai/transcribe`);
-    expect(t.request.body instanceof FormData).toBe(true);
-    t.flush({ transcription: 'Où trouver du parasitamol ?' });
+    (c as unknown as Voice).sendVoice(new Blob(['x'], { type: 'audio/webm' }), 'webm', 6);
+    expect(http.match(`${api}/ai/transcribe`).length).toBe(0);
+    const v = http.expectOne(`${api}/ai/voice`);
+    const body = v.request.body as FormData;
+    expect(body.get('client')).toBe('web');
+    expect(body.get('audio')).toBeInstanceOf(Blob);
+    v.flush({ transcription: 'Où trouver du parasitamol ?', reply: 'Disponible à la Pharmacie Centrale.', session_id: 's' });
     await fixture.whenStable();
 
-    expect(c.draft()).toBe('Où trouver du parasitamol ?');
-    expect(c.dictated()).toBe(true);
-    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Voici ce que j\'ai compris');
-
-    c.onInput({ target: { value: 'Où trouver du paracétamol ?' } } as unknown as Event); // le patient corrige
-    c.send();
-    expect(http.expectOne(`${api}/ai/chat`).request.body).toEqual({ message: 'Où trouver du paracétamol ?', client: 'web', source: 'voice' });
-    expect(c.messages()[0].voice).toBe(true);
+    expect(c.messages()[0]).toMatchObject({ from: 'me', voice: true, seconds: 6, text: '' });
+    expect(c.messages()[1].text).toBe('Disponible à la Pharmacie Centrale.');
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('.pf-as-voicenote')?.textContent).toContain('Message vocal · 6 s');
+    expect(el.textContent).not.toContain('parasitamol');
+    expect(c.draft()).toBe('');
   });
 
-  it('dictée sur un serveur sans /ai/transcribe : repli sur /ai/voice', async () => {
+  it('mode vocal en échec : message d\'erreur sans « Réessayer » (il faut réenregistrer)', async () => {
     const fixture = TestBed.createComponent(PatientAssistant);
     await fixture.whenStable();
     const c = fixture.componentInstance;
-    (c as unknown as { transcribe(b: Blob, e: string): void }).transcribe(new Blob(['x']), 'webm');
-    http.expectOne(`${api}/ai/transcribe`).flush({ message: 'Not found' }, { status: 404, statusText: 'Not Found' });
-    http.expectOne(`${api}/ai/voice`).flush({ transcription: 'Ventoline ?', reply: 'Disponible.', session_id: 's' });
+    (c as unknown as Voice).sendVoice(new Blob(['x']), 'webm', 3);
+    http.expectOne(`${api}/ai/voice`).flush({ message: 'Erreur' }, { status: 500, statusText: 'Server Error' });
     await fixture.whenStable();
-    expect(c.messages().map(m => m.text)).toEqual(['Ventoline ?', 'Disponible.']);
+    const err = c.messages().find(m => m.kind === 'error');
+    expect(err).toBeDefined();
+    expect(err?.retry).toBeUndefined();
   });
 
   it('un autre compte connecté repart d\'une conversation vide', () => {

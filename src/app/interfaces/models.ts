@@ -103,8 +103,10 @@ export interface ChatMessage {
   from: 'me' | 'bot';
   text: string;
   kind?: 'urgent' | 'error';
-  /** Question dictée : le texte compris par la transcription. */
+  /** Question posée à la voix : affichée comme un message vocal (durée), sans le texte transcrit. */
   voice?: boolean;
+  /** Durée du message vocal, en secondes. */
+  seconds?: number;
   /** Erreur : la question à renvoyer (texte), si elle peut l'être. */
   retry?: string;
 }
