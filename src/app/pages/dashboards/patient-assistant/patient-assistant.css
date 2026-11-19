@@ -39,7 +39,17 @@
 .pf-as-msg.urgent .pf-as-listen { @apply text-red-text; }
 .pf-as-msg.urgent .pf-as-listen.on { @apply bg-red text-white; }
 .pf-as-voicenote { @apply flex items-center gap-2.5 py-2.5 pl-2.5 pr-4 font-medium tabular-nums; }
-.pf-as-voiceic { @apply grid place-items-center w-8 h-8 rounded-full bg-white/15 flex-none; }
+.pf-as-voiceic { @apply grid place-items-center w-8 h-8 rounded-full bg-white/15 flex-none text-white; }
+button.pf-as-voiceic { @apply w-9 h-9 bg-white text-blue transition-[scale,background-color] duration-150 active:scale-90; }
+button.pf-as-voiceic:focus-visible { @apply outline-2 outline-white outline-offset-2; }
+/* Réécoute : l'onde bouge tant que le message joue (arrêt net en fin de lecture ; « réduire les animations » la fige) */
+@keyframes pf-as-wave { from { transform: scaleY(.45); } to { transform: scaleY(1); } }
+.pf-as-voicenote.playing .pf-as-wave i { @apply origin-center; animation: pf-as-wave .5s ease-in-out infinite alternate; }
+.pf-as-voicenote.playing .pf-as-wave i:nth-child(odd) { animation-delay: .15s; }
+.pf-as-voicenote.playing .pf-as-wave i:nth-child(3n) { animation-delay: .3s; }
+/* Ce que le serveur a compris : en petit sous la bulle, pas comme une phrase du patient */
+.pf-as-transcript { @apply max-w-[min(420px,100%)] text-right text-[13px] leading-snug text-gray-text animate-[pf-as-in_.22s_ease-out]; }
+.pf-as-transcript span { @apply font-medium; }
 .pf-as-wave { @apply flex items-center gap-[3px] h-6; }
 .pf-as-wave i { @apply block w-[3px] rounded-full bg-white/70 h-[40%]; }
 .pf-as-wave i:nth-child(3n+1) { @apply h-[70%]; }

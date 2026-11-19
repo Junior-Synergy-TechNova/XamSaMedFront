@@ -35,13 +35,27 @@ export class AssistantService {
     const token = localStorage.getItem('nova-token');
     if (token !== this.owner) {
       this.owner = token;
+      this.releaseAudio();
       this.messages.set([]);
       this.sessionId.set(null);
     }
   }
 
-  push(msg: Omit<ChatMessage, 'id'>): void {
-    this.messages.update(list => [...list, { ...msg, id: this.nextId++ }]);
+  /** Ajoute un message et renvoie son id. */
+  push(msg: Omit<ChatMessage, 'id'>): number {
+    const id = this.nextId++;
+    this.messages.update(list => [...list, { ...msg, id }]);
+    return id;
+  }
+
+  /** Complète un message déjà affiché (ex. la transcription d'un message vocal). */
+  patch(id: number, changes: Partial<Omit<ChatMessage, 'id'>>): void {
+    this.messages.update(list => list.map(m => m.id === id ? { ...m, ...changes } : m));
+  }
+
+  /** Libère les enregistrements gardés en mémoire (URL `blob:`) avant de vider le fil. */
+  private releaseAudio(): void {
+    for (const m of this.messages()) if (m.audioUrl) URL.revokeObjectURL(m.audioUrl);
   }
 
   /** Retire un message (erreur remplacée par un nouvel essai). */
@@ -74,6 +88,7 @@ export class AssistantService {
   /** Nouvelle conversation : DELETE /ai/chat/{session_id} (best-effort), puis fil vide. */
   reset(): void {
     const sid = this.sessionId();
+    this.releaseAudio();
     this.messages.set([]);
     this.sessionId.set(null);
     if (sid) this.http.delete(`${this.base}/ai/chat/${encodeURIComponent(sid)}`).pipe(catchError(() => of(null))).subscribe();

@@ -50,6 +50,8 @@ export const VOICE_ENABLED = true;
   imports: [Icon, PageHead],
   templateUrl: './patient-assistant.html',
   styleUrl: './patient-assistant.css',
+  // Pendant un enregistrement : Entrée envoie le message vocal, Échap l'annule (où que soit le focus).
+  host: { '(document:keydown)': 'onRecordingKey($event)' },
 })
 export class PatientAssistant {
   private readonly assistant = inject(AssistantService);
@@ -97,13 +99,13 @@ export class PatientAssistant {
       const el = this.thread()?.nativeElement;
       if (el) el.scrollTop = el.scrollHeight;
     });
-    inject(DestroyRef).onDestroy(() => { this.stopRecording(false); this.speech.stop(); });
+    inject(DestroyRef).onDestroy(() => { this.stopRecording(false); this.speech.stop(); this.stopPlayback(); });
   }
 
   /** « Écouter » / « Arrêter » sur une réponse. */
   toggleSpeak(id: number, text: string): void {
     if (this.speech.speaking() === id) this.speech.stop();
-    else this.speech.speak(id, text);
+    else { this.stopPlayback(); this.speech.speak(id, text); }
   }
 
   onInput(e: Event): void {
@@ -133,6 +135,7 @@ export class PatientAssistant {
   newConversation(): void {
     if (this.sending()) return;
     this.speech.stop();
+    this.stopPlayback();
     this.assistant.reset();
     this.input()?.nativeElement.focus();
   }
@@ -149,6 +152,7 @@ export class PatientAssistant {
   async startRecording(): Promise<void> {
     if (!this.canRecord || this.recording() || this.sending()) return;
     this.speech.stop(); // on n'enregistre pas l'assistant en train de parler
+    this.stopPlayback();
     try {
       this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch (err) {
@@ -178,6 +182,13 @@ export class PatientAssistant {
       this.recordSeconds.update(s => s + 1);
       if (this.recordSeconds() >= MAX_RECORD_S) this.stopRecording(true);
     }, 1000);
+  }
+
+  /** Raccourcis clavier pendant l'enregistrement : Entrée = envoyer, Échap = annuler. */
+  onRecordingKey(e: KeyboardEvent): void {
+    if (!this.recording() || e.isComposing) return;
+    if (e.key === 'Enter') { e.preventDefault(); this.stopRecording(true); }
+    else if (e.key === 'Escape') { e.preventDefault(); this.stopRecording(false); }
   }
 
   /** `send` = false : « Annuler », rien n'est envoyé. */
@@ -234,8 +245,34 @@ export class PatientAssistant {
    */
   private sendVoice(blob: Blob, ext: string, seconds: number): void {
     if (blob.size === 0) { this.platform.notify('L\'enregistrement est vide. Pouvez-vous réessayer ?', 'alert'); return; }
-    this.assistant.push({ from: 'me', text: '', voice: true, seconds: Math.max(1, seconds) });
-    this.run(this.assistant.askByVoice(blob, ext, this.geo.position()), null, true);
+    const audioUrl = typeof URL.createObjectURL === 'function' ? URL.createObjectURL(blob) : undefined;
+    const id = this.assistant.push({ from: 'me', text: '', voice: true, seconds: Math.max(1, seconds), ...(audioUrl ? { audioUrl } : {}) });
+    this.run(this.assistant.askByVoice(blob, ext, this.geo.position()), null, true, id);
+  }
+
+  /* ---------- Réécoute d'un message vocal ---------- */
+
+  /** Message vocal en cours de réécoute (id), sinon null. */
+  readonly playing = signal<number | null>(null);
+  private player: HTMLAudioElement | null = null;
+
+  togglePlay(id: number, url: string): void {
+    if (this.playing() === id) { this.stopPlayback(); return; }
+    this.stopPlayback();
+    this.speech.stop();
+    const audio = new Audio(url);
+    this.player = audio;
+    audio.onended = () => { if (this.player === audio) this.stopPlayback(); };
+    audio.onerror = () => { if (this.player === audio) this.stopPlayback(); };
+    this.playing.set(id);
+    // `play()` renvoie une promesse rejetée si la lecture est refusée (format, autorisation).
+    void Promise.resolve(audio.play()).catch(() => { if (this.player === audio) this.stopPlayback(); });
+  }
+
+  private stopPlayback(): void {
+    this.player?.pause();
+    this.player = null;
+    this.playing.set(null);
   }
 
   /* ---------- Envoi commun ---------- */
@@ -244,16 +281,18 @@ export class PatientAssistant {
    * `question` = texte à renvoyer en cas d'échec (null pour la voix : il faut réenregistrer).
    * `speak` = question posée à la voix : la réponse est lue à voix haute dès qu'elle arrive.
    */
-  private run(call: Observable<ApiAiReply>, question: string | null, speak = false): void {
+  private run(call: Observable<ApiAiReply>, question: string | null, speak = false, voiceId?: number): void {
     this.sending.set(true);
     call.subscribe({
       next: r => {
         this.sending.set(false);
         this.assistant.sessionId.set(r.session_id);
+        // Message vocal : le texte compris s'affiche en petit sous la bulle.
+        const heard = r.transcription?.trim();
+        if (voiceId !== undefined && heard) this.assistant.patch(voiceId, { transcript: heard });
         const text = clean(r.reply);
-        this.assistant.push({ from: 'bot', text, ...(r.urgence ? { kind: 'urgent' as const } : {}) });
-        const id = this.messages().at(-1)?.id;
-        if (speak && id !== undefined) this.speech.speak(id, text);
+        const id = this.assistant.push({ from: 'bot', text, ...(r.urgence ? { kind: 'urgent' as const } : {}) });
+        if (speak) this.speech.speak(id, text);
       },
       error: (err: unknown) => {
         this.sending.set(false);
