@@ -34,11 +34,21 @@
         @if (m.from === 'me') {
           <div class="pf-as-msg me">
             @if (m.voice) {
-              <p class="pf-as-bubble pf-as-voicenote">
-                <span class="pf-as-voiceic" aria-hidden="true"><nv-icon name="mic" [size]="15"/></span>
+              <div class="pf-as-bubble pf-as-voicenote" [class.playing]="playing() === m.id">
+                @if (m.audioUrl; as url) {
+                  <button type="button" class="pf-as-voiceic" (click)="togglePlay(m.id, url)" [attr.aria-pressed]="playing() === m.id"
+                          [attr.aria-label]="playing() === m.id ? 'Mettre en pause' : 'Réécouter votre message vocal'">
+                    <nv-icon [name]="playing() === m.id ? 'pause' : 'play'" [size]="15"/>
+                  </button>
+                } @else {
+                  <span class="pf-as-voiceic" aria-hidden="true"><nv-icon name="mic" [size]="15"/></span>
+                }
                 <span class="pf-as-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
                 <span>Message vocal · {{ m.seconds }} s</span>
-              </p>
+              </div>
+              @if (m.transcript) {
+                <p class="pf-as-transcript"><span>Compris :</span> « {{ m.transcript }} »</p>
+              }
             } @else {
               <p class="pf-as-bubble">{{ m.text }}</p>
             }
@@ -96,7 +106,7 @@
         <div class="pf-as-meter" aria-hidden="true">
           @for (l of levels(); track $index) { <i [style.height.%]="8 + l * 92"></i> }
         </div>
-        <p class="pf-as-rechint">Parlez normalement, puis appuyez sur « Envoyer » : l'assistant vous répond directement.</p>
+        <p class="pf-as-rechint">Parlez normalement, puis appuyez sur « Envoyer » (ou Entrée) : l'assistant vous répond directement.</p>
         <span class="pf-as-recacts">
           <button type="button" class="btn btn-ghost btn-sm" (click)="stopRecording(false)">Annuler</button>
           <button type="button" class="btn btn-green btn-sm" (click)="stopRecording(true)"><nv-icon name="send" [size]="15"/> Envoyer</button>

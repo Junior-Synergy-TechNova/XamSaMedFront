@@ -72,7 +72,12 @@ describe('PatientAssistant', () => {
 
   type Voice = { sendVoice(b: Blob, e: string, s: number): void };
 
-  it('mode vocal : la question part directement à /ai/voice, le fil montre un message vocal sans le texte transcrit', async () => {
+  it('mode vocal : part directement à /ai/voice ; bulle vocale réécoutable + texte compris en petit dessous', async () => {
+    // jsdom n'a pas URL.createObjectURL : on le fournit le temps du test
+    const original = { create: URL.createObjectURL, revoke: URL.revokeObjectURL };
+    URL.createObjectURL = vi.fn(() => 'blob:local/1');
+    URL.revokeObjectURL = vi.fn();
+    onTestFinished(() => { URL.createObjectURL = original.create; URL.revokeObjectURL = original.revoke; });
     const fixture = TestBed.createComponent(PatientAssistant);
     await fixture.whenStable();
     const c = fixture.componentInstance;
@@ -85,11 +90,14 @@ describe('PatientAssistant', () => {
     v.flush({ transcription: 'Où trouver du parasitamol ?', reply: 'Disponible à la Pharmacie Centrale.', session_id: 's' });
     await fixture.whenStable();
 
-    expect(c.messages()[0]).toMatchObject({ from: 'me', voice: true, seconds: 6, text: '' });
+    expect(c.messages()[0]).toMatchObject({ from: 'me', voice: true, seconds: 6, text: '', audioUrl: 'blob:local/1', transcript: 'Où trouver du parasitamol ?' });
     expect(c.messages()[1].text).toBe('Disponible à la Pharmacie Centrale.');
     const el = fixture.nativeElement as HTMLElement;
     expect(el.querySelector('.pf-as-voicenote')?.textContent).toContain('Message vocal · 6 s');
-    expect(el.textContent).not.toContain('parasitamol');
+    expect(el.querySelector('.pf-as-transcript')?.textContent).toContain('« Où trouver du parasitamol ? »');
+    // La bulle n'affiche pas la transcription comme une phrase du patient
+    expect(el.querySelector('.pf-as-voicenote')?.textContent).not.toContain('parasitamol');
+    expect(el.querySelector('button.pf-as-voiceic')?.getAttribute('aria-label')).toBe('Réécouter votre message vocal');
     expect(c.draft()).toBe('');
   });
 
@@ -138,6 +146,21 @@ describe('PatientAssistant', () => {
       (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.pf-as-listen')!.click();
       expect(spoken).toEqual(['Disponible.']);
     });
+  });
+
+  it('pendant un enregistrement, Entrée envoie et Échap annule ; hors enregistrement, Entrée ne fait rien ici', async () => {
+    const fixture = TestBed.createComponent(PatientAssistant);
+    await fixture.whenStable();
+    const c = fixture.componentInstance;
+    const stop = vi.spyOn(c, 'stopRecording');
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    expect(stop).not.toHaveBeenCalled();
+    c.recording.set(true);
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    expect(stop).toHaveBeenLastCalledWith(true);
+    c.recording.set(true);
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(stop).toHaveBeenLastCalledWith(false);
   });
 
   it('mode vocal en échec : message d\'erreur sans « Réessayer » (il faut réenregistrer)', async () => {

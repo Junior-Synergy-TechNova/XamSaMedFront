@@ -2,7 +2,8 @@
 :host { @apply contents; }
 .nv-logo { @apply flex items-center gap-2.5 relative z-[1] flex-none whitespace-nowrap; }
 .nv-logo-mark { @apply w-[38px] h-[38px] rounded-[11px] bg-blue grid place-items-center flex-none ; }
-.nv-logo-text { @apply flex flex-col leading-none; }
+/* Le logo est un bouton (centré par défaut) : nom et slogan alignés à gauche, contre la pastille */
+.nv-logo-text { @apply flex flex-col items-start text-left leading-none; }
 .nv-logo-name { @apply font-title font-bold text-[18px] tracking-[-.01em] text-blue; }
 .nv-logo-name em { @apply not-italic text-green; }
 .nv-logo-tag { @apply font-body text-[11px] tracking-[.16em] uppercase mt-[3px] text-gray-text; }

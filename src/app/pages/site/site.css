@@ -280,6 +280,7 @@
   .s-mobnav { @apply flex; }
   .s-herogrid, .s-prob-grid, .s-secgrid, .s-aboutgrid, .s-contactgrid { @apply grid-cols-1 gap-14; }
   .s-featgrid,   .s-testgrid { @apply grid-cols-1; }
+  .s-howgrid { @apply grid-cols-2; }
   .s-footgrid { @apply grid-cols-2 gap-10; }
   .s-newsletter { @apply flex-col items-start text-left; }
   .s-aboutart { @apply order-2; }
@@ -304,4 +305,14 @@
   .s-herobtns { @apply flex-col items-stretch; }
   .s-herobtns .btn { @apply w-full justify-center h-[52px]; }
   .s-feattabs { @apply flex-nowrap justify-start overflow-x-auto -mx-5 px-5 pb-1 [scrollbar-width:none]; }
+  .s-feattabs > * { @apply whitespace-nowrap; }
+  /* Étapes et atouts : une colonne (ils se lisaient un mot par ligne) ; pied de page empilé, dégagé du bouton « haut de page » */
+  .s-howgrid, .s-seclist { @apply grid-cols-1 gap-4; }
+  .s-howstep { @apply px-6 py-7; }
+  .s-howicon { @apply mt-3 mb-4; }
+  .s-footgrid { @apply grid-cols-1 gap-10 pt-14 text-center; }
+  .s-footbrand, .s-footcol { @apply flex flex-col items-center; }
+  .s-footbrand p { @apply mx-auto; }
+  .s-footbottom { @apply pb-24; }
+  .s-footbottom > span { @apply max-w-[250px] text-balance; }
 }
