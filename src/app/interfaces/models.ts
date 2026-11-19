@@ -103,10 +103,14 @@ export interface ChatMessage {
   from: 'me' | 'bot';
   text: string;
   kind?: 'urgent' | 'error';
-  /** Question posée à la voix : affichée comme un message vocal (durée), sans le texte transcrit. */
+  /** Question posée à la voix : bulle vocale réécoutable, avec le texte compris en petit dessous. */
   voice?: boolean;
   /** Durée du message vocal, en secondes. */
   seconds?: number;
+  /** Enregistrement gardé dans le navigateur (URL `blob:`) pour le réécouter. */
+  audioUrl?: string;
+  /** Ce que le serveur a compris (transcription renvoyée par /ai/voice). */
+  transcript?: string;
   /** Erreur : la question à renvoyer (texte), si elle peut l'être. */
   retry?: string;
 }
