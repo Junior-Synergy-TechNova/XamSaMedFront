@@ -41,10 +41,28 @@
 .pf-loginhint { @apply mt-8 text-[14px] text-gray-text leading-relaxed; }
 .pf-resetintro { @apply mb-6 text-[15.5px] leading-relaxed; }
 
+.pf-loginmob { @apply hidden; }
 @media (max-width: 760px) {
   .pf-login { @apply grid-cols-1; }
   .pf-loginleft { @apply hidden; }
-  .pf-loginright { @apply px-6 py-12; }
+  .pf-loginright {
+    @apply flex-col justify-start items-stretch px-5 pt-4 pb-10;
+    padding-top: calc(1rem + env(safe-area-inset-top));
+    padding-bottom: calc(2.5rem + env(safe-area-inset-bottom));
+  }
+  .pf-loginmob { @apply flex items-center justify-between mb-8; }
+  .pf-loginmobback { @apply h-11 px-4 rounded-full bg-white border border-gray-line text-[15px] font-medium text-blue; }
+  .pf-loginbox { @apply mx-auto; }
+  .pf-loginbox h2 { @apply text-[28px] mb-2; }
+  .pf-loginintro { @apply text-[15px]; }
+  /* Profils de démonstration : une bande de puces au doigt au lieu de cinq grandes cartes avant le formulaire */
+  .pf-roles { @apply flex-row overflow-x-auto -mx-5 px-5 pt-1 pb-2 gap-2.5 mb-6 [scrollbar-width:none]; }
+  .pf-role { @apply flex-none gap-2.5 px-3 py-2.5 rounded-full; }
+  .pf-roleic { @apply w-8 h-8 rounded-full; }
+  .pf-roletxt strong { @apply text-[14.5px] mb-0 whitespace-nowrap; }
+  .pf-roletxt span, .pf-roleradio { @apply hidden; }
+  .pf-loginform { @apply pt-6; }
+  .pf-loginform .btn-lg { @apply h-[52px]; }
 }
 
 /* Comptes de démonstration repliés : la connexion reste le geste principal */

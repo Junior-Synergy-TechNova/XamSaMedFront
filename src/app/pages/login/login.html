@@ -15,6 +15,11 @@
       </div>
 
       <div class="pf-loginright">
+        <!-- Téléphone : le panneau de gauche est masqué, la marque et le retour au site restent en tête -->
+        <div class="pf-loginmob">
+          <nv-logo (clicked)="back()"/>
+          <button type="button" class="pf-loginmobback" (click)="back()">Site</button>
+        </div>
         <div class="pf-loginbox">
           <h2>Connectez-vous</h2>
           <p class="muted pf-loginintro">Votre espace dépend de votre compte. Les profils ci-dessous préremplissent un compte de démonstration.</p>

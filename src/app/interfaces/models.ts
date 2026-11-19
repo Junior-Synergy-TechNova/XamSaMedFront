@@ -36,6 +36,8 @@ export interface NavItem {
   types?: readonly string[];
   /** Restreint l'entrée à un secteur (ex. « Commandes PRA » : hôpitaux publics). */
   sector?: 'public' | 'private';
+  /** Onglet de la barre du bas sur téléphone (4 par espace) et son libellé court ; les autres entrées vont dans « Plus ». */
+  tab?: string;
 }
 /** Teinte affichée dans la cloche : une couleur par type d'événement (rouge réservé aux alertes). */
 export type NotifTone = 'red' | 'amber' | 'green' | 'blue' | 'violet' | 'teal' | 'sky' | 'rose';

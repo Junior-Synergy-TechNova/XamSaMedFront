@@ -132,42 +132,132 @@
   .pf-app.col .pf-navitem { @apply w-11 h-10; }
   .pf-rolesname { @apply hidden; }
 }
-/* Bouton menu : n'existe que sur téléphone */
-.pf-burger { @apply hidden; }
-.pf-scrim { @apply hidden; }
-.pf-drawerclose { @apply hidden; }
+/* Éléments propres au téléphone (barre d'onglets, feuille « Plus », titre de barre, conseil d'installation) */
+.pf-burger, .pf-scrim, .pf-drawerclose, .pf-toptitle, .pf-searchbtn, .pf-searchcancel, .pf-tabbar, .pf-install, .pf-sheet-overlay { @apply hidden; }
 
-/* ---- Téléphone : la sidebar devient un tiroir (libellés complets), le contenu prend toute la largeur ---- */
+/* ================= Téléphone : présentation « application » =================
+   Barre haute compacte (structure → titre de section au défilement), navigation par onglets en bas,
+   à portée de pouce, le reste dans la feuille « Plus ». Zones sûres de l'iPhone (encoche, barre d'accueil)
+   respectées, l'app pouvant être installée en plein écran (manifest + viewport-fit=cover). */
 @media (max-width: 760px) {
   .pf-app, .pf-app.col { @apply grid-cols-1; }
-  .pf-side {
-    @apply fixed inset-y-0 left-0 z-[120] h-dvh w-[min(300px,86vw)] px-4 -translate-x-full invisible;
-    padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
-    /* Fermeture : `visibility` bascule après le glissement (le tiroir reste visible pendant l'animation) */
-    transition: transform .2s ease-out, visibility 0s .2s;
+  /* La sidebar n'existe plus : onglets + « Plus » la remplacent */
+  .pf-side, .pf-scrim, .pf-burger, .pf-rolesw { @apply hidden!; }
+
+  /* ---- Barre haute ---- */
+  .pf-top {
+    @apply h-auto min-h-14 px-2 gap-0.5 border-b-transparent transition-[border-color] duration-200;
+    padding-top: env(safe-area-inset-top);
+    padding-left: max(.5rem, env(safe-area-inset-left));
+    padding-right: max(.5rem, env(safe-area-inset-right));
   }
-  /* Ouverture : visible immédiatement, sinon le focus ne peut pas y entrer à la première frame */
-  .pf-app.drawer .pf-side { @apply translate-x-0 visible shadow-lg; transition: transform .2s ease-out, visibility 0s; }
-  .pf-scrim { @apply block fixed inset-0 z-[110] bg-blue-700/35 animate-fadein; }
-  /* Bouton « fermer » en haut du tiroir, aligné sur le logo */
-  .pf-sidetop { @apply flex items-center justify-between gap-3 pt-0 pb-5; }
-  .pf-drawerclose { @apply grid place-items-center w-11 h-11 -mr-2 flex-none rounded-[10px] text-white/80 transition-colors duration-150; }
-  .pf-drawerclose:hover { @apply bg-white/10 text-white; }
-  .pf-drawerclose:focus-visible { @apply outline-2 outline-white outline-offset-2; }
-  /* « Réduire » n'a pas de sens dans un tiroir : seul « Se déconnecter » reste en pied */
-  .pf-navcollapse { @apply hidden; }
-  .pf-burger { @apply grid place-items-center w-11 h-11 -ml-1.5 flex-none rounded-[10px] text-blue transition-colors duration-150; }
-  .pf-burger:hover { @apply bg-gray-bg; }
-  .pf-top { @apply px-3 gap-2 h-16; }
-  .pf-topsearch { @apply px-3 min-w-0; }
-  .pf-topright { @apply gap-2; }
-  .pf-roleswbtn { @apply px-1.5; }
-  .pf-content { @apply px-4 pt-6 pb-10; }
-  /* Panneaux déroulants : pleine largeur sous la barre haute au lieu de déborder à droite */
-  .pf-notifpanel, .pf-rolemenu { @apply fixed top-[68px] left-3 right-3 w-auto; }
-  /* Résultats de recherche : le champ est étroit sur téléphone → pleine largeur sous la barre, liste défilante */
-  .pf-global-results { @apply fixed top-[68px] left-3 right-3 max-h-[calc(100dvh-84px)] overflow-y-auto; }
+  .pf-top.scrolled { @apply border-b-gray-line; }
+  .pf-toptitle { @apply block relative flex-1 min-w-0 h-14 ml-2; }
+  .pf-topid, .pf-topsec { @apply absolute inset-0 flex items-center transition-[opacity,translate] duration-250 ease-[cubic-bezier(.22,1,.36,1)]; }
+  .pf-topid { @apply gap-2.5; }
+  .pf-topid.out { @apply opacity-0 -translate-y-1.5 pointer-events-none; }
+  .pf-topidtxt { @apply flex flex-col min-w-0; }
+  .pf-topidtxt strong { @apply font-semibold text-[15px] text-black leading-tight truncate; }
+  .pf-topidtxt span { @apply text-[12.5px] text-gray-text leading-tight truncate mt-0.5; }
+  .pf-topsec { @apply opacity-0 translate-y-1.5 font-semibold text-[17px] text-black truncate block leading-[56px]; }
+  .pf-topsec.in { @apply opacity-100 translate-y-0; }
+  .pf-topright { @apply gap-0.5; }
+  .pf-iconbtn { @apply grid w-11 h-11 rounded-full border-0 bg-transparent text-black; }
+  .pf-iconbtn:hover, .pf-iconbtn.on { @apply bg-gray-bg; }
+  .pf-notifdot { @apply -top-0.5 -right-0.5 min-w-[18px] h-[18px] text-[10.5px]; }
+
+  /* Recherche : l'icône ouvre un champ qui prend toute la barre ; « Annuler » le referme */
+  .pf-topsearch { @apply hidden; }
+  .pf-top.searching .pf-toptitle, .pf-top.searching .pf-topright { @apply hidden; }
+  .pf-top.searching .pf-topsearch { @apply flex flex-1 min-w-0 h-11 my-1.5 ml-1 px-3 rounded-full bg-gray-bg border-transparent; }
+  .pf-top.searching .pf-searchcancel { @apply block flex-none h-11 px-3 text-[16px] font-medium text-blue; }
+  .pf-topsearch input { @apply text-[16px]; }
+
+  /* Panneaux sous la barre (notifications, résultats) : pleine largeur, sous l'encoche */
+  .pf-notifpanel, .pf-global-results {
+    @apply fixed left-2 right-2 w-auto rounded-[16px];
+    top: calc(env(safe-area-inset-top) + 62px);
+    max-height: calc(100dvh - env(safe-area-inset-top) - 62px - 84px - env(safe-area-inset-bottom));
+  }
+  .pf-global-results { @apply overflow-y-auto; }
+  .pf-global-results button { @apply min-h-14 px-4; }
+  .pf-notifitem { @apply py-4; }
+
+  /* ---- Contenu : dégagé de la barre d'onglets ---- */
+  .pf-content {
+    @apply pt-5 px-4;
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+    padding-bottom: calc(96px + env(safe-area-inset-bottom));
+  }
+
+  /* ---- Barre d'onglets ---- */
+  .pf-tabbar {
+    @apply fixed bottom-0 inset-x-0 z-40 grid grid-flow-col auto-cols-fr bg-white border-t border-gray-line;
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+  .pf-tab { @apply flex flex-col items-center justify-center gap-1 h-16 min-w-0 px-0.5 text-gray-text select-none; }
+  .pf-tabic { @apply relative grid place-items-center w-14 h-8 rounded-full transition-[background-color,color,scale] duration-200 ease-out; }
+  .pf-tablbl { @apply max-w-full truncate text-[11.5px] font-medium leading-none transition-colors duration-200; }
+  /* Onglet actif : pastille teintée derrière l'icône + libellé en couleur (lisible sans dépendre de la couleur seule) */
+  .pf-tab.on { @apply text-blue; }
+  .pf-tab.on .pf-tabic { @apply bg-blue-soft; }
+  .pf-tab.on .pf-tablbl { @apply font-semibold; }
+  .pf-tab:active .pf-tabic { @apply scale-90; }
+  .pf-tab:focus-visible { @apply outline-none; }
+  .pf-tab:focus-visible .pf-tabic { @apply outline-2 outline-blue outline-offset-2; }
+  .pf-tabbadge { @apply absolute -top-1 left-[calc(50%+4px)] min-w-[18px] h-[18px] px-1 grid place-items-center rounded-full bg-red text-white text-[10.5px] font-semibold tabular-nums border-2 border-white leading-none; animation: sh-pop .3s cubic-bezier(.22,1,.36,1) both; }
+
+  /* ---- Feuille « Plus » : liste groupée, comme un réglage natif ---- */
+  .pf-sheet-overlay { @apply fixed inset-0 z-[140] flex items-end bg-blue-700/35; animation: sh-fade-in .22s ease-out both; }
+  .pf-sheet {
+    @apply w-full max-h-[88dvh] overflow-y-auto bg-gray-bg rounded-t-[22px] shadow-lg overscroll-contain;
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+    animation: sh-sheet-in .34s cubic-bezier(.22,1,.36,1) both;
+  }
+  .pf-sheet-overlay.pf-sheet-out { animation: sh-fade-out .2s ease-in both; }
+  .pf-sheet-out .pf-sheet { animation: sh-sheet-out .2s ease-in both; }
+  .pf-sheetgrip { @apply block mx-auto mt-2.5 w-10 h-1.5 rounded-full bg-gray-line; }
+  .pf-sheethead { @apply flex items-center gap-3 px-5 pt-3 pb-2; }
+  .pf-sheetid { @apply flex-1 min-w-0; }
+  .pf-sheetid h2 { @apply text-[18px] font-semibold text-black truncate; }
+  .pf-sheetid span { @apply block text-[13.5px] text-gray-text truncate mt-0.5; }
+  .pf-sheetbody { @apply px-4; }
+  .pf-sheetlbl { @apply px-1 pt-5 pb-2 text-[13px] font-medium text-gray-text; }
+  .pf-sheetbody > .pf-sheetlbl:first-child { @apply pt-2; }
+  .pf-sheetgroup { @apply bg-white border border-gray-line rounded-[14px] overflow-hidden; }
+  .pf-sheetgroup + .pf-sheetgroup { @apply mt-4; }
+  .pf-sheetit { @apply flex items-center gap-3.5 w-full min-h-[54px] pl-4 pr-3 text-left text-[16px] text-black border-b border-gray-line transition-colors duration-100; }
+  .pf-sheetit:last-child { @apply border-b-0; }
+  .pf-sheetit:active { @apply bg-gray-bg; }
+  .pf-sheetit > nv-icon { @apply text-gray ml-auto flex-none; }
+  .pf-sheetic { @apply w-8 h-8 rounded-[9px] grid place-items-center flex-none bg-blue-soft text-blue; }
+  .pf-sheettx { @apply flex-1 min-w-0 truncate; }
+  .pf-sheetit.on { @apply text-blue font-semibold; }
+  .pf-sheetit.on .pf-sheetic { @apply bg-blue text-white; }
+  .pf-sheetit.danger { @apply text-red-text; }
+  .pf-sheetit.danger .pf-sheetic { @apply bg-red-soft text-red; }
+  .pf-sheetcount { @apply min-w-6 h-6 px-2 grid place-items-center rounded-full bg-red text-white text-[12px] font-semibold tabular-nums; }
+  .pf-sheetvoice { @apply flex flex-col gap-2.5 px-4 py-3.5 border-b border-gray-line last:border-b-0; }
+  .pf-sheetvoicelbl { @apply inline-flex items-center gap-2 text-[14px] font-medium text-gray-text; }
+  .pf-avatar.lg { @apply w-11 h-11 rounded-[12px]; }
+
+  /* ---- Conseil d'installation (iPhone, Safari) ---- */
+  .pf-install { @apply flex items-start gap-3.5 bg-white border border-gray-line rounded-[16px] p-4 mb-6; animation: sh-item .3s ease-out both; }
+  .pf-installic img { @apply block w-10 h-10 rounded-[10px]; }
+  .pf-install p { @apply flex-1 min-w-0 text-[14px] leading-relaxed text-gray-text; }
+  .pf-install p strong { @apply block text-[15px] text-black font-semibold mb-0.5; }
+  .pf-install p nv-icon { @apply inline-block align-[-2px] text-blue; }
+  .pf-install p em { @apply not-italic font-medium text-black; }
+  .pf-installx { @apply grid place-items-center w-9 h-9 -mt-1.5 -mr-1.5 rounded-full text-gray-text flex-none; }
+  .pf-installx:active { @apply bg-gray-bg; }
 }
+@keyframes sh-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sh-fade-out { to { opacity: 0; } }
+@keyframes sh-sheet-in { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes sh-sheet-out { to { transform: translateY(100%); } }
 
 /* ---------- Animations (neutralisées par « réduire les animations », styles.css) ---------- */
 @keyframes sh-drop { from { opacity: 0; transform: translateY(-6px) scale(.98); } to { opacity: 1; transform: none; } }

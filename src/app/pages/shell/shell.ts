@@ -77,6 +77,8 @@ export class AppShell {
     return { name: s.name, kind: (kinds[s.type] ?? s.type) + plan };
   });
   readonly userName = computed(() => this.auth.user()?.name ?? '');
+  /** Nom en tête de la barre haute (téléphone) : la structure, ou la personne pour un patient sans structure. */
+  readonly topName = computed(() => this.auth.structure() ? this.identity().name : (this.userName() || this.identity().name));
   readonly userEmail = computed(() => this.auth.user()?.email ?? '');
   /** Page profil / structure de l'espace, si elle existe (patient « Mon profil », officine…). */
   readonly profileNav = computed(() => this.nav().find(n => n.id === 'profil') ?? null);
@@ -98,6 +100,31 @@ export class AppShell {
       groupStart: !!item.group && item.group !== all[i - 1]?.group,
     }));
   });
+  /* ---- Téléphone : présentation « application » (barre d'onglets en bas, feuille « Plus », titre dans la barre haute) ---- */
+  /** Onglets de la barre du bas (entrées marquées `tab`), dans l'ordre de la navigation. */
+  readonly tabs = computed(() => this.nav().filter(n => n.tab));
+  /** Tout le reste de la navigation, rangé dans la feuille « Plus ». */
+  readonly moreItems = computed(() => this.nav().filter(n => !n.tab));
+  /** Les mêmes entrées, une liste groupée par intitulé (« Comptoir », « Stock »…) comme un réglage natif. */
+  readonly moreGroups = computed(() => this.moreItems().reduce<{ label: string; items: NavItem[] }[]>((groups, item) => {
+    const label = item.group ?? '';
+    const last = groups.at(-1);
+    if (last && last.label === label) last.items.push(item); else groups.push({ label, items: [item] });
+    return groups;
+  }, []));
+  /** Travail en attente dans les sections rangées sous « Plus » : la pastille de l'onglet les additionne. */
+  readonly moreBadge = computed(() => this.moreItems().reduce((sum, n) => sum + (n.badge ?? 0), 0));
+  /** La section affichée n'est pas un onglet : « Plus » est l'onglet actif. */
+  readonly onMore = computed(() => !this.tabs().some(t => t.id === this.sec()));
+  readonly moreOpen = signal(false);
+  /** Recherche du haut ouverte (sur téléphone le champ remplace la barre, « Annuler » la referme). */
+  readonly searchOpen = signal(false);
+  /** Page défilée sous la barre haute : le titre de la section y apparaît (le grand titre est sorti de l'écran). */
+  readonly scrolled = signal(false);
+  readonly sectionTitle = computed(() => this.nav().find(n => n.id === this.sec())?.label ?? '');
+  /** iPhone dans Safari (pas encore installée) : on explique comment l'ajouter à l'écran d'accueil. */
+  readonly installHint = signal(this.shouldHintInstall());
+
   readonly notifs = computed(() => {
     const role = this.role();
     const dismissed = this.dismissedNotifications();
@@ -161,6 +188,49 @@ export class AppShell {
       this.searchLoading.set(false);
     });
     if (r) this.notificationService.load(r).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(notifications => this.notifications.set(notifications));
+    // Signal écrit seulement au franchissement du seuil : pas de détection de changement à chaque pixel défilé.
+    const onScroll = () => { const s = window.scrollY > 56; if (s !== this.scrolled()) this.scrolled.set(s); };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    this.destroyRef.onDestroy(() => window.removeEventListener('scroll', onScroll));
+  }
+
+  private shouldHintInstall(): boolean {
+    try {
+      const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      const standalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
+      return ios && !standalone && localStorage.getItem('nova-install-hint') !== 'off';
+    } catch { return false; }
+  }
+  dismissInstall(): void {
+    this.installHint.set(false);
+    try { localStorage.setItem('nova-install-hint', 'off'); } catch { /* navigation privée : ignoré */ }
+  }
+
+  /** Feuille « Plus » : le focus entre sur la première entrée, et revient à l'onglet « Plus » à la fermeture. */
+  openMore(): void {
+    this.closeMenus();
+    this.moreOpen.set(true);
+    afterNextRender({ read: () => document.querySelector<HTMLElement>('.pf-sheet .pf-sheetit')?.focus() }, { injector: this.injector });
+  }
+  closeMore(restoreFocus = true): void {
+    this.moreOpen.set(false);
+    if (restoreFocus) afterNextRender({ read: () => document.querySelector<HTMLElement>('.pf-tab-more')?.focus() }, { injector: this.injector });
+  }
+  /** Feuille « Plus » → section, mot de passe, notifications. */
+  moreSelect(id: string): void { this.closeMore(false); this.select(id); }
+  morePassword(): void { this.closeMore(false); this.passwordOpen.set(true); }
+  moreNotifications(e: Event): void { this.closeMore(false); this.toggleNotif(e); }
+  openSearch(): void {
+    this.closeMenus();
+    this.searchOpen.set(true);
+    afterNextRender({ read: () => document.querySelector<HTMLInputElement>('.pf-topsearch input')?.focus() }, { injector: this.injector });
+  }
+  closeSearch(): void {
+    this.searchOpen.set(false);
+    this.globalQuery.set('');
+    this.globalResults.set([]);
+    this.searchFocused.set(false);
+    afterNextRender({ read: () => document.querySelector<HTMLElement>('.pf-searchbtn')?.focus() }, { injector: this.injector });
   }
 
   /**
@@ -188,8 +258,11 @@ export class AppShell {
 
   shortLabel(label: string): string { return label.split(' / ')[0]; }
   select(id: string): void {
+    // Onglet déjà actif : comme une app, un nouvel appui remonte en haut de la page.
+    if (id === this.sec()) window.scrollTo({ top: 0, behavior: 'smooth' });
     this.sec.set(id);
     this.notifOpen.set(false);
+    this.moreOpen.set(false);
     if (this.drawerOpen()) this.closeDrawer(false);
   }
   /** Tiroir de navigation (téléphone) : le focus entre sur l'entrée active, et revient au bouton menu à la fermeture. */
@@ -228,6 +301,7 @@ export class AppShell {
     this.globalQuery.set(result.label);
     this.globalResults.set([]);
     this.searchFocused.set(false);
+    this.searchOpen.set(false);
     if (this.role() === 'patient') this.sec.set(result.type === 'pharmacy' ? 'phar' : 'search');
   }
   focusGlobalSearch(): void { this.searchFocused.set(true); }
@@ -251,6 +325,10 @@ export class AppShell {
     if (trigger) {
       this.closeMenus();
       document.querySelector<HTMLElement>(trigger)?.focus();
+    } else if (this.moreOpen()) {
+      this.closeMore();
+    } else if (this.searchOpen()) {
+      this.closeSearch();
     } else if (this.drawerOpen()) {
       this.closeDrawer();
     }

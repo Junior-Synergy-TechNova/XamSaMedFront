@@ -39,13 +39,21 @@
 
         <!-- Main -->
         <div class="pf-main">
-          <header class="pf-top">
+          <header class="pf-top" [class.searching]="searchOpen()" [class.scrolled]="scrolled()">
             <button type="button" class="pf-burger" (click)="openDrawer()" [attr.aria-expanded]="drawerOpen()" aria-controls="pf-side" aria-label="Ouvrir le menu">
               <nv-icon name="menu" [size]="22"/>
             </button>
+            <!-- Téléphone : la structure connectée en haut de page, puis le titre de la section une fois le grand titre défilé -->
+            <div class="pf-toptitle" aria-hidden="true">
+              <span class="pf-topid" [class.out]="scrolled()">
+                <span class="pf-avatar {{ roleTone() }}"><nv-icon [name]="r.icon" [size]="16"/></span>
+                <span class="pf-topidtxt"><strong>{{ topName() }}</strong><span>{{ identity().kind }}</span></span>
+              </span>
+              <span class="pf-topsec" [class.in]="scrolled()">{{ sectionTitle() }}</span>
+            </div>
             <div class="pf-topsearch">
               <nv-icon name="search" [size]="18" color="var(--color-gray-text)"/>
-              <input type="search" aria-label="Rechercher un médicament ou une officine" placeholder="Rechercher un médicament, une officine…" [value]="globalQuery()" (focus)="focusGlobalSearch()" (input)="searchGlobal($event)" (blur)="closeGlobalSearch()"/>
+              <input type="search" aria-label="Rechercher un médicament ou une officine" placeholder="Rechercher…" [value]="globalQuery()" (focus)="focusGlobalSearch()" (input)="searchGlobal($event)" (blur)="closeGlobalSearch()"/>
               @if (searchFocused() && (searchLoading() || globalResults().length > 0 || globalQuery().trim().length >= 2)) {
                 <div class="pf-global-results" (mousedown)="$event.preventDefault()">
                   @if (searchLoading()) { <div class="pf-global-state">Recherche en cours…</div> }
@@ -63,7 +71,11 @@
                 </div>
               }
             </div>
+            <button type="button" class="pf-searchcancel" (click)="closeSearch()">Annuler</button>
             <div class="pf-topright">
+              <button type="button" class="pf-iconbtn pf-searchbtn" (click)="openSearch()" aria-label="Rechercher un médicament ou une officine">
+                <nv-icon name="search" [size]="20"/>
+              </button>
               <div class="pf-notifwrap">
                 <button type="button" class="pf-iconbtn" [class.on]="notifOpen()" [class.has]="notifs().length > 0" (click)="toggleNotif($event)" [attr.aria-expanded]="notifOpen()" [attr.aria-label]="notifs().length ? 'Notifications, ' + notifs().length + ' non lues' : 'Notifications'">
                   <nv-icon name="bell" [size]="20"/>
@@ -131,6 +143,14 @@
           @if (passwordOpen()) { <pf-password-modal (closed)="passwordOpen.set(false)"/> }
 
           <main class="pf-content" (click)="closeMenus()">
+            @if (installHint()) {
+              <div class="pf-install" role="note">
+                <span class="pf-installic"><img src="icons/apple-touch-icon.png" alt="" width="40" height="40"/></span>
+                <p><strong>Installez XamSaMed sur votre iPhone</strong>
+                  Touchez <nv-icon name="share" [size]="15"/> <em>Partager</em>, puis « Sur l'écran d'accueil » : l'application s'ouvrira en plein écran.</p>
+                <button type="button" class="pf-installx" (click)="dismissInstall()" aria-label="Masquer ce conseil"><nv-icon name="x" [size]="18"/></button>
+              </div>
+            }
             @switch (r.id) {
               @case ('patient') {
                 @defer (on immediate) { <app-patient-dash [(section)]="sec"/> }
@@ -155,5 +175,81 @@
             }
           </main>
         </div>
+
+        <!-- Téléphone : barre d'onglets en bas (à portée de pouce), le reste de la navigation dans « Plus » -->
+        <nav class="pf-tabbar" aria-label="Navigation principale">
+          @for (t of tabs(); track t.id) {
+            <button type="button" class="pf-tab" [class.on]="sec() === t.id" [attr.aria-current]="sec() === t.id ? 'page' : null" (click)="select(t.id)">
+              <span class="pf-tabic">
+                <nv-icon [name]="t.icon" [size]="22"/>
+                @if (t.badge && t.badge > 0) { <span class="pf-tabbadge">{{ t.badge > 99 ? '99+' : t.badge }}<span class="sr-only"> à traiter</span></span> }
+              </span>
+              <span class="pf-tablbl">{{ t.tab }}</span>
+            </button>
+          }
+          <button type="button" class="pf-tab pf-tab-more" [class.on]="onMore() || moreOpen()" [attr.aria-expanded]="moreOpen()" aria-haspopup="dialog" (click)="moreOpen() ? closeMore() : openMore()">
+            <span class="pf-tabic">
+              <nv-icon name="menu" [size]="22"/>
+              @if (moreBadge() > 0) { <span class="pf-tabbadge">{{ moreBadge() > 99 ? '99+' : moreBadge() }}<span class="sr-only"> à traiter</span></span> }
+            </span>
+            <span class="pf-tablbl">Plus</span>
+          </button>
+        </nav>
+
+        @if (moreOpen()) {
+          <div class="pf-sheet-overlay" (click)="closeMore()" animate.leave="pf-sheet-out">
+            <div class="pf-sheet" role="dialog" aria-modal="true" aria-labelledby="pf-sheet-title" (click)="$event.stopPropagation()">
+              <span class="pf-sheetgrip" aria-hidden="true"></span>
+              <div class="pf-sheethead">
+                <span class="pf-avatar lg {{ roleTone() }}"><nv-icon [name]="r.icon" [size]="20"/></span>
+                <div class="pf-sheetid">
+                  <h2 id="pf-sheet-title">{{ topName() }}</h2>
+                  <span>{{ topName() === userName() ? (userEmail() || identity().kind) : userName() + " · " + identity().kind }}</span>
+                </div>
+                <button type="button" class="pf-modal-close" (click)="closeMore()" aria-label="Fermer"><nv-icon name="x" [size]="20"/></button>
+              </div>
+              <div class="pf-sheetbody">
+                @for (g of moreGroups(); track $index) {
+                  @if (g.label) { <div class="pf-sheetlbl">{{ g.label }}</div> }
+                  <div class="pf-sheetgroup">
+                    @for (n of g.items; track n.id) {
+                      <button type="button" class="pf-sheetit" [class.on]="sec() === n.id" (click)="moreSelect(n.id)">
+                        <span class="pf-sheetic"><nv-icon [name]="n.icon" [size]="19"/></span>
+                        <span class="pf-sheettx">{{ n.label }}</span>
+                        @if (n.badge && n.badge > 0) { <span class="pf-sheetcount">{{ n.badge }}<span class="sr-only"> à traiter</span></span> }
+                        <nv-icon name="chevron" [size]="16"/>
+                      </button>
+                    }
+                  </div>
+                }
+                <div class="pf-sheetlbl">Compte</div>
+                <div class="pf-sheetgroup">
+                  <button type="button" class="pf-sheetit" (click)="moreNotifications($event)">
+                    <span class="pf-sheetic"><nv-icon name="bell" [size]="19"/></span>
+                    <span class="pf-sheettx">Notifications</span>
+                    @if (notifs().length > 0) { <span class="pf-sheetcount">{{ notifs().length }}</span> }
+                    <nv-icon name="chevron" [size]="16"/>
+                  </button>
+                  <button type="button" class="pf-sheetit" (click)="morePassword()">
+                    <span class="pf-sheetic"><nv-icon name="lock" [size]="19"/></span>
+                    <span class="pf-sheettx">Changer le mot de passe</span>
+                    <nv-icon name="chevron" [size]="16"/>
+                  </button>
+                  @if (r.id === 'patient') {
+                    <div class="pf-sheetvoice">
+                      <pf-voice-lang variant="select"/>
+                    </div>
+                  }
+                </div>
+                <div class="pf-sheetgroup">
+                  <button type="button" class="pf-sheetit danger" (click)="exit()">
+                    <span class="pf-sheetic"><nv-icon name="logout" [size]="19"/></span>
+                    <span class="pf-sheettx">Se déconnecter</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        }
       </div>
     }
