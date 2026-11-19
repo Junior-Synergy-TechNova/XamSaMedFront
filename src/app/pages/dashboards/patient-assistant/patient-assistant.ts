@@ -8,6 +8,7 @@ import { AssistantService, ASSISTANT_MAX_CHARS } from '../../../services/assista
 import { AuthService } from '../../../services/auth/auth';
 import { GeoService } from '../../../services/geo/geo';
 import { PlatformState } from '../../../services/platform/platform';
+import { SpeechService } from '../../../services/speech/speech';
 import { ApiAiErrorBody, ApiAiReply } from '../../../interfaces/api';
 import { Observable } from 'rxjs';
 
@@ -55,6 +56,8 @@ export class PatientAssistant {
   private readonly platform = inject(PlatformState);
   protected readonly geo = inject(GeoService);
   private readonly auth = inject(AuthService);
+  /** Réponses lues à voix haute (voix de l'appareil, en français). */
+  readonly speech = inject(SpeechService);
 
   /** Lien vers une autre section du shell (« Rechercher », « Pharmacies »). */
   readonly navigate = output<string>();
@@ -94,7 +97,13 @@ export class PatientAssistant {
       const el = this.thread()?.nativeElement;
       if (el) el.scrollTop = el.scrollHeight;
     });
-    inject(DestroyRef).onDestroy(() => this.stopRecording(false));
+    inject(DestroyRef).onDestroy(() => { this.stopRecording(false); this.speech.stop(); });
+  }
+
+  /** « Écouter » / « Arrêter » sur une réponse. */
+  toggleSpeak(id: number, text: string): void {
+    if (this.speech.speaking() === id) this.speech.stop();
+    else this.speech.speak(id, text);
   }
 
   onInput(e: Event): void {
@@ -123,6 +132,7 @@ export class PatientAssistant {
 
   newConversation(): void {
     if (this.sending()) return;
+    this.speech.stop();
     this.assistant.reset();
     this.input()?.nativeElement.focus();
   }
@@ -138,6 +148,7 @@ export class PatientAssistant {
 
   async startRecording(): Promise<void> {
     if (!this.canRecord || this.recording() || this.sending()) return;
+    this.speech.stop(); // on n'enregistre pas l'assistant en train de parler
     try {
       this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch (err) {
@@ -171,6 +182,8 @@ export class PatientAssistant {
 
   /** `send` = false : « Annuler », rien n'est envoyé. */
   stopRecording(send: boolean): void {
+    // Appui sur « Envoyer » : débloque la voix (iOS) pour lire la réponse quand elle arrivera.
+    if (send && this.recording()) this.speech.unlock();
     if (this.timer) { clearInterval(this.timer); this.timer = null; }
     this.stopMeter();
     this.recording.set(false);
@@ -222,19 +235,25 @@ export class PatientAssistant {
   private sendVoice(blob: Blob, ext: string, seconds: number): void {
     if (blob.size === 0) { this.platform.notify('L\'enregistrement est vide. Pouvez-vous réessayer ?', 'alert'); return; }
     this.assistant.push({ from: 'me', text: '', voice: true, seconds: Math.max(1, seconds) });
-    this.run(this.assistant.askByVoice(blob, ext, this.geo.position()), null);
+    this.run(this.assistant.askByVoice(blob, ext, this.geo.position()), null, true);
   }
 
   /* ---------- Envoi commun ---------- */
 
-  /** `question` = texte à renvoyer en cas d'échec (null pour la voix : il faut réenregistrer). */
-  private run(call: Observable<ApiAiReply>, question: string | null): void {
+  /**
+   * `question` = texte à renvoyer en cas d'échec (null pour la voix : il faut réenregistrer).
+   * `speak` = question posée à la voix : la réponse est lue à voix haute dès qu'elle arrive.
+   */
+  private run(call: Observable<ApiAiReply>, question: string | null, speak = false): void {
     this.sending.set(true);
     call.subscribe({
       next: r => {
         this.sending.set(false);
         this.assistant.sessionId.set(r.session_id);
-        this.assistant.push({ from: 'bot', text: clean(r.reply), ...(r.urgence ? { kind: 'urgent' as const } : {}) });
+        const text = clean(r.reply);
+        this.assistant.push({ from: 'bot', text, ...(r.urgence ? { kind: 'urgent' as const } : {}) });
+        const id = this.messages().at(-1)?.id;
+        if (speak && id !== undefined) this.speech.speak(id, text);
       },
       error: (err: unknown) => {
         this.sending.set(false);
