@@ -1178,15 +1178,26 @@ export class PharmaDash {
   /** Réponses aux alertes groupées en cours d'envoi : boutons de la ligne désactivés. */
   readonly respondingGrouped = signal<ReadonlySet<number>>(new Set());
 
-  respondGrouped(a: ApiGroupedAlert, available: boolean): void {
-    const qty = available ? this.ownQty(a) : undefined;
-    // Le patient se déplacerait pour rien : on ne répond « disponible » qu'avec du stock réel.
-    if (available && !qty) { this.platform.notify(`Votre stock de ${a.medicine} est à 0 — répondez « Je n'ai pas »`, 'alert'); return; }
+  /** Alerte groupée dont on confirme « J'ai en stock » alors que le stock enregistré est à 0. */
+  readonly confirmingGrouped = signal<number | null>(null);
+
+  /**
+   * « J'ai en stock » reste possible même sans stock saisi dans XamSaMed (c'est le but de la
+   * recherche groupée) : à 0 u. on demande d'abord confirmation, puis on répond « oui » sans quantité.
+   */
+  respondGrouped(a: ApiGroupedAlert, available: boolean, confirmed = false): void {
+    const own = this.ownQty(a);
+    if (available && own === 0 && !confirmed) { this.confirmingGrouped.set(a.response_id); return; }
     if (this.respondingGrouped().has(a.response_id)) return;
+    const qty = available && own > 0 ? own : undefined;
     this.respondingGrouped.update(set => new Set(set).add(a.response_id));
     const done = () => this.respondingGrouped.update(set => { const next = new Set(set); next.delete(a.response_id); return next; });
     this.pharmacy.respondGroupedAlert(a.response_id, available, qty).pipe(finalize(done)).subscribe({
-      next: () => { this.platform.notify(available ? 'Disponibilité transmise au patient' : 'Indisponibilité enregistrée', available ? 'ok' : 'info'); this.refresh('grouped'); },
+      next: () => {
+        if (this.confirmingGrouped() === a.response_id) this.confirmingGrouped.set(null);
+        this.platform.notify(available ? 'Disponibilité transmise au patient' : 'Indisponibilité enregistrée', available ? 'ok' : 'info');
+        this.refresh('grouped');
+      },
       error: () => this.platform.notify('Échec de la réponse', 'alert'),
     });
   }
