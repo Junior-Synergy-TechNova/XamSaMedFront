@@ -1,0 +1,25 @@
+@reference "../../../styles.css";
+:host { @apply contents; }
+
+/* Un bloc unique = un seul choix. L'indicateur (fond bleu) glisse d'une option à l'autre ;
+   le texte passe au blanc en même temps. Transform + width : animé sur le GPU, sans à-coup. */
+.pf-seg { @apply relative isolate inline-flex p-[3px] gap-[2px] bg-white border border-gray-line rounded-[10px]; }
+.pf-seg-ind { @apply absolute left-0 top-[3px] bottom-[3px] -z-10 rounded-[7px] bg-blue opacity-0 pointer-events-none; will-change: transform, width; }
+.has-ind .pf-seg-ind { @apply opacity-100; }
+.pf-seg-ind.slide { transition: transform .34s cubic-bezier(.22,1,.36,1), width .34s cubic-bezier(.22,1,.36,1); }
+
+.pf-seg-btn { @apply relative h-9 px-3.5 rounded-[7px] text-[14px] font-semibold text-gray-text whitespace-nowrap transition-[color,background-color] duration-200; }
+.pf-seg-btn:hover:not(.on) { @apply bg-gray-bg text-black; }
+.pf-seg-btn.on { @apply text-white; }
+.pf-seg-btn:active:not(.on) { @apply scale-[.97]; transition: transform .1s; }
+/* Avant la mesure (ou sans JS de mise en page, ex. tests) : le bouton actif porte lui-même le fond */
+.pf-seg:not(.has-ind) .pf-seg-btn.on { @apply bg-blue; }
+.pf-seg-btn:focus-visible { @apply outline-2 outline-offset-1 outline-blue; }
+
+@media (max-width: 640px) {
+  /* Pleine largeur, options réparties à parts égales (texte centré) ; si elles ne tiennent pas,
+     la ligne défile (geste natif) au lieu de couper un libellé. */
+  .pf-seg { @apply flex w-full overflow-x-auto; scrollbar-width: none; }
+  .pf-seg::-webkit-scrollbar { @apply hidden; }
+  .pf-seg-btn { @apply flex-1 shrink-0 basis-auto h-10 px-3 text-center; }
+}

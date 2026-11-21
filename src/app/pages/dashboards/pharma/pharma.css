@@ -91,10 +91,8 @@ tr:has(> td .pf-more[open]) { @apply relative z-30; }
 .pf-td-empty .btn { @apply ml-2; }
 @media (max-width: 640px) {
   .pf-stocksearch { @apply max-w-none; }
-  /* États du stock sur une seule ligne qui défile (geste natif), au lieu de deux lignes de boutons */
-  .pf-statusfilters { @apply flex-nowrap overflow-x-auto -mx-4 px-4 pb-1; scrollbar-width: none; }
-  .pf-statusfilters::-webkit-scrollbar { @apply hidden; }
-  .pf-statusfilters .btn { @apply flex-none; }
+  /* Même gabarit que les sélecteurs au-dessus : pleine largeur, centré */
+  .pf-morefilters > summary { @apply flex w-full justify-center; }
 }
 
 /* Traiter une ordonnance : l'original à gauche, la saisie à droite (empilés sur téléphone) */

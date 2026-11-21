@@ -1,0 +1,16 @@
+@if (filters().length) {
+  <div class="pf-af" animate.leave="pf-af-out" role="group" aria-label="Filtres appliqués">
+    <div class="pf-af-in">
+      <span class="pf-af-lbl"><nv-icon name="filter" [size]="14"/> {{ filters().length > 1 ? 'Filtres cumulés' : 'Filtre appliqué' }} :</span>
+      @for (f of filters(); track f.key; let first = $first) {
+        <span class="pf-af-item" animate.leave="pf-af-item-out">
+          @if (!first) { <span class="pf-af-and">et</span> }
+          <button type="button" class="pf-af-chip" [attr.aria-label]="'Retirer le filtre ' + f.label" (click)="remove.emit(f.key)">{{ f.label }} <nv-icon name="x" [size]="13"/></button>
+        </span>
+      }
+      @if (filters().length > 1) {
+        <button type="button" class="pf-af-clear" animate.leave="pf-af-item-out" (click)="clear.emit()">Tout effacer</button>
+      }
+    </div>
+  </div>
+}

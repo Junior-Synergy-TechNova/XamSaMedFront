@@ -153,15 +153,25 @@
       @case ('stock') {
         <div>
           <pf-page-head title="Stock & sorties" sub="Pharmacie interne : chaque sortie vers un service est tracée."/>
-          <div class="pf-filters">
-            <button class="btn btn-sm" [class.btn-primary]="stockFilter() === 'all'" [class.btn-outline]="stockFilter() !== 'all'" [attr.aria-pressed]="stockFilter() === 'all'" (click)="stockFilter.set('all')">Tous</button>
-            <button class="btn btn-sm" [class.btn-primary]="stockFilter() === 'rupture'" [class.btn-outline]="stockFilter() !== 'rupture'" [attr.aria-pressed]="stockFilter() === 'rupture'" (click)="stockFilter.set('rupture')">Ruptures</button>
-            <button class="btn btn-sm" [class.btn-primary]="stockFilter() === 'tension'" [class.btn-outline]="stockFilter() !== 'tension'" [attr.aria-pressed]="stockFilter() === 'tension'" (click)="stockFilter.set('tension')">Tensions</button>
-            <button class="btn btn-sm" [class.btn-primary]="stockFilter() === 'controlled'" [class.btn-outline]="stockFilter() !== 'controlled'" [attr.aria-pressed]="stockFilter() === 'controlled'" (click)="stockFilter.set('controlled')"><nv-icon name="shield" [size]="14"/> Contrôlés</button>
-            <span class="pf-filter-sep"></span>
-            <button class="btn btn-sm" [class.btn-primary]="expiryFilter() === 'soon'" [class.btn-outline]="expiryFilter() !== 'soon'" [attr.aria-pressed]="expiryFilter() === 'soon'" (click)="expiryFilter.set(expiryFilter() === 'soon' ? 'all' : 'soon')"><nv-icon name="clock" [size]="14"/> Péremption &lt; 3 mois</button>
-            <button class="btn btn-sm" [class.btn-primary]="expiryFilter() === 'expired'" [class.btn-outline]="expiryFilter() !== 'expired'" [attr.aria-pressed]="expiryFilter() === 'expired'" (click)="expiryFilter.set(expiryFilter() === 'expired' ? 'all' : 'expired')">Périmés</button>
+          <!-- Chaque groupe = un seul choix ; les groupes se cumulent (rappelé par la ligne « Filtres cumulés ») -->
+          <div class="pf-stockfilters">
+            <div class="pf-fgroup">
+              <span class="pf-flabel" id="pf-hf-level">Niveau</span>
+              <pf-seg [options]="levelOptions" [(value)]="stockFilter" labelledBy="pf-hf-level"/>
+            </div>
+            <div class="pf-fgroup">
+              <span class="pf-flabel" id="pf-hf-expiry">Péremption</span>
+              <pf-seg [options]="expiryOptions" [(value)]="expiryFilter" labelledBy="pf-hf-expiry"/>
+            </div>
+            <div class="pf-fgroup">
+              <span class="pf-flabel" id="pf-hf-ctrl">Réglementation</span>
+              <label class="pf-fcheck" [class.on]="controlledOnly()">
+                <input type="checkbox" class="pf-check" [checked]="controlledOnly()" (change)="controlledOnly.set($any($event.target).checked)"/>
+                <nv-icon name="shield" [size]="15"/> Contrôlés uniquement
+              </label>
+            </div>
           </div>
+          <pf-active-filters [filters]="activeStockFilters()" (remove)="removeStockFilter($event)" (clear)="resetStockFilters()"/>
           <pf-card>
             <table class="pf-table">
               <thead><tr><th>Médicament</th><th>Disponible</th><th>Seuils</th><th>Niveau</th><th>Péremption</th><th></th></tr></thead>
@@ -196,7 +206,7 @@
                     </td>
                   </tr>
                 }
-                @if (filteredStock().length === 0) { <tr><td colspan="6" class="muted pf-td-empty">Aucune ligne de stock pour ce filtre.</td></tr> }
+                @if (filteredStock().length === 0) { <tr><td colspan="6" class="muted pf-td-empty">Aucune ligne de stock pour ces filtres. @if (activeStockFilters().length) { <button type="button" class="btn btn-ghost btn-sm" (click)="resetStockFilters()">Réinitialiser les filtres</button> }</td></tr> }
               </tbody>
             </table>
           </pf-card>

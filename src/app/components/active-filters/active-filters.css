@@ -1,0 +1,25 @@
+@reference "../../../styles.css";
+:host { @apply contents; }
+
+/* Le bandeau s'ouvre en hauteur (grid 0fr → 1fr : pas de saut de la liste en dessous) et se referme pareil.
+   Les puces entrent / sortent une par une ; la liste qui suit glisse en douceur. */
+.pf-af { @apply grid mb-3; grid-template-rows: 1fr; animation: pf-af-open .3s cubic-bezier(.22,1,.36,1) backwards; }
+.pf-af.pf-af-out { animation: pf-af-close .22s ease-in both; }
+.pf-af-in { @apply min-h-0 overflow-hidden flex flex-wrap items-center gap-2 px-3.5 py-2.5 bg-blue-soft rounded-[10px] text-[13.5px] text-blue; }
+@keyframes pf-af-open { from { grid-template-rows: 0fr; opacity: 0; margin-bottom: 0; } }
+@keyframes pf-af-close { to { grid-template-rows: 0fr; opacity: 0; margin-bottom: 0; } }
+
+.pf-af-lbl { @apply inline-flex items-center gap-1.5 font-semibold; }
+.pf-af-item { @apply inline-flex items-center gap-2; animation: pf-af-item-in .26s cubic-bezier(.22,1,.36,1) backwards; }
+.pf-af-item.pf-af-item-out, .pf-af-clear.pf-af-item-out { animation: pf-af-item-out .16s ease-in both; }
+@keyframes pf-af-item-in { from { opacity: 0; transform: scale(.85); } }
+@keyframes pf-af-item-out { to { opacity: 0; transform: scale(.85); } }
+
+.pf-af-chip { @apply inline-flex items-center gap-1.5 h-7 pl-2.5 pr-2 bg-white border border-blue/25 rounded-full font-semibold text-blue transition-[border-color,background-color] duration-150; }
+.pf-af-chip:hover { @apply border-blue bg-blue-soft-2; }
+.pf-af-and { @apply text-gray-text; }
+.pf-af-clear { @apply ml-auto font-semibold underline underline-offset-2 text-blue; animation: pf-af-item-in .26s cubic-bezier(.22,1,.36,1) backwards; }
+
+@media (max-width: 640px) {
+  .pf-af-clear { @apply ml-0; }
+}

@@ -11,6 +11,8 @@ import { MapMedicine, MapRequest, NetworkMap } from '../../../components/network
 import { PartnersPanel, PartnerTypeOption } from '../../../components/partners-panel/partners-panel';
 import { IncomingDeliveries } from '../../../components/incoming-deliveries/incoming-deliveries';
 import { ExpiryTag } from '../../../components/expiry-tag/expiry-tag';
+import { SegControl, SegOption } from '../../../components/seg-control/seg-control';
+import { ActiveFilters, ActiveFilter } from '../../../components/active-filters/active-filters';
 import { PlatformState } from '../../../services/platform/platform';
 import { HospitalService } from '../../../services/hospital/hospital';
 import { SHARED_READ_MS } from '../../../services/shared-read/shared-read';
@@ -54,7 +56,7 @@ const ALL_RESOURCES: HospitalResource[] = ['alerts', 'crit', 'history', 'dashboa
 @Component({
   selector: 'app-hopital-dash',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DatePipe, ModalA11y, FieldLabel, TableLabels, Icon, Card, PageHead, Stat, Tag, PartnersPanel, NetworkMap, IncomingDeliveries, ExpiryTag],
+  imports: [DatePipe, ModalA11y, FieldLabel, TableLabels, Icon, Card, PageHead, Stat, Tag, PartnersPanel, NetworkMap, IncomingDeliveries, ExpiryTag, SegControl, ActiveFilters],
   templateUrl: './hopital.html',
   styleUrl: './hopital.css',
 })
@@ -127,15 +129,44 @@ export class HopitalDash {
 
   // Stock de la pharmacie interne + sorties vers service / unité
   readonly hStock = signal<ApiHospitalStockRow[]>([]);
-  readonly stockFilter = signal<'all' | 'tension' | 'rupture' | 'controlled'>('all');
-  /** Filtre péremption, cumulable avec le filtre de niveau (même logique que l'espace pharmacie). */
+  // Filtres du stock : niveau, péremption et « contrôlés » se cumulent (même présentation que l'espace pharmacie).
+  readonly stockFilter = signal<'all' | 'tension' | 'rupture'>('all');
   readonly expiryFilter = signal<'all' | 'soon' | 'expired'>('all');
+  readonly controlledOnly = signal(false);
+  readonly levelOptions: readonly SegOption<'all' | 'tension' | 'rupture'>[] = [
+    { id: 'all', label: 'Tous' }, { id: 'rupture', label: 'Ruptures' }, { id: 'tension', label: 'Tensions' },
+  ];
+  readonly expiryOptions: readonly SegOption<'all' | 'soon' | 'expired'>[] = [
+    { id: 'all', label: 'Toutes' }, { id: 'soon', label: '< 3 mois' }, { id: 'expired', label: 'Périmés' },
+  ];
   readonly filteredStock = computed(() => {
     const f = this.stockFilter();
     const e = this.expiryFilter();
-    return this.hStock().filter(s => (f === 'all' || (f === 'controlled' ? s.is_controlled : lineLevel(s) === f))
+    const ctrl = this.controlledOnly();
+    return this.hStock().filter(s => (f === 'all' || lineLevel(s) === f)
+      && (!ctrl || s.is_controlled)
       && (e === 'all' || (e === 'expired' ? s.expiry_level === 'expired' : isExpiring(s))));
   });
+  /** Filtres appliqués, en clair : la combinaison explique un tableau court ou vide. */
+  readonly activeStockFilters = computed(() => {
+    const out: ActiveFilter[] = [];
+    const f = this.stockFilter();
+    if (f !== 'all') out.push({ key: 'level', label: f === 'rupture' ? 'Ruptures' : 'Tensions' });
+    const e = this.expiryFilter();
+    if (e !== 'all') out.push({ key: 'expiry', label: e === 'soon' ? 'Péremption < 3 mois' : 'Périmés' });
+    if (this.controlledOnly()) out.push({ key: 'controlled', label: 'Contrôlés' });
+    return out;
+  });
+  removeStockFilter(key: string): void {
+    if (key === 'level') this.stockFilter.set('all');
+    else if (key === 'expiry') this.expiryFilter.set('all');
+    else this.controlledOnly.set(false);
+  }
+  resetStockFilters(): void {
+    this.stockFilter.set('all');
+    this.expiryFilter.set('all');
+    this.controlledOnly.set(false);
+  }
   /** Répartition des lignes de stock : rupture / tension / normal. */
   readonly stockLevels = computed(() => {
     const levels = { rupture: 0, tension: 0, normal: 0 };
@@ -321,7 +352,7 @@ export class HopitalDash {
 
   /** Ouvre le stock filtré sur les lots périmés (bandeau du tableau de bord). */
   showExpired(): void {
-    this.stockFilter.set('all');
+    this.resetStockFilters();
     this.expiryFilter.set('expired');
     this.section.set('stock');
   }

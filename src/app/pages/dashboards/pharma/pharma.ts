@@ -12,6 +12,8 @@ import { Tag } from '../../../components/tag/tag';
 import { PartnersPanel, PartnerTypeOption } from '../../../components/partners-panel/partners-panel';
 import { IncomingDeliveries } from '../../../components/incoming-deliveries/incoming-deliveries';
 import { ExpiryTag } from '../../../components/expiry-tag/expiry-tag';
+import { SegControl, SegOption } from '../../../components/seg-control/seg-control';
+import { ActiveFilters, ActiveFilter } from '../../../components/active-filters/active-filters';
 import { PlatformState, saveBlob } from '../../../services/platform/platform';
 import { PharmacyService, SHARED_READ_MS } from '../../../services/pharmacy/pharmacy';
 import { MedicineService } from '../../../services/medicines/medicines';
@@ -101,7 +103,7 @@ const MOVEMENT_TONE: Record<string, string> = {
 @Component({
   selector: 'app-pharma-dash',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ModalA11y, FieldLabel, TableLabels, Icon, Card, PageHead, Stat, Bar, Tag, PharmaDemandes, PharmaThermal, SimpleProfile, PartnersPanel, NetworkMap, IncomingDeliveries, ExpiryTag, DatePipe, DecimalPipe, NgTemplateOutlet],
+  imports: [ModalA11y, FieldLabel, TableLabels, Icon, Card, PageHead, Stat, Bar, Tag, PharmaDemandes, PharmaThermal, SimpleProfile, PartnersPanel, NetworkMap, IncomingDeliveries, ExpiryTag, SegControl, ActiveFilters, DatePipe, DecimalPipe, NgTemplateOutlet],
   templateUrl: './pharma.html',
   styleUrl: './pharma.css',
   host: {
@@ -182,6 +184,32 @@ export class PharmaDash {
   });
   /** Téléphone : les filtres secondaires se replient sous « Autres filtres ». */
   readonly isPhone = signal(typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches);
+
+  readonly statusOptions: readonly SegOption<StatusFilter>[] = [
+    { id: 'all', label: 'Tous' }, { id: 'ok', label: 'En stock' }, { id: 'low', label: 'Stock faible' }, { id: 'out', label: 'Rupture' },
+  ];
+  readonly expiryOptions: readonly SegOption<ExpiryFilter>[] = [
+    { id: 'all', label: 'Toutes' }, { id: 'soon', label: '< 3 mois' }, { id: 'expired', label: 'Périmés' },
+  ];
+  /** Filtres appliqués, affichés en clair (« Rupture et Contrôlés ») : la combinaison explique un résultat court. */
+  readonly activeStockFilters = computed(() => {
+    const out: ActiveFilter[] = [];
+    const q = this.stockQuery().trim();
+    if (q) out.push({ key: 'query', label: `« ${q} »` });
+    const status = this.statusFilter();
+    if (status !== 'all') out.push({ key: 'status', label: this.statusOptions.find(o => o.id === status)?.label ?? status });
+    const expiry = this.expiryFilter();
+    if (expiry !== 'all') out.push({ key: 'expiry', label: expiry === 'soon' ? 'Péremption < 3 mois' : 'Périmés' });
+    if (this.controlledOnly()) out.push({ key: 'controlled', label: 'Contrôlés' });
+    return out;
+  });
+
+  removeStockFilter(key: string): void {
+    if (key === 'query') this.stockQuery.set('');
+    else if (key === 'status') this.statusFilter.set('all');
+    else if (key === 'expiry') this.expiryFilter.set('all');
+    else this.controlledOnly.set(false);
+  }
 
   resetStockFilters(): void {
     this.stockQuery.set('');

@@ -1,0 +1,8 @@
+<div #track class="pf-seg" [class.has-ind]="ind() !== null" role="radiogroup" [attr.aria-labelledby]="labelledBy()">
+  <span class="pf-seg-ind" [class.slide]="animated()" [style.width.px]="ind()?.w" [style.transform]="'translateX(' + (ind()?.x ?? 0) + 'px)'" aria-hidden="true"></span>
+  @for (o of options(); track o.id; let i = $index) {
+    <button #btn type="button" role="radio" class="pf-seg-btn" [class.on]="value() === o.id"
+            [attr.aria-checked]="value() === o.id" [attr.tabindex]="value() === o.id ? 0 : -1"
+            (click)="pick(o.id)" (keydown)="onKey($event, i)">{{ o.label }}</button>
+  }
+</div>

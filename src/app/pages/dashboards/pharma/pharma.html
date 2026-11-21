@@ -95,27 +95,37 @@
                    [value]="stockQuery()" (input)="stockQuery.set($any($event.target).value)"/>
             @if (stockQuery()) { <button type="button" class="pf-stocksearch-clear" aria-label="Effacer la recherche" (click)="stockQuery.set('')"><nv-icon name="x" [size]="16"/></button> }
           </div>
-          <div class="pf-filters pf-statusfilters" role="group" aria-label="Filtrer par état du stock">
-            <button class="btn btn-sm" [class.btn-primary]="statusFilter() === 'all'" [class.btn-outline]="statusFilter() !== 'all'" [attr.aria-pressed]="statusFilter() === 'all'" (click)="statusFilter.set('all')">Tous</button>
-            <button class="btn btn-sm" [class.btn-primary]="statusFilter() === 'ok'" [class.btn-outline]="statusFilter() !== 'ok'" [attr.aria-pressed]="statusFilter() === 'ok'" (click)="statusFilter.set('ok')">En stock</button>
-            <button class="btn btn-sm" [class.btn-primary]="statusFilter() === 'low'" [class.btn-outline]="statusFilter() !== 'low'" [attr.aria-pressed]="statusFilter() === 'low'" (click)="statusFilter.set('low')">Stock faible</button>
-            <button class="btn btn-sm" [class.btn-primary]="statusFilter() === 'out'" [class.btn-outline]="statusFilter() !== 'out'" [attr.aria-pressed]="statusFilter() === 'out'" (click)="statusFilter.set('out')">Rupture</button>
+          <!-- Filtres : chaque groupe = un seul choix (sélecteur segmenté), les groupes se cumulent entre eux -->
+          <div class="pf-stockfilters">
+            <div class="pf-fgroup pf-fgroup-status">
+              <span class="pf-flabel" id="pf-f-status">État du stock</span>
+              <pf-seg [options]="statusOptions" [(value)]="statusFilter" labelledBy="pf-f-status"/>
+            </div>
             @if (!isPhone()) {
-              <span class="pf-filter-sep"></span>
               <ng-container *ngTemplateOutlet="secondaryStockFilters"/>
             }
           </div>
           @if (isPhone()) {
             <details class="pf-morefilters">
               <summary class="btn btn-outline btn-sm">Autres filtres{{ secondaryFilters() ? ' (' + secondaryFilters() + ')' : '' }} <nv-icon name="chevD" [size]="14"/></summary>
-              <div class="pf-filters" role="group" aria-label="Autres filtres"><ng-container *ngTemplateOutlet="secondaryStockFilters"/></div>
+              <div class="pf-stockfilters"><ng-container *ngTemplateOutlet="secondaryStockFilters"/></div>
             </details>
           }
           <ng-template #secondaryStockFilters>
-            <button class="btn btn-sm" [class.btn-primary]="controlledOnly()" [class.btn-outline]="!controlledOnly()" [attr.aria-pressed]="controlledOnly()" (click)="controlledOnly.set(!controlledOnly())"><nv-icon name="shield" [size]="14"/> Contrôlés</button>
-            <button class="btn btn-sm" [class.btn-primary]="expiryFilter() === 'soon'" [class.btn-outline]="expiryFilter() !== 'soon'" [attr.aria-pressed]="expiryFilter() === 'soon'" (click)="expiryFilter.set(expiryFilter() === 'soon' ? 'all' : 'soon')"><nv-icon name="clock" [size]="14"/> Péremption &lt; 3 mois</button>
-            <button class="btn btn-sm" [class.btn-primary]="expiryFilter() === 'expired'" [class.btn-outline]="expiryFilter() !== 'expired'" [attr.aria-pressed]="expiryFilter() === 'expired'" (click)="expiryFilter.set(expiryFilter() === 'expired' ? 'all' : 'expired')">Périmés</button>
+            <div class="pf-fgroup">
+              <span class="pf-flabel" id="pf-f-expiry">Péremption</span>
+              <pf-seg [options]="expiryOptions" [(value)]="expiryFilter" labelledBy="pf-f-expiry"/>
+            </div>
+            <div class="pf-fgroup">
+              <span class="pf-flabel" id="pf-f-ctrl">Réglementation</span>
+              <label class="pf-fcheck" [class.on]="controlledOnly()">
+                <input type="checkbox" class="pf-check" [checked]="controlledOnly()" (change)="controlledOnly.set($any($event.target).checked)"/>
+                <nv-icon name="shield" [size]="15"/> Contrôlés uniquement
+              </label>
+            </div>
           </ng-template>
+          <!-- Ce qui est appliqué, en clair : la combinaison explique un résultat court ou vide -->
+          <pf-active-filters [filters]="activeStockFilters()" (remove)="removeStockFilter($event)" (clear)="resetStockFilters()"/>
           <p class="pf-resultcount" role="status">{{ resultCountLabel() }}</p>
           <pf-card>
             <table class="pf-table">

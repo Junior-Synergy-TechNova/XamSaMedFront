@@ -471,6 +471,21 @@ button.pf-li:hover, label.pf-li:hover, a.pf-li:hover { @apply border-gray; }
 .pf-filters { @apply flex gap-2.5 mb-6 flex-wrap items-center; }
 .pf-filters .btn-primary { @apply bg-blue text-white; }
 .pf-filter-sep { @apply w-px h-6 bg-gray-line mx-2; }
+/* Filtres de stock (pharmacien, hôpital) : groupes titrés. Dans un groupe = un seul choix (pf-seg) ;
+   les groupes se cumulent, ce que dit la ligne pf-active-filters dessous. */
+.pf-stockfilters { @apply flex flex-wrap items-end gap-x-7 gap-y-4 mb-5; }
+.pf-fgroup { @apply flex flex-col gap-1.5 min-w-0; }
+.pf-flabel { @apply text-[12.5px] font-semibold text-gray-text; }
+.pf-fcheck { @apply inline-flex items-center gap-2 h-[44px] px-3.5 bg-white border border-gray-line rounded-[10px] text-[14px] font-semibold text-gray-text cursor-pointer select-none transition-[color,background-color,border-color] duration-200; }
+.pf-fcheck:hover { @apply text-black; }
+.pf-fcheck .pf-check { @apply accent-blue; }
+.pf-fcheck.on { @apply border-blue bg-blue-soft text-blue; }
+.pf-fcheck.on nv-icon { animation: pf-fcheck-pop .3s cubic-bezier(.34,1.56,.64,1); }
+@keyframes pf-fcheck-pop { 50% { transform: scale(1.25); } }
+@media (max-width: 640px) {
+  .pf-stockfilters { @apply flex-col items-stretch; }
+  .pf-fcheck { @apply w-full justify-center; }
+}
 .pf-filters input, .pf-filters select { @apply h-9 px-3.5 border border-gray-line rounded-[8px] text-[14px] bg-white; }
 
 /* Mini-histogramme — hauteur de barre = donnée */
@@ -566,7 +581,9 @@ button.pf-li:hover, label.pf-li:hover, a.pf-li:hover { @apply border-gray; }
   .pf-table td[data-label=""] { @apply flex flex-wrap justify-start gap-2 text-left pt-3.5; }
   .pf-table .pf-td-wrap, .pf-table .pf-td-bar, .pf-table .pf-td-bar.lg { @apply min-w-0 max-w-none; }
   .pf-table .pf-td-bar .pf-bar { @apply ml-auto w-[55%] mt-2; }
-  .pf-table .pf-td-empty { @apply text-center; }
+  /* État vide (« Aucune ligne… » + « Réinitialiser ») : centré, le bouton sous le texte */
+  .pf-table td.pf-td-empty { @apply flex flex-col items-center gap-2 text-center py-8; }
+  .pf-table td.pf-td-empty .btn { @apply ml-0; }
 
   /* Modales → feuilles du bas, bord à bord, avec poignée (comme une app) ; le pied respecte la barre d'accueil de l'iPhone */
   .pf-modal-overlay { @apply p-0 items-end; }
