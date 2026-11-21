@@ -291,6 +291,14 @@ export class AppShell {
       this.select(target);
     }
   }
+  /** Croix du champ : vide la recherche, le champ garde le focus (la croix native de Chrome est masquée). */
+  clearGlobalSearch(input: HTMLInputElement): void {
+    this.globalQuery.set('');
+    this.globalResults.set([]);
+    this.searchLoading.set(false);
+    this.searchInput$.next('');
+    input.focus();
+  }
   searchGlobal(event: Event): void {
     const query = (event.target as HTMLInputElement).value;
     this.globalQuery.set(query);

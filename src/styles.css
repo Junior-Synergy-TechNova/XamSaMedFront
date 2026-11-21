@@ -90,6 +90,8 @@
   h1, h2, h3, h4, h5 { @apply font-title text-blue leading-[1.2] tracking-[-.005em] font-semibold; }
   a { @apply text-green no-underline; }
   button { @apply cursor-pointer border-0 bg-transparent; font-family: inherit; }
+  /* Une seule croix par champ de recherche : la nôtre (bouton « Effacer la recherche »), jamais celle de Chrome / Safari */
+  input[type="search"]::-webkit-search-cancel-button { @apply appearance-none; }
   img { @apply max-w-full block; }
   ::selection { @apply bg-green text-white; }
   ::placeholder { @apply text-gray-text opacity-80; }
@@ -489,8 +491,6 @@ button.pf-li:hover, label.pf-li:hover, a.pf-li:hover { @apply border-gray; }
 /* Recherche dans le stock (pharmacien, hôpital) : même gabarit que les champs (48 px), pleine largeur sur téléphone */
 .pf-stocksearch { @apply relative flex items-center gap-2.5 max-w-[460px] h-12 px-4 mb-4 bg-white border border-gray-line rounded-[10px] transition-[border-color,box-shadow] duration-150 focus-within:border-green focus-within:shadow-focus; }
 .pf-stocksearch input { @apply flex-1 min-w-0 h-full border-0 bg-transparent outline-none text-[15px] text-black; }
-/* Une seule croix : la nôtre (.pf-stocksearch-clear), pas celle de Chrome pour type=search */
-.pf-stocksearch input::-webkit-search-cancel-button { @apply appearance-none; }
 .pf-stocksearch-clear { @apply -mr-2 w-9 h-9 grid place-items-center rounded-[8px] text-gray-text transition-colors duration-150; }
 .pf-stocksearch-clear:hover { @apply bg-gray-bg text-black; }
 /* Téléphone : filtres secondaires repliés sous « Autres filtres (n) » */

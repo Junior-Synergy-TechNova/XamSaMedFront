@@ -55,6 +55,7 @@
 .pf-top { @apply sticky top-0 z-30 bg-white border-b border-gray-line flex items-center gap-5 px-12 h-[72px]; }
 .pf-topsearch { @apply relative flex items-center gap-2.5 bg-gray-bg border border-gray-line rounded-[10px] px-4 h-11 flex-1 max-w-[420px] focus-within:bg-white focus-within:border-green; }
 .pf-topsearch input { @apply border-0 bg-transparent outline-none font-body text-[15px] w-full text-black; }
+.pf-topsearch-clear { @apply -mr-2 w-8 h-8 flex-none grid place-items-center rounded-[8px] text-gray-text transition-colors duration-150 hover:bg-gray-line/50 hover:text-black; }
 .pf-global-results { @apply absolute top-[calc(100%+6px)] left-0 right-0 z-20 bg-white border border-gray-line rounded-[8px] shadow-md overflow-hidden; }
 .pf-global-results button { @apply flex items-center gap-3 w-full px-3 py-2.5 text-left border-0 bg-white cursor-pointer; }
 .pf-global-results button:hover { @apply bg-gray-bg; }
