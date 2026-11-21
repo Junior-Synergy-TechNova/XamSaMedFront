@@ -5,6 +5,8 @@ Testé dans le navigateur contre le backend `develop` en local (Docker), sauf le
 
 **Mise à jour du 16 novembre 2026** (PR #11 et #12) : conservation thermique pharmacien branchée sur le backend, mots de passe retirés de l'interface, couleurs de l'historique et des cartes. Voir [Mise à jour du 16 novembre](#mise-à-jour-du-16-novembre).
 
+**Mise à jour du 21 novembre 2026** : filtres du stock (pharmacien et hôpital) regroupés, la combinaison des filtres est affichée en clair. Voir [Mise à jour du 21 novembre](#mise-à-jour-du-21-novembre).
+
 **En ligne depuis le 16 novembre 2026** : https://xamsamed-wheat.vercel.app (Vercel), branché sur l'API Railway. Voir [En ligne](#en-ligne).
 
 ## En bref
@@ -266,6 +268,30 @@ Fichiers : `pages/shell/`, `components/password-modal/`.
 - **« Se déconnecter »** est aussi en bas de la barre latérale, au-dessus de « Réduire ». Sur téléphone, il reste en bas du tiroir.
 - **Fenêtre « Changer le mot de passe »** : un seul composant, ouvert depuis le menu ou depuis la page profil. Les erreurs de l'API s'affichent dans la fenêtre.
 
+## Mise à jour du 21 novembre
+
+### Filtres du stock : la combinaison se voit (pharmacien et hôpital)
+
+Commit `dcf1249` sur `develop`, en ligne le 21 novembre. Fichiers : `components/seg-control/`, `components/active-filters/`, `pages/dashboards/pharma/`, `pages/dashboards/hopital/`, `styles.css`.
+
+- **Pourquoi** : en testant, Kine a cru que le site boguait. Les boutons « Rupture » et « Contrôlés » avaient le même aspect, mais les deux filtres s'appliquaient ensemble, et rien ne disait pourquoi la liste devenait courte ou vide.
+- **Groupes titrés** :
+  - « État du stock » (pharmacien) ou « Niveau » (hôpital), puis « Péremption » : un sélecteur d'un seul bloc, une seule option à la fois. Le fond bleu glisse vers l'option choisie. Les flèches du clavier changent aussi l'option.
+  - « Réglementation » : une vraie case à cocher, « Contrôlés uniquement ».
+- **Ligne « Filtres cumulés »** sous les filtres, dès qu'un filtre est actif (la recherche texte compte aussi). Par exemple : « Filtres cumulés : Rupture et Contrôlés · Tout effacer ».
+  - Chaque puce retire son filtre.
+  - Le compteur indique « N références sur M ».
+- **Hôpital** :
+  - « Contrôlés » s'ajoute maintenant au niveau. Avant, il le remplaçait, et on ne pouvait pas voir « Ruptures et Contrôlés ».
+  - Un tableau vide propose « Réinitialiser les filtres ».
+  - Le raccourci « lots périmés » du tableau de bord efface d'abord les autres filtres.
+- **Téléphone** :
+  - Les sélecteurs, la case et « Autres filtres » (pharmacien) prennent toute la largeur, centrés.
+  - Les options d'un sélecteur se partagent la largeur.
+  - Dans tous les tableaux, un résultat vide est centré, avec « Réinitialiser les filtres » en dessous.
+- **Vérifié** dans Chrome, sur ordinateur et à 390 px de large, avec `pharma@` et `hopital@`.
+- **Pas vérifié à l'œil** : le glissement du fond bleu. L'onglet piloté ne dessinait pas les images intermédiaires. La transition se déclenche et le fond finit à la bonne place.
+
 ## À vérifier à la main
 
 Non couvert par les tests automatiques ni par le test dans le navigateur :
@@ -313,6 +339,6 @@ Si l'API change d'adresse : modifier `API_URL` dans les réglages du projet Verc
 
 ## Tests
 
-`ng test` : 74 tests (Vitest) dans 19 fichiers au 18 novembre, dont le menu du compte (`shell.spec.ts`), dont `patient-assistant.spec.ts` (6 : envoi, urgence, réessai, dictée relue, repli sur `/ai/voice`, changement de compte) et `services/voice-alerts/voice-alerts.spec.ts` (4 : règles de repli de l'audio). Au 16 novembre : 61 tests dans 17 fichiers (dont le formulaire de vente, le prix exigé au catalogue et l'origine des distances dans les résultats patient). Les premiers de ce lot : `patient-cabinet.spec.ts`, `pharma-thermal.spec.ts`, `patient-floods.spec.ts`, `services/pharmacy/pharmacy.spec.ts` et `pages/dashboards/patient/patient.spec.ts` ; puis auth, guards, connexion, shell, tableaux de bord (distributeur, pharmacien, hôpital, santé publique), résultats patient et `shared-read`.
+`ng test` : 78 tests (Vitest) dans 19 fichiers au 21 novembre, tous verts après les nouveaux filtres du stock (les nouveaux composants `seg-control` et `active-filters` n'ont pas encore de spec). Au 18 novembre : 74 tests, dont le menu du compte (`shell.spec.ts`), dont `patient-assistant.spec.ts` (6 : envoi, urgence, réessai, dictée relue, repli sur `/ai/voice`, changement de compte) et `services/voice-alerts/voice-alerts.spec.ts` (4 : règles de repli de l'audio). Au 16 novembre : 61 tests dans 17 fichiers (dont le formulaire de vente, le prix exigé au catalogue et l'origine des distances dans les résultats patient). Les premiers de ce lot : `patient-cabinet.spec.ts`, `pharma-thermal.spec.ts`, `patient-floods.spec.ts`, `services/pharmacy/pharmacy.spec.ts` et `pages/dashboards/patient/patient.spec.ts` ; puis auth, guards, connexion, shell, tableaux de bord (distributeur, pharmacien, hôpital, santé publique), résultats patient et `shared-read`.
 
 Backend : `PharmacyThermalStatusTest` (6 tests) passe sur `develop` ; `SaleCatalogPriceTest` (2 tests, prix du catalogue imposé à la vente) passe sur la branche `feat/prix-catalogue-medicaments`.
