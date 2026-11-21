@@ -153,12 +153,30 @@
       @case ('stock') {
         <div>
           <pf-page-head title="Stock & sorties" sub="Pharmacie interne : chaque sortie vers un service est tracée."/>
+          <!-- Chercher un médicament demandé par un service passe avant les filtres -->
+          <div class="pf-stocksearch">
+            <nv-icon name="search" [size]="18" color="var(--color-gray-text)"/>
+            <input type="search" aria-label="Filtrer le stock par nom, forme ou dosage" placeholder="Filtrer : nom, forme, dosage…" autocomplete="off"
+                   [value]="stockQuery()" (input)="stockQuery.set($any($event.target).value)"/>
+            @if (stockQuery()) { <button type="button" class="pf-stocksearch-clear" aria-label="Effacer la recherche" (click)="stockQuery.set('')"><nv-icon name="x" [size]="16"/></button> }
+          </div>
           <!-- Chaque groupe = un seul choix ; les groupes se cumulent (rappelé par la ligne « Filtres cumulés ») -->
           <div class="pf-stockfilters">
             <div class="pf-fgroup">
               <span class="pf-flabel" id="pf-hf-level">Niveau</span>
               <pf-seg [options]="levelOptions" [(value)]="stockFilter" labelledBy="pf-hf-level"/>
             </div>
+            @if (!isPhone()) {
+              <ng-container *ngTemplateOutlet="secondaryStockFilters"/>
+            }
+          </div>
+          @if (isPhone()) {
+            <details class="pf-morefilters">
+              <summary class="btn btn-outline btn-sm">Autres filtres{{ secondaryFilters() ? ' (' + secondaryFilters() + ')' : '' }} <nv-icon name="chevD" [size]="14"/></summary>
+              <div class="pf-stockfilters"><ng-container *ngTemplateOutlet="secondaryStockFilters"/></div>
+            </details>
+          }
+          <ng-template #secondaryStockFilters>
             <div class="pf-fgroup">
               <span class="pf-flabel" id="pf-hf-expiry">Péremption</span>
               <pf-seg [options]="expiryOptions" [(value)]="expiryFilter" labelledBy="pf-hf-expiry"/>
@@ -170,8 +188,9 @@
                 <nv-icon name="shield" [size]="15"/> Contrôlés uniquement
               </label>
             </div>
-          </div>
+          </ng-template>
           <pf-active-filters [filters]="activeStockFilters()" (remove)="removeStockFilter($event)" (clear)="resetStockFilters()"/>
+          <p class="pf-resultcount" role="status">{{ resultCountLabel() }}</p>
           <pf-card>
             <table class="pf-table">
               <thead><tr><th>Médicament</th><th>Disponible</th><th>Seuils</th><th>Niveau</th><th>Péremption</th><th></th></tr></thead>
@@ -206,7 +225,12 @@
                     </td>
                   </tr>
                 }
-                @if (filteredStock().length === 0) { <tr><td colspan="6" class="muted pf-td-empty">Aucune ligne de stock pour ces filtres. @if (activeStockFilters().length) { <button type="button" class="btn btn-ghost btn-sm" (click)="resetStockFilters()">Réinitialiser les filtres</button> }</td></tr> }
+                @if (filteredStock().length === 0) {
+                  <tr><td colspan="6" class="muted pf-td-empty">
+                    @if (stockQuery().trim()) { Aucun médicament ne correspond à « {{ stockQuery().trim() }} ». } @else { Aucune ligne de stock pour ces filtres. }
+                    @if (anyStockFilter()) { <button type="button" class="btn btn-ghost btn-sm" (click)="resetStockFilters()">Réinitialiser les filtres</button> }
+                  </td></tr>
+                }
               </tbody>
             </table>
           </pf-card>

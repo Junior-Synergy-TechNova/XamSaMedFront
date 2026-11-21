@@ -12,10 +12,20 @@ registerLocaleData(localeFr);
 const api = environment.apiUrl;
 const DOWN = { status: 0, statusText: 'Unknown Error' };
 
+/** jsdom n'implémente pas matchMedia (HopitalDash le lit dès sa création : affichage téléphone). */
+function stubMatchMedia(phone: boolean): void {
+  window.matchMedia = ((query: string) => ({
+    matches: phone, media: query, onchange: null,
+    addEventListener: () => undefined, removeEventListener: () => undefined,
+    addListener: () => undefined, removeListener: () => undefined, dispatchEvent: () => false,
+  })) as typeof window.matchMedia;
+}
+
 describe('HopitalDash — erreurs de lecture', () => {
   let http: HttpTestingController;
 
   beforeEach(() => {
+    stubMatchMedia(false);
     TestBed.configureTestingModule({
       imports: [HopitalDash],
       providers: [provideZonelessChangeDetection(), provideHttpClient(), provideHttpClientTesting(), { provide: LOCALE_ID, useValue: 'fr' }],
@@ -82,5 +92,68 @@ describe('HopitalDash — erreurs de lecture', () => {
 
     fixture.destroy();
     expect(TestBed.inject(PlatformState).navCounts()).toBeNull();
+  });
+});
+
+describe('HopitalDash — recherche et filtres du stock', () => {
+  const STOCK = [
+    { id: 1, medicine_name: 'Paracétamol', form: 'comprimé', dosage: '500 mg', available: 120, threshold_qty: 20, alert_level: null, is_controlled: false, expiry_level: 'ok' },
+    { id: 2, medicine_name: 'Héparine', form: 'injectable', dosage: '5000 UI', available: 4, threshold_qty: 10, alert_level: 'tension', is_controlled: false, expiry_level: 'ok' },
+    { id: 3, medicine_name: 'Morphine', form: 'injectable', dosage: '10 mg', available: 0, threshold_qty: 5, alert_level: 'rupture', is_controlled: true, expiry_level: 'warn' },
+  ];
+
+  async function createStock(phone: boolean) {
+    stubMatchMedia(phone);
+    TestBed.configureTestingModule({
+      imports: [HopitalDash],
+      providers: [provideZonelessChangeDetection(), provideHttpClient(), provideHttpClientTesting(), { provide: LOCALE_ID, useValue: 'fr' }],
+    });
+    const fixture = TestBed.createComponent(HopitalDash);
+    fixture.componentRef.setInput('section', 'stock');
+    await fixture.whenStable();
+    // L'écran attend la lecture des alertes avant d'afficher une section.
+    const http = TestBed.inject(HttpTestingController);
+    http.expectOne(`${api}/hospital/alerts`).flush({ data: [] });
+    http.expectOne(`${api}/hospital/stock`).flush({ data: STOCK });
+    await fixture.whenStable();
+    return fixture;
+  }
+
+  it('les plus urgentes en premier, recherche sans accents, nombre de lignes', async () => {
+    const fixture = await createStock(false);
+    const dash = fixture.componentInstance;
+    expect(dash.filteredStock().map(s => s.id)).toEqual([3, 2, 1]);
+    expect(dash.resultCountLabel()).toBe('3 lignes · les plus urgentes en premier');
+
+    dash.stockQuery.set('heparine');
+    await fixture.whenStable();
+    expect(dash.filteredStock().map(s => s.id)).toEqual([2]);
+    expect(dash.resultCountLabel()).toBe('1 ligne sur 3 · les plus urgentes en premier');
+    expect(dash.activeStockFilters()[0]).toEqual({ key: 'query', label: '« heparine »' });
+
+    dash.stockQuery.set('zzz');
+    await fixture.whenStable();
+    expect(fixture.nativeElement.querySelector('.pf-td-empty').textContent).toContain('Aucun médicament ne correspond à « zzz »');
+    dash.resetStockFilters();
+    expect(dash.stockQuery()).toBe('');
+    expect(dash.filteredStock().length).toBe(3);
+  });
+
+  it('ordinateur : tous les groupes visibles ; téléphone : Péremption et Réglementation sous « Autres filtres (n) »', async () => {
+    const desktop = await createStock(false);
+    const d: HTMLElement = desktop.nativeElement;
+    expect(d.querySelector('.pf-morefilters')).toBeNull();
+    expect(d.querySelectorAll('.pf-stockfilters .pf-fgroup').length).toBe(3);
+    TestBed.resetTestingModule();
+
+    const phone = await createStock(true);
+    const p: HTMLElement = phone.nativeElement;
+    const more = p.querySelector('details.pf-morefilters');
+    expect(more).not.toBeNull();
+    expect(more?.querySelectorAll('.pf-fgroup').length).toBe(2);
+    expect(p.querySelector('#pf-hf-level')?.closest('details')).toBeNull();
+    phone.componentInstance.controlledOnly.set(true);
+    await phone.whenStable();
+    expect(more?.querySelector('summary')?.textContent).toContain('Autres filtres (1)');
   });
 });

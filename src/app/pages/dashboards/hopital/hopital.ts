@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, model, signal } from '@angular/core';
-import { DatePipe } from '@angular/common';
+import { DatePipe, NgTemplateOutlet } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Observable, finalize, map, switchMap, throwError } from 'rxjs';
 import { Icon } from '../../../components/icon/icon';
@@ -30,6 +30,9 @@ import {
 
 const EMPTY_SET: ReadonlySet<number> = new Set<number>();
 
+/** Recherche sans accents ni casse (« Amoxicilline » = « amoxicilline »). */
+const fold = (text: string): string => text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
 /**
  * Niveau tension / rupture d'une ligne de stock : celui recalculé par l'API
  * (rupture = disponible à zéro, tension = disponible ≤ seuil de tension), sinon le statut.
@@ -56,7 +59,7 @@ const ALL_RESOURCES: HospitalResource[] = ['alerts', 'crit', 'history', 'dashboa
 @Component({
   selector: 'app-hopital-dash',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DatePipe, ModalA11y, FieldLabel, TableLabels, Icon, Card, PageHead, Stat, Tag, PartnersPanel, NetworkMap, IncomingDeliveries, ExpiryTag, SegControl, ActiveFilters],
+  imports: [DatePipe, ModalA11y, FieldLabel, TableLabels, Icon, Card, PageHead, Stat, Tag, PartnersPanel, NetworkMap, IncomingDeliveries, ExpiryTag, SegControl, ActiveFilters, NgTemplateOutlet],
   templateUrl: './hopital.html',
   styleUrl: './hopital.css',
 })
@@ -139,17 +142,36 @@ export class HopitalDash {
   readonly expiryOptions: readonly SegOption<'all' | 'soon' | 'expired'>[] = [
     { id: 'all', label: 'Toutes' }, { id: 'soon', label: '< 3 mois' }, { id: 'expired', label: 'Périmés' },
   ];
+  /** Recherche d'un médicament : nom, forme ou dosage, sans tenir compte des accents ni de la casse. */
+  readonly stockQuery = signal('');
   readonly filteredStock = computed(() => {
     const f = this.stockFilter();
     const e = this.expiryFilter();
     const ctrl = this.controlledOnly();
-    return this.hStock().filter(s => (f === 'all' || lineLevel(s) === f)
+    const q = fold(this.stockQuery().trim());
+    const severity: Record<string, number> = { rupture: 0, tension: 1 };
+    return this.hStock().filter(s => (!q || fold(`${s.medicine_name ?? s.medicine ?? ''} ${s.form ?? ''} ${s.dosage ?? ''}`).includes(q))
+      && (f === 'all' || lineLevel(s) === f)
       && (!ctrl || s.is_controlled)
-      && (e === 'all' || (e === 'expired' ? s.expiry_level === 'expired' : isExpiring(s))));
+      && (e === 'all' || (e === 'expired' ? s.expiry_level === 'expired' : isExpiring(s))))
+      // Ruptures, puis tensions, puis le reste ; ordre alphabétique à niveau égal.
+      .sort((a, b) => (severity[lineLevel(a) ?? ''] ?? 2) - (severity[lineLevel(b) ?? ''] ?? 2)
+        || (a.medicine_name ?? a.medicine ?? '').localeCompare(b.medicine_name ?? b.medicine ?? '', 'fr'));
   });
+  /** Filtres secondaires actifs (repliés sur téléphone : le nombre s'affiche sur le bouton). */
+  readonly secondaryFilters = computed(() => (this.controlledOnly() ? 1 : 0) + (this.expiryFilter() !== 'all' ? 1 : 0));
+  readonly anyStockFilter = computed(() => !!this.stockQuery().trim() || this.stockFilter() !== 'all' || this.secondaryFilters() > 0);
+  readonly resultCountLabel = computed(() => {
+    const shown = this.plural(this.filteredStock().length, 'ligne', 'lignes');
+    return (this.anyStockFilter() ? `${shown} sur ${this.hStock().length}` : shown) + ' · les plus urgentes en premier';
+  });
+  /** Téléphone : « Péremption » et « Réglementation » se replient sous « Autres filtres ». */
+  readonly isPhone = signal(typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches);
   /** Filtres appliqués, en clair : la combinaison explique un tableau court ou vide. */
   readonly activeStockFilters = computed(() => {
     const out: ActiveFilter[] = [];
+    const q = this.stockQuery().trim();
+    if (q) out.push({ key: 'query', label: `« ${q} »` });
     const f = this.stockFilter();
     if (f !== 'all') out.push({ key: 'level', label: f === 'rupture' ? 'Ruptures' : 'Tensions' });
     const e = this.expiryFilter();
@@ -158,11 +180,13 @@ export class HopitalDash {
     return out;
   });
   removeStockFilter(key: string): void {
-    if (key === 'level') this.stockFilter.set('all');
+    if (key === 'query') this.stockQuery.set('');
+    else if (key === 'level') this.stockFilter.set('all');
     else if (key === 'expiry') this.expiryFilter.set('all');
     else this.controlledOnly.set(false);
   }
   resetStockFilters(): void {
+    this.stockQuery.set('');
     this.stockFilter.set('all');
     this.expiryFilter.set('all');
     this.controlledOnly.set(false);
@@ -236,6 +260,10 @@ export class HopitalDash {
   private firstLoad = true;
 
   constructor() {
+    const phoneQuery = window.matchMedia('(max-width: 640px)');
+    const onPhone = (e: MediaQueryListEvent) => this.isPhone.set(e.matches);
+    phoneQuery.addEventListener('change', onPhone);
+    inject(DestroyRef).onDestroy(() => phoneQuery.removeEventListener('change', onPhone));
     this.reload();
     this.firstLoad = false;
     // Les pastilles de la sidebar comptent ce que les pages affichent — jamais un autre chiffre.

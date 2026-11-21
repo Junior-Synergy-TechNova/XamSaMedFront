@@ -290,6 +290,7 @@ Commit `dcf1249` sur `develop`, en ligne le 21 novembre. Fichiers : `components/
   - Les options d'un sélecteur se partagent la largeur.
   - Dans tous les tableaux, un résultat vide est centré, avec « Réinitialiser les filtres » en dessous.
 - **Vérifié** dans Chrome, sur ordinateur et à 390 px de large, avec `pharma@` et `hopital@`.
+- **Hôpital aligné sur la pharmacie** (même jour) : champ de recherche (nom, forme, dosage, sans accents) avant les filtres, lignes triées ruptures → tensions → reste, ligne « N lignes sur M · les plus urgentes en premier » ; sur téléphone « Péremption » et « Réglementation » se replient sous « Autres filtres (n) ». Les styles communs (`.pf-stocksearch`, `.pf-morefilters`, `.pf-resultcount`) sont passés de `pharma.css` à `styles.css`.
 - **Pas vérifié à l'œil** : le glissement du fond bleu. L'onglet piloté ne dessinait pas les images intermédiaires. La transition se déclenche et le fond finit à la bonne place.
 
 ## À vérifier à la main

@@ -78,23 +78,6 @@ tr:has(> td .pf-more[open]) { @apply relative z-30; }
   .pf-moremenu, tr:nth-last-child(-n+2):not(:nth-child(-n+2)) .pf-moremenu { @apply left-0 right-0 w-auto top-[calc(100%-4px)] bottom-auto; }
 }
 
-/* Recherche dans le stock : même gabarit que les champs (48 px), pleine largeur sur téléphone */
-.pf-stocksearch { @apply relative flex items-center gap-2.5 max-w-[460px] h-12 px-4 mb-4 bg-white border border-gray-line rounded-[10px] transition-[border-color,box-shadow] duration-150 focus-within:border-green focus-within:shadow-focus; }
-.pf-stocksearch input { @apply flex-1 min-w-0 h-full border-0 bg-transparent outline-none text-[15px] text-black; }
-.pf-stocksearch-clear { @apply -mr-2 w-9 h-9 grid place-items-center rounded-[8px] text-gray-text transition-colors duration-150; }
-.pf-stocksearch-clear:hover { @apply bg-gray-bg text-black; }
-.pf-morefilters { @apply mb-5 -mt-2; }
-.pf-morefilters > summary { @apply list-none; }
-.pf-morefilters > summary::-webkit-details-marker { @apply hidden; }
-.pf-morefilters[open] > summary { @apply bg-gray-bg border-gray mb-3; }
-.pf-resultcount { @apply mb-3 text-[13.5px] text-gray-text; }
-.pf-td-empty .btn { @apply ml-2; }
-@media (max-width: 640px) {
-  .pf-stocksearch { @apply max-w-none; }
-  /* Même gabarit que les sélecteurs au-dessus : pleine largeur, centré */
-  .pf-morefilters > summary { @apply flex w-full justify-center; }
-}
-
 /* Traiter une ordonnance : l'original à gauche, la saisie à droite (empilés sur téléphone) */
 .pf-modal.pf-modal-wide { @apply max-w-[1040px]; }
 .pf-ordo-split { @apply grid grid-cols-1 gap-6; }
