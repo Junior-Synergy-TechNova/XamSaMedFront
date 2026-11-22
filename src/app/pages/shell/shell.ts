@@ -192,6 +192,23 @@ export class AppShell {
     const onScroll = () => { const s = window.scrollY > 56; if (s !== this.scrolled()) this.scrolled.set(s); };
     window.addEventListener('scroll', onScroll, { passive: true });
     this.destroyRef.onDestroy(() => window.removeEventListener('scroll', onScroll));
+    // Téléphone, recherche ouverte : sur iPhone le clavier recouvre la page sans réduire `100dvh`, et le défilement
+    // de la liste de résultats passait à la page (la barre et le champ sortaient de l'écran). On bloque la page et on
+    // borne la liste à la zone visible au-dessus du clavier (`--pf-vv-h` = hauteur de `visualViewport`).
+    effect(onCleanup => {
+      if (!this.searchOpen() || !this.phone()) return;
+      const root = document.documentElement;
+      const vv = window.visualViewport;
+      const sync = () => { if (vv) root.style.setProperty('--pf-vv-h', `${Math.round(vv.height)}px`); };
+      root.classList.add('pf-searchlock');
+      sync();
+      vv?.addEventListener('resize', sync);
+      onCleanup(() => {
+        vv?.removeEventListener('resize', sync);
+        root.classList.remove('pf-searchlock');
+        root.style.removeProperty('--pf-vv-h');
+      });
+    });
   }
 
   private shouldHintInstall(): boolean {

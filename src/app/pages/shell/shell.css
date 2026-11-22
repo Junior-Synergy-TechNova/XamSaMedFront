@@ -180,7 +180,15 @@
     top: calc(env(safe-area-inset-top) + 62px);
     max-height: calc(100dvh - env(safe-area-inset-top) - 62px - 84px - env(safe-area-inset-bottom));
   }
-  .pf-global-results { @apply overflow-y-auto; }
+  /* Le défilement reste dans la liste (sinon la page glisse sous la barre sur iPhone) ; clavier ouvert,
+     la liste s'arrête au-dessus du clavier (`--pf-vv-h`, posée par AppShell pendant la recherche). */
+  .pf-global-results {
+    @apply overflow-y-auto overscroll-contain;
+    max-height: min(
+      calc(100dvh - env(safe-area-inset-top) - 62px - 84px - env(safe-area-inset-bottom)),
+      calc(var(--pf-vv-h, 100dvh) - env(safe-area-inset-top) - 62px - 12px)
+    );
+  }
   .pf-global-results button { @apply min-h-14 px-4; }
   .pf-notifitem { @apply py-4; }
 

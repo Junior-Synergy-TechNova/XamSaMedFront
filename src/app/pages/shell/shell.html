@@ -55,7 +55,7 @@
               <nv-icon name="search" [size]="18" color="var(--color-gray-text)"/>
               <input #globalSearch type="search" aria-label="Rechercher un médicament ou une officine" placeholder="Rechercher…" [value]="globalQuery()" (focus)="focusGlobalSearch()" (input)="searchGlobal($event)" (blur)="closeGlobalSearch()"/>
               @if (globalQuery()) { <button type="button" class="pf-topsearch-clear" aria-label="Effacer la recherche" (mousedown)="$event.preventDefault()" (click)="clearGlobalSearch(globalSearch)"><nv-icon name="x" [size]="16"/></button> }
-              @if (searchFocused() && (searchLoading() || globalResults().length > 0 || globalQuery().trim().length >= 2)) {
+              @if ((searchFocused() || (phone() && searchOpen())) && (searchLoading() || globalResults().length > 0 || globalQuery().trim().length >= 2)) {
                 <div class="pf-global-results" (mousedown)="$event.preventDefault()">
                   @if (searchLoading()) { <div class="pf-global-state">Recherche en cours…</div> }
                   @for (result of globalResults(); track result.type + result.id) {

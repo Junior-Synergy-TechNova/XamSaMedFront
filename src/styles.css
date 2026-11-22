@@ -86,6 +86,8 @@
 /* ---------- Base ---------- */
 @layer base {
   html { @apply scroll-smooth; }
+  /* Téléphone, recherche globale ouverte (classe posée par AppShell) : la page ne défile plus sous les résultats */
+  html.pf-searchlock, html.pf-searchlock body { @apply overflow-hidden overscroll-none; }
   body { @apply font-body text-black bg-white antialiased leading-[1.6] text-[15px]; font-variant-numeric: tabular-nums; }
   h1, h2, h3, h4, h5 { @apply font-title text-blue leading-[1.2] tracking-[-.005em] font-semibold; }
   a { @apply text-green no-underline; }
